@@ -58,7 +58,7 @@ export function WorktreeNode({ worktree }: Props) {
         scale: isActive ? [1, 1.01, 1] : 1,
       }}
       transition={{ duration: 2, repeat: isActive ? Infinity : 0 }}
-      className={`w-52 rounded-xl border-2 ${STATUS_COLORS[status]} bg-dark-card overflow-hidden flex flex-col`}
+      className={`w-52 rounded-none border-2 ${STATUS_COLORS[status]} bg-dark-card overflow-hidden flex flex-col`}
     >
       {/* Header */}
       <div className="px-3 py-2 border-b border-dark-border">
@@ -135,7 +135,7 @@ export function WorktreeNode({ worktree }: Props) {
       </div>
 
       {/* Mini terminal log */}
-      <div className="retro-terminal m-2 mt-1 p-2 h-16 overflow-hidden rounded">
+      <div className="retro-terminal m-2 mt-1 p-2 h-16 overflow-hidden rounded-none">
         {logs.slice(-4).map((log, i) => (
           <div key={i} className="text-xs text-gray-400 truncate leading-tight py-0.5">
             <span className="text-gray-600">›</span> {log.replace(`[${currentStep}] `, "")}

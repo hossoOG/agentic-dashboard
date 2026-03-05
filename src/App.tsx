@@ -15,9 +15,8 @@ function App() {
 
     let unlisten: (() => void) | undefined;
 
-    listen<string>("pipeline-log", (event) => {
-      const line = event.payload;
-      const parsed = parseLogLine(line);
+    listen<{ line: string; stream: string }>("pipeline-log", (event) => {
+      const parsed = parseLogLine(event.payload.line, undefined);
       applyParsedEvents(parsed);
     }).then((fn) => {
       unlisten = fn;

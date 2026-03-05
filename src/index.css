@@ -82,3 +82,39 @@ body {
   90% { opacity: 1; }
   100% { offset-distance: 100%; opacity: 0; }
 }
+
+.perspective-container {
+  perspective: 2000px;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.isometric-board {
+  transform: rotateX(60deg) rotateZ(-45deg);
+  transform-style: preserve-3d;
+  width: 140vw;
+  height: 140vh;
+  position: relative;
+  background-image: 
+    linear-gradient(rgba(0, 212, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 212, 255, 0.1) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+.isometric-node {
+  transform: translateZ(40px);
+  transform-style: preserve-3d;
+  box-shadow: 
+    -20px 20px 30px rgba(0,0,0,0.8),
+    -2px 2px 0px rgba(0, 212, 255, 0.5);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.isometric-node:hover {
+  transform: translateZ(50px);
+}
