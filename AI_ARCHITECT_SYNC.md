@@ -3,6 +3,20 @@
 > **Purpose:** Precision reference for the strategic AI architect to review the current state of types, parsing logic, Rust bridge, and UI styling before providing Tailwind-class improvements and Regex enhancements.
 >
 > **Generated from:** `src/store/pipelineStore.ts`, `src/store/logParser.ts`, `src-tauri/src/lib.rs`, `src/index.css`, `tailwind.config.js`
+>
+> **Last updated:** 2026-03-05 — App successfully starts as Tauri desktop app
+
+---
+
+## 0. Build & Runtime Status
+
+| Item | Status |
+|---|---|
+| Tauri desktop app | ✅ Starts successfully |
+| Vite dev server port | `5173` (changed from 1420 to avoid conflicts) |
+| Rust toolchain | `rustc 1.94.0` required minimum (was 1.87, bumped for `time` crate) |
+| Icons | ✅ All generated via `tauri icon` from `src-tauri/icons/app-icon.png` |
+| `#[tauri::command]` macros | Moved into `mod commands {}` to fix E0255 duplicate-definition error with rustc 1.94 |
 
 ---
 
@@ -249,59 +263,42 @@ export function applyParsedEvents(events: ParsedEvent[]): void {
 
 ---
 
-## 3. Rust CLI Bridge — `start_pipeline`
+## 3. Rust CLI Bridge — `src-tauri/src/lib.rs`
 
-Key excerpt from `src-tauri/src/lib.rs`:
+> **Architecture note:** All `#[tauri::command]` functions are wrapped in `mod commands {}` to avoid the rustc 1.94 E0255 macro namespace collision. The `run()` function references them as `commands::start_pipeline` etc.
+
+### Module Structure
 
 ```rust
-/// Start the Claude pipeline in the given project directory.
-/// Spawns `claude m` and pipes `/orchestrate-issues` to its stdin.
-/// Each line of stdout/stderr is emitted as a `pipeline-log` Tauri event to the frontend.
-#[tauri::command]
-pub async fn start_pipeline(
-    app: AppHandle,
-    project_path: String,
-    state: tauri::State<'_, Arc<Mutex<PipelineState>>>,
-) -> Result<(), String> {
-    let path = std::path::Path::new(&project_path);
-    if !path.exists() {
-        return Err(format!("Project path does not exist: {}", project_path));
-    }
+// Top-level: shared types only
+pub struct LogEvent { pub line: String, pub stream: String, pub worktree_id: Option<String> }
+pub struct PipelineState { pub child_pid: Option<u32> }
 
-    let mut child = Command::new("claude")
-        .arg("m")
-        .current_dir(&project_path)
-        .stdin(Stdio::piped())   // we write "/orchestrate-issues\n" then drop stdin
-        .stdout(Stdio::piped())  // each line → "pipeline-log" Tauri event { line, stream: "stdout" }
-        .stderr(Stdio::piped())  // each line → "pipeline-log" Tauri event { line, stream: "stderr" }
-        .spawn()
-        .map_err(|e| format!("Failed to spawn claude: {}", e))?;
-
-    // Write the orchestrate command to stdin and close it
-    if let Some(mut stdin) = child.stdin.take() {
-        stdin
-            .write_all(b"/orchestrate-issues\n")
-            .map_err(|e| format!("Failed to write to claude stdin: {}", e))?;
-        // stdin dropped here → EOF sent to claude
-    }
-
-    // Spawn threads to stream stdout and stderr as Tauri events
-    // Event name: "pipeline-log"
-    // Payload:    LogEvent { line: String, stream: "stdout"|"stderr", worktree_id: Option<String> }
-    thread::spawn(move || {
-        let reader = BufReader::new(stdout);
-        for line in reader.lines().flatten() {
-            let _ = app_stdout.emit("pipeline-log", LogEvent {
-                line,
-                stream: "stdout".to_string(),
-                worktree_id: None,   // ← always None; worktree demux done in frontend parser
-            });
-        }
-    });
-    // (stderr thread identical, stream: "stderr")
-
-    Ok(())
+mod commands {
+    // All #[tauri::command] functions live here
+    pub async fn start_pipeline(...)  // spawns `claude m`, streams stdout/stderr as "pipeline-log" events
+    pub async fn stop_pipeline(...)   // taskkill /F on Windows, SIGTERM on Unix
+    pub async fn pick_project_folder(...) // native folder picker via tauri-plugin-dialog
 }
+
+pub fn run() {
+    tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![
+            commands::start_pipeline,
+            commands::stop_pipeline,
+            commands::pick_project_folder,
+        ])
+        ...
+}
+```
+
+### `start_pipeline` — Key behavior
+
+```rust
+// Spawns `claude m` in the given project_path directory
+// Writes "/orchestrate-issues\n" to stdin, then drops stdin (EOF)
+// Streams stdout/stderr line-by-line as Tauri "pipeline-log" events
+// PID stored in Arc<Mutex<PipelineState>> for stop_pipeline to kill
 ```
 
 ### Tauri Event Schema
