@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: #0a0e1a;
+  color: #e2e8f0;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  overflow: hidden;
+  user-select: none;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #111827;
+}
+::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 2px;
+}
+
+@keyframes dataflow {
+  0% { stroke-dashoffset: 200; opacity: 0.2; }
+  50% { opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0.2; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 5px currentColor, 0 0 10px currentColor; }
+  50% { box-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor; }
+}
+
+@keyframes scan-line {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+
+.grid-bg {
+  background-image: 
+    linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.neon-glow-green {
+  box-shadow: 0 0 8px #00ff88, 0 0 16px rgba(0, 255, 136, 0.3);
+}
+
+.neon-glow-blue {
+  box-shadow: 0 0 8px #00d4ff, 0 0 16px rgba(0, 212, 255, 0.3);
+}
+
+.neon-glow-red {
+  box-shadow: 0 0 8px #ff4444, 0 0 16px rgba(255, 68, 68, 0.3);
+}
+
+.neon-glow-orange {
+  box-shadow: 0 0 8px #ff6b00, 0 0 16px rgba(255, 107, 0, 0.3);
+}
+
+.retro-terminal {
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid #1f2937;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+
+.data-packet {
+  animation: movePacket 2s linear infinite;
+}
+
+@keyframes movePacket {
+  0% { offset-distance: 0%; opacity: 1; }
+  90% { opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
+}
