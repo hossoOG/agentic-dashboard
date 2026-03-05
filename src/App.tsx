@@ -1,17 +1,35 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { DashboardMap } from "./components/DashboardMap";
 import { Header } from "./components/Header";
-import { usePipelineStore } from "./store/pipelineStore";
+import { parseLogLine, applyParsedEvents } from "./store/logParser";
 
 function App() {
-  const { isRunning } = usePipelineStore();
+  // Guard against double-registration in React Strict Mode: the ref persists
+  // across the mount → unmount → remount cycle that Strict Mode triggers in dev.
+  const listenerActive = useRef(false);
 
   useEffect(() => {
-    // Auto-start mock on load for demo
-    if (!isRunning) {
-      // Uncomment to auto-start: startMockPipeline();
-    }
-  }, [isRunning]);
+    if (listenerActive.current) return;
+    listenerActive.current = true;
+
+    let unlisten: (() => void) | undefined;
+
+    listen<string>("pipeline-log", (event) => {
+      const line = event.payload;
+      const parsed = parseLogLine(line);
+      applyParsedEvents(parsed);
+    }).then((fn) => {
+      unlisten = fn;
+    }).catch((err) => {
+      console.error("[pipeline-log] Failed to register Tauri event listener:", err);
+    });
+
+    return () => {
+      unlisten?.();
+      listenerActive.current = false;
+    };
+  }, []);
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-dark-bg">

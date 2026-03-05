@@ -14,53 +14,61 @@ export interface ParsedEvent {
   payload: Record<string, string>;
 }
 
-// Regex patterns for the pipeline
+// Module-global state for demultiplexing worktree context from a linear log stream.
+// Tracks which worktree is "active" based on context-switch markers in the log output.
+let currentContextWorktreeId: string | undefined = undefined;
+
+// Regex patterns tuned to the exact output described in PIPELINE.md
 const PATTERNS = [
-  // Orchestrator patterns
+  // Orchestrator Phase
+  { regex: /MODE:\s*plan-only/i, event: { type: "orchestrator_status", payload: { status: "planning" } } },
   { regex: /SPAWN_MANIFEST/i, event: { type: "orchestrator_status", payload: { status: "generated_manifest" } } },
-  { regex: /scanning.*(issue|repo)/i, event: { type: "orchestrator_status", payload: { status: "planning" } } },
-  { regex: /orchestrat/i, event: { type: "orchestrator_status", payload: { status: "planning" } } },
 
-  // Worktree spawn
-  { regex: /spawning.*worktree.*?(wt-\d+|worktree-\d+)/i, extract: (m: RegExpMatchArray) => ({
+  // Worktree Spawning (detecting the subagent call)
+  { regex: /Agent\(subagent_type:"issue-implementer",\s*isolation:"worktree".*?prompt:\[BRIEFING\s*#?(\w+)\]/i, extract: (m: RegExpMatchArray) => ({
     type: "worktree_spawn",
-    payload: { id: m[1] || `wt-${Date.now()}`, branch: "unknown", issue: "unknown" }
-  })},
-  { regex: /git worktree add.*?([\w\/\-]+)/i, extract: (m: RegExpMatchArray) => ({
-    type: "worktree_spawn",
-    payload: { id: `wt-${Date.now()}`, branch: m[1] || "unknown", issue: "unknown" }
+    payload: { id: `wt-${m[1] || Date.now()}`, branch: `issue-${m[1]}`, issue: m[1] || "unknown" },
   })},
 
-  // Step detection (maps terminal output to WorktreeStep)
-  { regex: /plan.validat/i, step: "validate" as WorktreeStep },
-  { regex: /generating.*plan|plan.*generat/i, step: "plan" as WorktreeStep },
-  { regex: /implementing|writing.*code|code.*implement/i, step: "code" as WorktreeStep },
-  { regex: /self.review|review.*check/i, step: "review" as WorktreeStep },
-  { regex: /npx vitest run|running.*tests|vitest/i, step: "self_verify" as WorktreeStep },
-  { regex: /npx tsc|tsc.*noEmit|typecheck/i, step: "self_verify" as WorktreeStep },
-  { regex: /draft.*pr|creating.*pr|gh.*pr.*create/i, step: "draft_pr" as WorktreeStep },
-  { regex: /git worktree add|npm install|setup.*complete/i, step: "setup" as WorktreeStep },
+  // Steps Pipeline (matching exact bash tools or comments from PIPELINE.md)
+  { regex: /docs\/plans\/.*\.md/, step: "plan" as WorktreeStep },
+  { regex: /plan-validator.*VERIFY_RESULT:\s*APPROVED/, step: "validate" as WorktreeStep },
+  { regex: /code-reviewer/, step: "review" as WorktreeStep },
+  { regex: /npx vitest run|npm run typecheck|npm run lint/, step: "self_verify" as WorktreeStep },
+  { regex: /gh pr create --draft|DRAFT PR öffnen/, step: "draft_pr" as WorktreeStep },
 
-  // Status patterns
-  { regex: /blocked|error|failed|FAILED/i, status: "blocked" as WorktreeStatus },
-  { regex: /waiting.*input|needs.*approval/i, status: "waiting_for_input" as WorktreeStatus },
-  { regex: /complete|done|✓|SUCCESS/i, status: "done" as WorktreeStatus },
+  // QA Orchestrator & E2E (Pre-PR Gate)
+  { regex: /\[QA Orchestrator\] QA Report/, event: { type: "orchestrator_status", payload: { status: "idle" } } },
+  { regex: /Unit Tests.*?✅/, qa: "unitTests", qaStatus: "pass" },
+  { regex: /TypeCheck.*?✅/, qa: "typeCheck", qaStatus: "pass" },
+  { regex: /Lint.*?✅/, qa: "lint", qaStatus: "pass" },
+  { regex: /Build.*?✅/, qa: "build", qaStatus: "pass" },
+  { regex: /E2E.*?✅/, qa: "e2e", qaStatus: "pass" },
+  { regex: /QA_RESULT:\s*GREEN/, event: { type: "qa_check", payload: { check: "overallStatus", status: "pass" } } },
+  { regex: /QA_RESULT:\s*RED/, event: { type: "qa_check", payload: { check: "overallStatus", status: "fail" } } },
 
-  // QA patterns
-  { regex: /vitest.*pass|tests.*passed|✓.*tests/i, qa: "unitTests", qaStatus: "pass" },
-  { regex: /vitest.*fail|tests.*failed|✗.*tests/i, qa: "unitTests", qaStatus: "fail" },
-  { regex: /tsc.*ok|type.*check.*pass|no.*type.*error/i, qa: "typeCheck", qaStatus: "pass" },
-  { regex: /tsc.*error|type.*error/i, qa: "typeCheck", qaStatus: "fail" },
-  { regex: /eslint.*ok|lint.*pass|no.*lint.*error/i, qa: "lint", qaStatus: "pass" },
-  { regex: /eslint.*error|lint.*fail/i, qa: "lint", qaStatus: "fail" },
-  { regex: /build.*success|build.*complete/i, qa: "build", qaStatus: "pass" },
-  { regex: /build.*fail|build.*error/i, qa: "build", qaStatus: "fail" },
-  { regex: /e2e.*pass|playwright.*ok/i, qa: "e2e", qaStatus: "pass" },
-  { regex: /e2e.*fail|playwright.*fail/i, qa: "e2e", qaStatus: "fail" },
+  // Escalation / Errors
+  { regex: /⚠️.*ESCALATION/, status: "error" as WorktreeStatus },
 ];
 
 export function parseLogLine(line: string, worktreeId?: string): ParsedEvent[] {
   const events: ParsedEvent[] = [];
+
+  // Context-tracking: detect worktree context switches embedded in the log stream.
+  // "cd .claude/worktrees/wt-123" sets the active worktree from the path segment.
+  const worktreePathMatch = line.match(/cd\s+\.claude\/worktrees\/([\w-]+)/);
+  if (worktreePathMatch) {
+    currentContextWorktreeId = worktreePathMatch[1];
+  }
+
+  // "[Agent #1]" or "[Agent 1]" sets the active worktree via the agent index.
+  const agentIndexMatch = line.match(/\[Agent\s+#?(\d+)\]/);
+  if (agentIndexMatch) {
+    currentContextWorktreeId = `wt-${agentIndexMatch[1]}`;
+  }
+
+  // Explicit caller-supplied id takes precedence; fall back to context-tracked id.
+  const resolvedId = worktreeId ?? currentContextWorktreeId;
 
   for (const pattern of PATTERNS) {
     const match = line.match(pattern.regex);
@@ -73,12 +81,12 @@ export function parseLogLine(line: string, worktreeId?: string): ParsedEvent[] {
     } else if ("step" in pattern && pattern.step) {
       events.push({
         type: "worktree_step",
-        payload: { id: worktreeId || "unknown", step: pattern.step },
+        payload: { id: resolvedId || "unknown", step: pattern.step },
       });
     } else if ("status" in pattern && pattern.status) {
       events.push({
         type: "worktree_status",
-        payload: { id: worktreeId || "unknown", status: pattern.status },
+        payload: { id: resolvedId || "unknown", status: pattern.status },
       });
     } else if ("qa" in pattern && pattern.qa) {
       events.push({
@@ -118,10 +126,14 @@ export function applyParsedEvents(events: ParsedEvent[]): void {
         store.addWorktreeLog(event.payload.id, event.payload.log);
         break;
       case "qa_check": {
-        store.updateQACheck(
-          event.payload.check as "unitTests" | "typeCheck" | "lint" | "build" | "e2e",
-          event.payload.status as "pending" | "running" | "pass" | "fail"
-        );
+        if (event.payload.check === "overallStatus") {
+          store.setQAOverallStatus(event.payload.status as "idle" | "running" | "pass" | "fail");
+        } else {
+          store.updateQACheck(
+            event.payload.check as "unitTests" | "typeCheck" | "lint" | "build" | "e2e",
+            event.payload.status as "pending" | "running" | "pass" | "fail"
+          );
+        }
         break;
       }
       case "raw_log":
