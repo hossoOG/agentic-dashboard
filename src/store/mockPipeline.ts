@@ -105,9 +105,8 @@ export async function startMockPipeline(): Promise<void> {
   }
 
   const { qaGate } = usePipelineStore.getState();
-  const allPassed = Object.values(qaGate).every(
-    (v) => v === "pass" || v === "idle" || v === "running"
-  );
+  const { overallStatus: _overall, ...checkResults } = qaGate;
+  const allPassed = Object.values(checkResults).every((v) => v === "pass");
   store.setQAOverallStatus(allPassed ? "pass" : "fail");
   store.setIsRunning(false);
 }

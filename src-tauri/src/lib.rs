@@ -2,7 +2,7 @@ use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter};
 
 /// Payload sent to the frontend for each log line
 #[derive(Clone, serde::Serialize)]
@@ -61,7 +61,9 @@ pub async fn start_pipeline(
     // Write the orchestrate command to stdin
     if let Some(mut stdin) = child.stdin.take() {
         use std::io::Write;
-        let _ = stdin.write_all(b"/orchestrate-issues\n");
+        stdin
+            .write_all(b"/orchestrate-issues\n")
+            .map_err(|e| format!("Failed to write to claude stdin: {}", e))?;
         // stdin is dropped here, closing it
     }
 
@@ -129,15 +131,19 @@ pub async fn stop_pipeline(
     if let Some(pid) = pid {
         // Kill the process
         #[cfg(unix)]
-        unsafe {
-            libc::kill(pid as i32, libc::SIGTERM);
-        }
+        Command::new("kill")
+            .args(["-TERM", &pid.to_string()])
+            .spawn()
+            .map_err(|e| format!("Failed to send SIGTERM to pid {}: {}", pid, e))?
+            .wait()
+            .map_err(|e| format!("Failed to wait for kill command: {}", e))?;
         #[cfg(windows)]
-        {
-            let _ = Command::new("taskkill")
-                .args(["/PID", &pid.to_string(), "/F"])
-                .spawn();
-        }
+        Command::new("taskkill")
+            .args(["/PID", &pid.to_string(), "/F"])
+            .spawn()
+            .map_err(|e| format!("Failed to taskkill pid {}: {}", pid, e))?
+            .wait()
+            .map_err(|e| format!("Failed to wait for taskkill: {}", e))?;
     }
 
     let _ = app.emit("pipeline-stopped", ());

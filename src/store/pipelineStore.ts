@@ -104,7 +104,7 @@ export const usePipelineStore = create<PipelineState>((set) => ({
 
   addOrchestratorLog: (log) =>
     set((state) => ({
-      orchestratorLog: [...state.orchestratorLog.slice(-MAX_ORCHESTRATOR_LOGS), log],
+      orchestratorLog: [...state.orchestratorLog, log].slice(-MAX_ORCHESTRATOR_LOGS),
     })),
 
   spawnWorktree: (id, branch, issue) =>
@@ -146,7 +146,7 @@ export const usePipelineStore = create<PipelineState>((set) => ({
     set((state) => ({
       worktrees: state.worktrees.map((wt) =>
         wt.id === id
-          ? { ...wt, logs: [...wt.logs.slice(-MAX_WORKTREE_LOGS), log] }
+          ? { ...wt, logs: [...wt.logs, log].slice(-MAX_WORKTREE_LOGS) }
           : wt
       ),
     })),
@@ -165,7 +165,7 @@ export const usePipelineStore = create<PipelineState>((set) => ({
 
   addRawLog: (log) =>
     set((state) => ({
-      rawLogs: [...state.rawLogs.slice(-MAX_RAW_LOGS), log],
+      rawLogs: [...state.rawLogs, log].slice(-MAX_RAW_LOGS),
     })),
 
   reset: () =>
