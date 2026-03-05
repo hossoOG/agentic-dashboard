@@ -2,9 +2,9 @@
 
 > **Purpose:** Precision reference for the strategic AI architect to review the current state of types, parsing logic, Rust bridge, and UI styling before providing Tailwind-class improvements and Regex enhancements.
 >
-> **Generated from:** `src/store/pipelineStore.ts`, `src/store/logParser.ts`, `src-tauri/src/lib.rs`, `src/index.css`, `tailwind.config.js`
+> **Generated from:** `src/store/pipelineStore.ts`, `src/store/logParser.ts`, `src-tauri/src/lib.rs`, `src/index.css`, `tailwind.config.js`, `src/App.tsx`, `src/components/*`
 >
-> **Last updated:** 2026-03-05 — App successfully starts as Tauri desktop app
+> **Last updated:** 2026-03-05 — Tauri listener wired; isometric 3D board; parser context-tracking added
 
 ---
 
@@ -17,6 +17,8 @@
 | Rust toolchain | `rustc 1.94.0` required minimum (was 1.87, bumped for `time` crate) |
 | Icons | ✅ All generated via `tauri icon` from `src-tauri/icons/app-icon.png` |
 | `#[tauri::command]` macros | Moved into `mod commands {}` to fix E0255 duplicate-definition error with rustc 1.94 |
+| Tauri `pipeline-log` listener | ✅ Wired up in `App.tsx` with React Strict Mode guard (`listenerActive` ref) |
+| Mock pipeline | ✅ Still the default; `Header` START button calls `startMockPipeline()` |
 
 ---
 
@@ -134,53 +136,55 @@ export interface ParsedEvent {
   payload: Record<string, string>;
 }
 
-// Regex patterns for the pipeline
+// Module-global state for demultiplexing worktree context from a linear log stream.
+// Tracks which worktree is "active" based on context-switch markers in the log output.
+let currentContextWorktreeId: string | undefined = undefined;
+
+// Regex patterns tuned to the exact output described in PIPELINE.md
 const PATTERNS = [
-  // Orchestrator patterns
+  // Orchestrator Phase
+  { regex: /MODE:\s*plan-only/i, event: { type: "orchestrator_status", payload: { status: "planning" } } },
   { regex: /SPAWN_MANIFEST/i, event: { type: "orchestrator_status", payload: { status: "generated_manifest" } } },
-  { regex: /scanning.*(issue|repo)/i, event: { type: "orchestrator_status", payload: { status: "planning" } } },
-  { regex: /orchestrat/i, event: { type: "orchestrator_status", payload: { status: "planning" } } },
 
-  // Worktree spawn
-  { regex: /spawning.*worktree.*?(wt-\d+|worktree-\d+)/i, extract: (m: RegExpMatchArray) => ({
+  // Worktree Spawning (detecting the subagent call)
+  { regex: /Agent\(subagent_type:"issue-implementer",\s*isolation:"worktree".*?prompt:\[BRIEFING\s*#?(\w+)\]/i, extract: (m: RegExpMatchArray) => ({
     type: "worktree_spawn",
-    payload: { id: m[1] || `wt-${Date.now()}`, branch: "unknown", issue: "unknown" }
-  })},
-  { regex: /git worktree add.*?([\w\/\-]+)/i, extract: (m: RegExpMatchArray) => ({
-    type: "worktree_spawn",
-    payload: { id: `wt-${Date.now()}`, branch: m[1] || "unknown", issue: "unknown" }
+    payload: { id: `wt-${m[1] || Date.now()}`, branch: `issue-${m[1]}`, issue: m[1] || "unknown" },
   })},
 
-  // Step detection (maps terminal output to WorktreeStep)
-  { regex: /plan.validat/i, step: "validate" as WorktreeStep },
-  { regex: /generating.*plan|plan.*generat/i, step: "plan" as WorktreeStep },
-  { regex: /implementing|writing.*code|code.*implement/i, step: "code" as WorktreeStep },
-  { regex: /self.review|review.*check/i, step: "review" as WorktreeStep },
-  { regex: /npx vitest run|running.*tests|vitest/i, step: "self_verify" as WorktreeStep },
-  { regex: /npx tsc|tsc.*noEmit|typecheck/i, step: "self_verify" as WorktreeStep },
-  { regex: /draft.*pr|creating.*pr|gh.*pr.*create/i, step: "draft_pr" as WorktreeStep },
-  { regex: /git worktree add|npm install|setup.*complete/i, step: "setup" as WorktreeStep },
+  // Steps Pipeline (matching exact bash tools or comments from PIPELINE.md)
+  { regex: /docs\/plans\/.*\.md/, step: "plan" as WorktreeStep },
+  { regex: /VERIFY_RESULT:\s*APPROVED/, step: "validate" as WorktreeStep },
+  { regex: /code-reviewer/, step: "review" as WorktreeStep },
+  { regex: /npx vitest run|npm run typecheck|npm run lint/, step: "self_verify" as WorktreeStep },
+  { regex: /gh pr create --draft|DRAFT PR öffnen/, step: "draft_pr" as WorktreeStep },
 
-  // Status patterns
-  { regex: /blocked|error|failed|FAILED/i, status: "blocked" as WorktreeStatus },
-  { regex: /waiting.*input|needs.*approval/i, status: "waiting_for_input" as WorktreeStatus },
-  { regex: /complete|done|✓|SUCCESS/i, status: "done" as WorktreeStatus },
+  // QA Orchestrator & E2E (Pre-PR Gate)
+  { regex: /\[QA Orchestrator\] QA Report/, event: { type: "orchestrator_status", payload: { status: "idle" } } },
+  { regex: /Unit Tests.*?✅/, qa: "unitTests", qaStatus: "pass" },
+  { regex: /TypeCheck.*?✅/, qa: "typeCheck", qaStatus: "pass" },
+  { regex: /Lint.*?✅/, qa: "lint", qaStatus: "pass" },
+  { regex: /Build.*?✅/, qa: "build", qaStatus: "pass" },
+  { regex: /E2E.*?✅/, qa: "e2e", qaStatus: "pass" },
+  { regex: /QA_RESULT:\s*GREEN/, event: { type: "qa_check", payload: { check: "overallStatus", status: "pass" } } },
+  { regex: /QA_RESULT:\s*RED/, event: { type: "qa_check", payload: { check: "overallStatus", status: "fail" } } },
 
-  // QA patterns
-  { regex: /vitest.*pass|tests.*passed|✓.*tests/i, qa: "unitTests", qaStatus: "pass" },
-  { regex: /vitest.*fail|tests.*failed|✗.*tests/i, qa: "unitTests", qaStatus: "fail" },
-  { regex: /tsc.*ok|type.*check.*pass|no.*type.*error/i, qa: "typeCheck", qaStatus: "pass" },
-  { regex: /tsc.*error|type.*error/i, qa: "typeCheck", qaStatus: "fail" },
-  { regex: /eslint.*ok|lint.*pass|no.*lint.*error/i, qa: "lint", qaStatus: "pass" },
-  { regex: /eslint.*error|lint.*fail/i, qa: "lint", qaStatus: "fail" },
-  { regex: /build.*success|build.*complete/i, qa: "build", qaStatus: "pass" },
-  { regex: /build.*fail|build.*error/i, qa: "build", qaStatus: "fail" },
-  { regex: /e2e.*pass|playwright.*ok/i, qa: "e2e", qaStatus: "pass" },
-  { regex: /e2e.*fail|playwright.*fail/i, qa: "e2e", qaStatus: "fail" },
+  // Escalation / Errors
+  { regex: /⚠️.*ESCALATION/i, status: "error" as WorktreeStatus },
 ];
 
 export function parseLogLine(line: string, worktreeId?: string): ParsedEvent[] {
   const events: ParsedEvent[] = [];
+
+  // Context-tracking: detect worktree context switches embedded in the log stream.
+  // Matches both "worktrees/wt-123" path segments and "Agent ... wt-123" references.
+  const contextMatch = line.match(/worktrees\/(wt-\d+)|Agent.*?(wt-\d+)/i);
+  if (contextMatch && (contextMatch[1] || contextMatch[2])) {
+    currentContextWorktreeId = contextMatch[1] || contextMatch[2];
+  }
+
+  // Explicit caller-supplied id takes precedence; fall back to context-tracked id.
+  const activeId = worktreeId ?? currentContextWorktreeId;
 
   for (const pattern of PATTERNS) {
     const match = line.match(pattern.regex);
@@ -193,12 +197,12 @@ export function parseLogLine(line: string, worktreeId?: string): ParsedEvent[] {
     } else if ("step" in pattern && pattern.step) {
       events.push({
         type: "worktree_step",
-        payload: { id: worktreeId || "unknown", step: pattern.step },
+        payload: { id: activeId || "unknown", step: pattern.step },
       });
     } else if ("status" in pattern && pattern.status) {
       events.push({
         type: "worktree_status",
-        payload: { id: worktreeId || "unknown", status: pattern.status },
+        payload: { id: activeId || "unknown", status: pattern.status },
       });
     } else if ("qa" in pattern && pattern.qa) {
       events.push({
@@ -238,10 +242,15 @@ export function applyParsedEvents(events: ParsedEvent[]): void {
         store.addWorktreeLog(event.payload.id, event.payload.log);
         break;
       case "qa_check": {
-        store.updateQACheck(
-          event.payload.check as "unitTests" | "typeCheck" | "lint" | "build" | "e2e",
-          event.payload.status as "pending" | "running" | "pass" | "fail"
-        );
+        // "overallStatus" is routed to setQAOverallStatus; all other checks use updateQACheck
+        if (event.payload.check === "overallStatus") {
+          store.setQAOverallStatus(event.payload.status as "idle" | "running" | "pass" | "fail");
+        } else {
+          store.updateQACheck(
+            event.payload.check as "unitTests" | "typeCheck" | "lint" | "build" | "e2e",
+            event.payload.status as "pending" | "running" | "pass" | "fail"
+          );
+        }
         break;
       }
       case "raw_log":
@@ -254,12 +263,13 @@ export function applyParsedEvents(events: ParsedEvent[]): void {
 
 ### Parser Notes for the Architect
 
-| What to improve | Current gap |
+| Topic | Current state |
 |---|---|
-| Worktree ID extraction | Spawn patterns don't reliably extract the worktree ID from real Claude CLI output — the real format needs to be confirmed |
-| Step keywords | Based on guesses; need real Claude CLI output samples to refine |
-| `worktreeId` parameter | `parseLogLine(line, worktreeId?)` — the caller must know which worktree a log line belongs to; currently there is no per-worktree stdout segregation |
-| Conflicting patterns | `"failed"` → `blocked` and `"done"` → `done` can both fire on the same line; no priority ordering |
+| Context tracking | Module-global `currentContextWorktreeId` updated via `worktrees/(wt-\d+)` or `Agent.*wt-\d+` matches; caller-supplied `worktreeId` takes precedence |
+| Spawn pattern | Matches `Agent(subagent_type:"issue-implementer", isolation:"worktree" … prompt:[BRIEFING #<N>])` — needs real Claude CLI output validation |
+| Step keywords | Tuned to PIPELINE.md exact strings (`VERIFY_RESULT: APPROVED`, `gh pr create --draft`, etc.) |
+| QA overall status | `QA_RESULT: GREEN/RED` routes to `setQAOverallStatus`; individual checks route via emoji-badge patterns (`Unit Tests.*✅` etc.) |
+| `setup` step | No explicit regex — worktrees start with `currentStep: "setup"` from `spawnWorktree`; no log pattern needed unless we want to re-trigger it |
 
 ---
 
@@ -304,22 +314,27 @@ pub fn run() {
 ### Tauri Event Schema
 
 ```typescript
-// Frontend listener (not yet wired up — needs to be added to App.tsx or DashboardMap.tsx)
+// App.tsx — ACTIVE listener with React Strict Mode guard
 import { listen } from "@tauri-apps/api/event";
 
 interface LogEvent {
   line: string;
   stream: "stdout" | "stderr";
+  // worktree_id is always null today — Rust does not yet demux by worktree
   worktree_id: string | null;
 }
 
+// Registered once in useEffect with a listenerActive ref guard to prevent
+// double-registration under React Strict Mode's remount cycle.
 await listen<LogEvent>("pipeline-log", (event) => {
-  const parsed = parseLogLine(event.payload.line, event.payload.worktree_id ?? undefined);
+  const parsed = parseLogLine(event.payload.line, undefined);
   applyParsedEvents(parsed);
 });
 ```
 
-> **Note for Architect:** The frontend does **not** yet wire up this `listen` call. It only runs the mock pipeline today. This is the exact integration point that needs to be completed.
+> **Integration status:** The `listen` call is wired up and active. The app will process real `pipeline-log` events from the Rust backend as soon as `start_pipeline` is called with a valid project path. The `worktree_id` field from Rust is always `null` — context demultiplexing happens entirely in `parseLogLine` via the `currentContextWorktreeId` module-global.
+
+> **Mock vs real:** The Header START button currently calls `startMockPipeline()`. Real pipeline mode requires swapping that call to invoke the `start_pipeline` Tauri command with the project path from the store.
 
 ---
 
@@ -329,25 +344,76 @@ await listen<LogEvent>("pipeline-log", (event) => {
 
 | Token | Hex | Used for |
 |---|---|---|
-| `dark-bg` | `#0a0e1a` | Full-page background |
+| `dark-bg` | `#0a0e1a` | Full-page background, project path input bg |
 | `dark-card` | `#111827` | All node card backgrounds |
-| `dark-border` | `#1f2937` | Default card borders, dividers |
-| `neon-green` | `#00ff88` | Done state, QA pass, progress bars |
-| `neon-blue` | `#00d4ff` | Active state, Orchestrator planning, SVG data lines |
+| `dark-border` | `#1f2937` | Default card borders, dividers, scrollbar track |
+| `neon-green` | `#00ff88` | Done state, QA pass, progress bars, START button |
+| `neon-blue` | `#00d4ff` | Active state, Orchestrator planning, SVG data lines, Header title, grid lines |
 | `neon-orange` | `#ff6b00` | `waiting_for_input` state |
-| `neon-purple` | `#b300ff` | Defined but not yet applied to any component |
-| `text-red-400` / `border-red-500` | Tailwind built-in | Blocked / error / QA fail state |
+| `neon-purple` | `#b300ff` | Defined in config but not yet applied to any component |
+| `text-red-400` / `border-red-500` | Tailwind built-in | Blocked / error / QA fail state, STOP button |
+
+### Tailwind Animation Additions (in `tailwind.config.js`)
+
+| Class | Keyframe | Usage |
+|---|---|---|
+| `animate-pulse-slow` | `pulse 3s cubic-bezier(0.4,0,0.6,1) infinite` | Available but not yet applied |
+| `animate-flow` | `strokeDashoffset 100→0` | SVG connection line dash animation |
 
 ### Custom CSS Utilities (in `index.css`)
 
-- `.grid-bg` — 40×40 px grid of faint `rgba(0,212,255,0.03)` lines on the map canvas
-- `.neon-glow-green/blue/red/orange` — CSS `box-shadow` double-ring glow applied to active cards
-- `.retro-terminal` — `background: rgba(0,0,0,0.8)`, `border: 1px solid #1f2937`, monospace 11 px font for the mini log windows inside each node
-- `.data-packet` — `offset-path` CSS motion path animation (used by SVG moving dots on connection lines)
-- `@keyframes pulse-glow` — double-ring `box-shadow` throb (defined but not yet applied via a Tailwind `animate-*` class)
-- `@keyframes scan-line` — vertical sweep (triggered via Framer Motion in `DashboardMap`, not the CSS keyframe)
-- Font stack: `'JetBrains Mono', 'Fira Code', 'Consolas', monospace` — gives the retro-terminal feel without a web font CDN
+| Class | Description |
+|---|---|
+| `.grid-bg` | 40×40 px faint cyan grid — available but **not used on main canvas** anymore |
+| `.neon-glow-green/blue/red/orange` | CSS `box-shadow` double-ring glow on active/status cards |
+| `.retro-terminal` | `background: rgba(0,0,0,0.8)`, `border: 1px solid #1f2937`, monospace 11 px — used in Header and log panes |
+| `.data-packet` | `offset-distance` CSS motion path animation (SVG moving dots) |
+| `.perspective-container` | `perspective: 2000px` wrapper; `100vw × 100vh`; flex center — wraps the entire map canvas |
+| `.isometric-board` | `rotateX(60deg) rotateZ(-45deg)` 3D transform; `140vw × 140vh`; own 50×50 px grid at 0.1 opacity |
+| `.isometric-node` | `translateZ(40px)` lift per node; `box-shadow` with depth cue + neon-blue edge; hover lifts to `translateZ(50px)` |
 
-### Current Look Description
+### Keyframes defined in `index.css`
 
-The nodes are **rounded rectangles** (`rounded-xl`, `border-2`) rather than purely sharp eckig boxes — they have a soft border-radius but the overall aesthetic is already retro-tech through the neon border glow (`box-shadow` double-ring), the dark near-black backgrounds, and the monospace font in the terminal log panes. The map canvas has a faint cyan dot-grid. The connection lines are animated SVG bezier curves with moving `<circle>` data-packet dots driven by Framer Motion `offsetPath` animations. **The main area not yet styled in "Retro-Tech" style** is the Header bar, which is a plain dark card with no glow or scanline effects, and the QA Gate table rows, which use standard Tailwind badge classes rather than custom retro borders.
+| Name | Purpose |
+|---|---|
+| `dataflow` | `stroke-dashoffset` sweep on SVG connection paths |
+| `pulse-glow` | Double-ring `box-shadow` throb (defined; not yet wired to a Tailwind `animate-*` class) |
+| `scan-line` | Vertical `translateY` sweep (defined in CSS but **not used** — the ambient scan line in `DashboardMap` is driven by Framer Motion `animate={{ y }}`) |
+| `movePacket` | `offset-distance 0%→100%` for `.data-packet` SVG circles |
+
+### Layout Architecture (`DashboardMap.tsx`)
+
+```
+<div class="perspective-container bg-dark-bg">        ← viewport, perspective origin
+  <ConnectionLines … />                               ← SVG bezier layer, flat (outside isometric board)
+  <div class="isometric-board">                       ← 3D rotated grid canvas
+    <OrchestratorNode />   // absolute top-8 center, z-10 isometric-node
+    <WorktreeNode × N />   // absolute middle, flex-wrap, Framer Motion spring entry
+    <QAGateNode />         // absolute bottom-8 center, z-10 isometric-node
+    <motion.div />         // ambient scan-line, opacity-10, neon-blue gradient h-px
+  </div>
+</div>
+```
+
+### `App.tsx` Structure
+
+```
+useEffect()           → registers listen("pipeline-log") once (Strict Mode guard via listenerActive ref)
+return (
+  <div flex flex-col h-screen w-screen overflow-hidden bg-dark-bg>
+    <Header />          → fixed-height toolbar: title, path input, LIVE/IDLE badge, START/STOP button
+    <DashboardMap />    → flex-1, isometric 3D canvas
+  </div>
+)
+```
+
+### Node Aesthetic Summary
+
+| Node | Shape | Glow | Corners |
+|---|---|---|---|
+| `OrchestratorNode` | `w-80 border-2 rounded-none` | Status-driven neon glow class | Sharp (`rounded-none`) |
+| `WorktreeNode` | `border-2 rounded-none` | Status-driven neon glow | Sharp (`rounded-none`) |
+| `QAGateNode` | `w-96 border-2 rounded-none` | Status-driven neon glow | Sharp (`rounded-none`) |
+| Header | `border-b-2 retro-terminal` | None (no neon glow on header) | N/A (bar) |
+
+> **Remaining styling gaps:** `neon-purple` color is unused. The `pulse-glow` keyframe has no Tailwind `animate-*` binding. The `scan-line` CSS keyframe is superseded by the Framer Motion version. The `.grid-bg` class is defined but the grid is now provided by `.isometric-board`'s `background-image`.
