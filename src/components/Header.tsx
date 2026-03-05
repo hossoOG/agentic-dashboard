@@ -16,20 +16,20 @@ export function Header() {
   };
 
   return (
-    <header className="flex items-center justify-between px-6 py-3 border-b border-dark-border bg-dark-card">
+    <header className="flex items-center justify-between px-6 py-3 border-b-2 border-dark-border bg-dark-card retro-terminal">
       <div className="flex items-center gap-3">
         <Cpu className="w-6 h-6 text-neon-blue" />
         <span className="text-neon-blue font-bold text-lg tracking-wider">
           AGENTIC DASHBOARD
         </span>
-        <span className="text-xs text-gray-500 border border-gray-700 px-2 py-0.5 rounded">
+        <span className="text-xs text-gray-500 border border-gray-700 px-2 py-0.5 rounded-none">
           v0.1.0
         </span>
       </div>
 
       <div className="flex items-center gap-4">
         {/* Project path input */}
-        <div className="flex items-center gap-2 bg-dark-bg border border-dark-border rounded px-3 py-1.5">
+        <div className="flex items-center gap-2 bg-dark-bg border-2 border-dark-border rounded-none px-3 py-1.5">
           <FolderOpen className="w-4 h-4 text-gray-400" />
           <input
             type="text"
@@ -54,7 +54,7 @@ export function Header() {
         {/* Start/Stop button */}
         <button
           onClick={handleStart}
-          className={`flex items-center gap-2 px-4 py-2 rounded font-medium text-sm transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-none font-medium text-sm transition-all ${
             isRunning
               ? "bg-red-900/30 border border-red-700 text-red-400 hover:bg-red-900/50"
               : "bg-neon-green/10 border border-neon-green text-neon-green hover:bg-neon-green/20 neon-glow-green"

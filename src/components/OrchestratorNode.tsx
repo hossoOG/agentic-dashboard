@@ -37,7 +37,7 @@ export function OrchestratorNode() {
         scale: orchestratorStatus === "planning" ? [1, 1.02, 1] : 1,
       }}
       transition={{ duration: 2, repeat: orchestratorStatus === "planning" ? Infinity : 0 }}
-      className={`w-80 rounded-xl border-2 ${config.borderColor} bg-dark-card ${config.glowClass} overflow-hidden`}
+      className={`w-80 rounded-none border-2 ${config.borderColor} bg-dark-card ${config.glowClass} overflow-hidden`}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-dark-border">

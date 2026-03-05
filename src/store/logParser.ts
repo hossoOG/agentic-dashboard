@@ -32,7 +32,7 @@ const PATTERNS = [
 
   // Steps Pipeline (matching exact bash tools or comments from PIPELINE.md)
   { regex: /docs\/plans\/.*\.md/, step: "plan" as WorktreeStep },
-  { regex: /plan-validator.*VERIFY_RESULT:\s*APPROVED/, step: "validate" as WorktreeStep },
+  { regex: /VERIFY_RESULT:\s*APPROVED/, step: "validate" as WorktreeStep },
   { regex: /code-reviewer/, step: "review" as WorktreeStep },
   { regex: /npx vitest run|npm run typecheck|npm run lint/, step: "self_verify" as WorktreeStep },
   { regex: /gh pr create --draft|DRAFT PR öffnen/, step: "draft_pr" as WorktreeStep },
@@ -48,27 +48,21 @@ const PATTERNS = [
   { regex: /QA_RESULT:\s*RED/, event: { type: "qa_check", payload: { check: "overallStatus", status: "fail" } } },
 
   // Escalation / Errors
-  { regex: /⚠️.*ESCALATION/, status: "error" as WorktreeStatus },
+  { regex: /⚠️.*ESCALATION/i, status: "error" as WorktreeStatus },
 ];
 
 export function parseLogLine(line: string, worktreeId?: string): ParsedEvent[] {
   const events: ParsedEvent[] = [];
 
   // Context-tracking: detect worktree context switches embedded in the log stream.
-  // "cd .claude/worktrees/wt-123" sets the active worktree from the path segment.
-  const worktreePathMatch = line.match(/cd\s+\.claude\/worktrees\/([\w-]+)/);
-  if (worktreePathMatch) {
-    currentContextWorktreeId = worktreePathMatch[1];
-  }
-
-  // "[Agent #1]" or "[Agent 1]" sets the active worktree via the agent index.
-  const agentIndexMatch = line.match(/\[Agent\s+#?(\d+)\]/);
-  if (agentIndexMatch) {
-    currentContextWorktreeId = `wt-${agentIndexMatch[1]}`;
+  // Matches both "worktrees/wt-123" path segments and "Agent ... wt-123" references.
+  const contextMatch = line.match(/worktrees\/(wt-\d+)|Agent.*?(wt-\d+)/i);
+  if (contextMatch && (contextMatch[1] || contextMatch[2])) {
+    currentContextWorktreeId = contextMatch[1] || contextMatch[2];
   }
 
   // Explicit caller-supplied id takes precedence; fall back to context-tracked id.
-  const resolvedId = worktreeId ?? currentContextWorktreeId;
+  const activeId = worktreeId ?? currentContextWorktreeId;
 
   for (const pattern of PATTERNS) {
     const match = line.match(pattern.regex);
@@ -81,12 +75,12 @@ export function parseLogLine(line: string, worktreeId?: string): ParsedEvent[] {
     } else if ("step" in pattern && pattern.step) {
       events.push({
         type: "worktree_step",
-        payload: { id: resolvedId || "unknown", step: pattern.step },
+        payload: { id: activeId || "unknown", step: pattern.step },
       });
     } else if ("status" in pattern && pattern.status) {
       events.push({
         type: "worktree_status",
-        payload: { id: resolvedId || "unknown", status: pattern.status },
+        payload: { id: activeId || "unknown", status: pattern.status },
       });
     } else if ("qa" in pattern && pattern.qa) {
       events.push({

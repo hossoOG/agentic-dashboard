@@ -45,7 +45,7 @@ export function QAGateNode() {
         scale: overallStatus === "running" ? [1, 1.01, 1] : 1,
       }}
       transition={{ duration: 1.5, repeat: overallStatus === "running" ? Infinity : 0 }}
-      className={`rounded-xl border-2 bg-dark-card overflow-hidden w-96 ${overallColor}`}
+      className={`rounded-none border-2 bg-dark-card overflow-hidden w-96 retro-terminal ${overallColor}`}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-dark-border">
@@ -72,7 +72,7 @@ export function QAGateNode() {
                 </motion.div>
                 <span className="text-sm text-gray-300">{label}</span>
               </div>
-              <div className={`text-xs font-mono px-2 py-0.5 rounded border ${
+              <div className={`text-xs font-mono px-2 py-0.5 rounded-none border ${
                 status === "pass"
                   ? "border-neon-green text-neon-green bg-neon-green/10"
                   : status === "fail"
