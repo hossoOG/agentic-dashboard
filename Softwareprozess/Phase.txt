@@ -1,0 +1,20 @@
+
+1. Anforderungsanalyse: Anforderungen erfassen und dokumentieren
+	1.1 Personas definieren: Typische Nutzergruppen identifizieren und beschreiben
+    1.2 User Stories erstellen: Anforderungen aus Sicht verschiedener Personas formulieren
+2. Planung: Projektstruktur und Zeitplan erstellen
+3. Entwurf: Systemarchitektur und Design festlegen
+4. Implementierung: Programmierung der Software
+5. Test: Überprüfung und Fehlerbehebung
+6. Einführung: Software bereitstellen und einführen
+7. Wartung: Pflege und Weiterentwicklung der Software
+
+
+Personas H, Persona C
+H - Benötigt Dashboard für Pipeline visualisierung und analyse, ziel pipeline zu verbessern optimieren
+H - Will Native Win App mainly und wäre gut mac App
+H - Will Zeitsparen bei der verbesserung und improvement der AgentenPipeline
+H - Dashboard soll schnell sein und visuell gut aussehen
+H - Native App sollte integration und visualierung von Terminal ausführung in der App einzeigen könne
+H - Native App sollte verschiedene oAuth Token von anbieterspeicher können damit Terminals damit interagieren können
+
