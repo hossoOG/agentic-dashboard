@@ -18,3 +18,11 @@ H - Dashboard soll schnell sein und visuell gut aussehen
 H - Native App sollte integration und visualierung von Terminal ausführung in der App einzeigen könne
 H - Native App sollte verschiedene oAuth Token von anbieterspeicher können damit Terminals damit interagieren können
 
+C - Persona C will functionen von per chat überprüfen, oder Schnittstellen zu anderen anbietern anfragen und nutzten. (Kalendar App, Midjourney etc.)
+C - Persona C will Dashboard als Zentraller hub für verschiedene AI verbundene und arbeits verbundene arbeiten nutzten. 
+C - Persona C will Anfragen und Kosten überwachen von den einzelnen API keys die hinterlegt werden. 
+C - Projekte sollen angefragt werden können/Github projecte können fortschritt etc angezeigt werden. 
+C - Andere AI projecte sollen gestartet werden können vom Dashboard aus.
+
+Anforderung
+Es soll ein Konkretes Protokoll und information schema geben für den austausch zwischen den verschiedenen Services, (.json oder so ähnlich)
