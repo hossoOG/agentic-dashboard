@@ -2,6 +2,7 @@
 1. Anforderungsanalyse: Anforderungen erfassen und dokumentieren
 	1.1 Personas definieren: Typische Nutzergruppen identifizieren und beschreiben
     1.2 User Stories erstellen: Anforderungen aus Sicht verschiedener Personas formulieren
+	1.3 Machbarkeits analyse ob mit den vorhanden Tools diese Software erstellt werden kann.
 2. Planung: Projektstruktur und Zeitplan erstellen
 3. Entwurf: Systemarchitektur und Design festlegen
 4. Implementierung: Programmierung der Software
