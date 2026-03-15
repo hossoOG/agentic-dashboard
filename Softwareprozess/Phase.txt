@@ -18,6 +18,8 @@ H - Will Zeitsparen bei der verbesserung und improvement der AgentenPipeline
 H - Dashboard soll schnell sein und visuell gut aussehen
 H - Native App sollte integration und visualierung von Terminal ausführung in der App einzeigen könne
 H - Native App sollte verschiedene oAuth Token von anbieterspeicher können damit Terminals damit interagieren können
+H - Soll in der Lage sein powershells/bash instanzen auf dem Rechner zu starten um mit code input/output zu sehen/steuern können
+H - Wollen die Arbeit mit Agenten/Skills/ etc deterministischer machen um robuste und sichere Pipieline zu erstellen
 
 C - Persona C will functionen von per chat überprüfen, oder Schnittstellen zu anderen anbietern anfragen und nutzten. (Kalendar App, Midjourney etc.)
 C - Persona C will Dashboard als Zentraller hub für verschiedene AI verbundene und arbeits verbundene arbeiten nutzten. 
