@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { DashboardMap } from "./components/DashboardMap";
-import { Header } from "./components/Header";
+import { AppShell } from "./components/layout/AppShell";
 import { parseLogLine, applyParsedEvents } from "./store/logParser";
+import { logError } from "./utils/errorLogger";
+import { installGlobalErrorHandlers } from "./utils/globalErrorHandler";
 
 function App() {
   // Guard against double-registration in React Strict Mode: the ref persists
@@ -13,15 +14,27 @@ function App() {
     if (listenerActive.current) return;
     listenerActive.current = true;
 
+    // Install global error handlers once
+    installGlobalErrorHandlers();
+
     let unlisten: (() => void) | undefined;
 
     listen<{ line: string; stream: string }>("pipeline-log", (event) => {
-      const parsed = parseLogLine(event.payload.line, undefined);
-      applyParsedEvents(parsed);
+      try {
+        const line = event?.payload?.line;
+        if (typeof line !== "string") {
+          logError("App", `pipeline-log event has invalid payload: ${JSON.stringify(event?.payload)}`);
+          return;
+        }
+        const parsed = parseLogLine(line, undefined);
+        applyParsedEvents(parsed);
+      } catch (err) {
+        logError("App", err);
+      }
     }).then((fn) => {
       unlisten = fn;
     }).catch((err) => {
-      console.error("[pipeline-log] Failed to register Tauri event listener:", err);
+      logError("App", err);
     });
 
     return () => {
@@ -30,12 +43,7 @@ function App() {
     };
   }, []);
 
-  return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-dark-bg">
-      <Header />
-      <DashboardMap />
-    </div>
-  );
+  return <AppShell />;
 }
 
 export default App;

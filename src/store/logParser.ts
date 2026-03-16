@@ -52,87 +52,117 @@ const PATTERNS = [
 ];
 
 export function parseLogLine(line: string, worktreeId?: string): ParsedEvent[] {
-  const events: ParsedEvent[] = [];
-
-  // Context-tracking: detect worktree context switches embedded in the log stream.
-  // Matches both "worktrees/wt-123" path segments and "Agent ... wt-123" references.
-  const contextMatch = line.match(/worktrees\/(wt-\d+)|Agent.*?(wt-\d+)/i);
-  if (contextMatch && (contextMatch[1] || contextMatch[2])) {
-    currentContextWorktreeId = contextMatch[1] || contextMatch[2];
+  // Defensive: return empty array for null/undefined/non-string input
+  if (line == null || typeof line !== "string") {
+    console.error("[logParser] parseLogLine called with non-string input:", typeof line);
+    return [];
   }
 
-  // Explicit caller-supplied id takes precedence; fall back to context-tracked id.
-  const activeId = worktreeId ?? currentContextWorktreeId;
+  try {
+    const events: ParsedEvent[] = [];
 
-  for (const pattern of PATTERNS) {
-    const match = line.match(pattern.regex);
-    if (!match) continue;
-
-    if ("event" in pattern && pattern.event) {
-      events.push(pattern.event as ParsedEvent);
-    } else if ("extract" in pattern && pattern.extract) {
-      events.push(pattern.extract(match) as ParsedEvent);
-    } else if ("step" in pattern && pattern.step) {
-      events.push({
-        type: "worktree_step",
-        payload: { id: activeId || "unknown", step: pattern.step },
-      });
-    } else if ("status" in pattern && pattern.status) {
-      events.push({
-        type: "worktree_status",
-        payload: { id: activeId || "unknown", status: pattern.status },
-      });
-    } else if ("qa" in pattern && pattern.qa) {
-      events.push({
-        type: "qa_check",
-        payload: { check: pattern.qa as string, status: pattern.qaStatus as string },
-      });
+    // Context-tracking: detect worktree context switches embedded in the log stream.
+    // Matches both "worktrees/wt-123" path segments and "Agent ... wt-123" references.
+    const contextMatch = line.match(/worktrees\/(wt-\d+)|Agent.*?(wt-\d+)/i);
+    if (contextMatch && (contextMatch[1] || contextMatch[2])) {
+      currentContextWorktreeId = contextMatch[1] ?? contextMatch[2];
     }
+
+    // Explicit caller-supplied id takes precedence; fall back to context-tracked id.
+    const activeId = worktreeId ?? currentContextWorktreeId;
+
+    for (const pattern of PATTERNS) {
+      const match = line.match(pattern.regex);
+      if (!match) continue;
+
+      if ("event" in pattern && pattern.event) {
+        events.push(pattern.event as ParsedEvent);
+      } else if ("extract" in pattern && pattern.extract) {
+        const extracted = pattern.extract(match);
+        if (extracted) {
+          events.push(extracted as ParsedEvent);
+        }
+      } else if ("step" in pattern && pattern.step) {
+        events.push({
+          type: "worktree_step",
+          payload: { id: activeId ?? "unknown", step: pattern.step },
+        });
+      } else if ("status" in pattern && pattern.status) {
+        events.push({
+          type: "worktree_status",
+          payload: { id: activeId ?? "unknown", status: pattern.status },
+        });
+      } else if ("qa" in pattern && pattern.qa) {
+        events.push({
+          type: "qa_check",
+          payload: { check: (pattern.qa as string) ?? "unknown", status: (pattern.qaStatus as string) ?? "pending" },
+        });
+      }
+    }
+
+    // Always add raw log
+    events.push({ type: "raw_log", payload: { line } });
+
+    return events;
+  } catch (err) {
+    console.error("[logParser] parseLogLine threw unexpectedly:", err);
+    return [];
   }
-
-  // Always add raw log
-  events.push({ type: "raw_log", payload: { line } });
-
-  return events;
 }
 
 export function applyParsedEvents(events: ParsedEvent[]): void {
-  const store = usePipelineStore.getState();
+  if (!Array.isArray(events) || events.length === 0) return;
 
-  for (const event of events) {
-    switch (event.type) {
-      case "orchestrator_status":
-        store.setOrchestratorStatus(event.payload.status as Parameters<typeof store.setOrchestratorStatus>[0]);
-        break;
-      case "orchestrator_log":
-        store.addOrchestratorLog(event.payload.log);
-        break;
-      case "worktree_spawn":
-        store.spawnWorktree(event.payload.id, event.payload.branch, event.payload.issue);
-        break;
-      case "worktree_step":
-        store.updateWorktreeStep(event.payload.id, event.payload.step as WorktreeStep);
-        break;
-      case "worktree_status":
-        store.updateWorktreeStatus(event.payload.id, event.payload.status as WorktreeStatus);
-        break;
-      case "worktree_log":
-        store.addWorktreeLog(event.payload.id, event.payload.log);
-        break;
-      case "qa_check": {
-        if (event.payload.check === "overallStatus") {
-          store.setQAOverallStatus(event.payload.status as "idle" | "running" | "pass" | "fail");
-        } else {
-          store.updateQACheck(
-            event.payload.check as "unitTests" | "typeCheck" | "lint" | "build" | "e2e",
-            event.payload.status as "pending" | "running" | "pass" | "fail"
-          );
+  try {
+    const store = usePipelineStore.getState();
+
+    for (const event of events) {
+      if (!event?.type || !event?.payload) continue;
+
+      try {
+        switch (event.type) {
+          case "orchestrator_status":
+            store.setOrchestratorStatus(event.payload.status as Parameters<typeof store.setOrchestratorStatus>[0]);
+            break;
+          case "orchestrator_log":
+            store.addOrchestratorLog(event.payload.log ?? "");
+            break;
+          case "worktree_spawn":
+            store.spawnWorktree(
+              event.payload.id ?? "unknown",
+              event.payload.branch ?? "unknown",
+              event.payload.issue ?? "unknown"
+            );
+            break;
+          case "worktree_step":
+            store.updateWorktreeStep(event.payload.id ?? "unknown", event.payload.step as WorktreeStep);
+            break;
+          case "worktree_status":
+            store.updateWorktreeStatus(event.payload.id ?? "unknown", event.payload.status as WorktreeStatus);
+            break;
+          case "worktree_log":
+            store.addWorktreeLog(event.payload.id ?? "unknown", event.payload.log ?? "");
+            break;
+          case "qa_check": {
+            if (event.payload.check === "overallStatus") {
+              store.setQAOverallStatus(event.payload.status as "idle" | "running" | "pass" | "fail");
+            } else {
+              store.updateQACheck(
+                event.payload.check as "unitTests" | "typeCheck" | "lint" | "build" | "e2e",
+                event.payload.status as "pending" | "running" | "pass" | "fail"
+              );
+            }
+            break;
+          }
+          case "raw_log":
+            store.addRawLog(event.payload.line ?? "");
+            break;
         }
-        break;
+      } catch (eventErr) {
+        console.error(`[logParser] Error applying event ${event.type}:`, eventErr);
       }
-      case "raw_log":
-        store.addRawLog(event.payload.line);
-        break;
     }
+  } catch (err) {
+    console.error("[logParser] applyParsedEvents threw unexpectedly:", err);
   }
 }

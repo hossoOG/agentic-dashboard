@@ -5,6 +5,7 @@ import { WorktreeNode } from "./WorktreeNode";
 import { QAGateNode } from "./QAGateNode";
 import { ConnectionLines } from "./ConnectionLines";
 import { usePipelineStore } from "../store/pipelineStore";
+import { DURATION } from "../utils/motion";
 
 export function DashboardMap() {
   const { worktrees, orchestratorStatus, qaGate } = usePipelineStore();
@@ -26,7 +27,7 @@ export function DashboardMap() {
   }, []);
 
   return (
-    <div ref={containerRef} className="perspective-container bg-dark-bg">
+    <div ref={containerRef} className="perspective-container bg-surface-base">
       {/* SVG connection lines layer (outside the isometric board to stay flat) */}
       <ConnectionLines
         worktreeCount={worktrees.length}
@@ -57,7 +58,7 @@ export function DashboardMap() {
               </motion.div>
             ))}
             {worktrees.length === 0 && (
-              <div className="text-gray-600 text-sm italic">
+              <div className="text-neutral-400 text-sm italic">
                 Waiting for worktrees to spawn...
               </div>
             )}
@@ -72,9 +73,9 @@ export function DashboardMap() {
         {/* Ambient scan line effect */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-10">
           <motion.div
-            className="absolute w-full h-px bg-gradient-to-r from-transparent via-neon-blue to-transparent"
+            className="absolute w-full h-px bg-gradient-to-r from-transparent via-accent to-transparent"
             animate={{ y: [0, dimensions.height] }}
-            transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+            transition={{ duration: DURATION.ambient, repeat: Infinity, ease: "linear" }}
           />
         </div>
       </div>

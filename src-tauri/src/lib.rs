@@ -1,5 +1,82 @@
 use std::sync::{Arc, Mutex};
 
+pub mod adp;
+pub mod error;
+pub mod pipeline;
+pub mod session;
+
+fn init_logging() {
+    use env_logger::Builder;
+    use log::LevelFilter;
+    use std::io::Write;
+
+    // File logger: WARN+ to agentic-dashboard.log in current dir (or app data dir)
+    let log_path = dirs_next_or_cwd();
+    let log_file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path);
+
+    let mut builder = Builder::new();
+    builder
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "[{}] [{}] [{}] {}",
+                chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f"),
+                record.level(),
+                record.module_path().unwrap_or("unknown"),
+                record.args()
+            )
+        })
+        .filter_level(LevelFilter::Info);
+
+    // In debug/dev builds, log INFO+ to stdout; in release, only WARN+
+    if cfg!(debug_assertions) {
+        builder.filter_level(LevelFilter::Info);
+    } else {
+        builder.filter_level(LevelFilter::Warn);
+    }
+
+    // If we can open the log file, add it as a target via env_logger's writer
+    if let Ok(file) = log_file {
+        let file = std::sync::Mutex::new(file);
+        builder.format(move |buf, record| {
+            let msg = format!(
+                "[{}] [{}] [{}] {}",
+                chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f"),
+                record.level(),
+                record.module_path().unwrap_or("unknown"),
+                record.args()
+            );
+            // Write to stderr (default env_logger target)
+            writeln!(buf, "{}", msg)?;
+            // Also write to file
+            if let Ok(mut f) = file.lock() {
+                let _ = writeln!(f, "{}", msg);
+            }
+            Ok(())
+        });
+    }
+
+    if builder.try_init().is_err() {
+        eprintln!("[agentic-dashboard] Logger already initialized, skipping.");
+    }
+}
+
+fn dirs_next_or_cwd() -> std::path::PathBuf {
+    // Try to use the app's local data dir, fallback to cwd
+    if let Some(data_dir) = std::env::var_os("LOCALAPPDATA") {
+        let dir = std::path::PathBuf::from(data_dir).join("agentic-dashboard");
+        if std::fs::create_dir_all(&dir).is_ok() {
+            return dir.join("agentic-dashboard.log");
+        }
+    }
+    std::env::current_dir()
+        .unwrap_or_else(|_| std::path::PathBuf::from("."))
+        .join("agentic-dashboard.log")
+}
+
 #[derive(Clone, serde::Serialize)]
 pub struct LogEvent {
     pub line: String,
@@ -17,148 +94,58 @@ impl Default for PipelineState {
     }
 }
 
-mod commands {
-    use std::io::{BufRead, BufReader};
-    use std::process::{Command, Stdio};
-    use std::sync::{Arc, Mutex};
-    use std::thread;
-    use tauri::{AppHandle, Emitter};
-    use super::{LogEvent, PipelineState};
-
-    #[tauri::command]
-    pub async fn start_pipeline(
-        app: AppHandle,
-        project_path: String,
-        state: tauri::State<'_, Arc<Mutex<PipelineState>>>,
-    ) -> Result<(), String> {
-        let path = std::path::Path::new(&project_path);
-        if !path.exists() {
-            return Err(format!("Project path does not exist: {}", project_path));
-        }
-
-        {
-            let mut s = state.lock().map_err(|e| e.to_string())?;
-            s.child_pid = None;
-        }
-
-        let mut child = Command::new("claude")
-            .arg("m")
-            .current_dir(&project_path)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| format!("Failed to spawn claude: {}", e))?;
-
-        let pid = child.id();
-        {
-            let mut s = state.lock().map_err(|e| e.to_string())?;
-            s.child_pid = Some(pid);
-        }
-
-        if let Some(mut stdin) = child.stdin.take() {
-            use std::io::Write;
-            stdin
-                .write_all(b"/orchestrate-issues\n")
-                .map_err(|e| format!("Failed to write to claude stdin: {}", e))?;
-        }
-
-        let stdout = child.stdout.take().ok_or("Could not get stdout")?;
-        let stderr = child.stderr.take().ok_or("Could not get stderr")?;
-
-        let app_stdout = app.clone();
-        let app_stderr = app.clone();
-
-        thread::spawn(move || {
-            let reader = BufReader::new(stdout);
-            for line in reader.lines() {
-                match line {
-                    Ok(l) => {
-                        let event = LogEvent { line: l, stream: "stdout".to_string(), worktree_id: None };
-                        let _ = app_stdout.emit("pipeline-log", event);
-                    }
-                    Err(_) => break,
-                }
-            }
-        });
-
-        thread::spawn(move || {
-            let reader = BufReader::new(stderr);
-            for line in reader.lines() {
-                match line {
-                    Ok(l) => {
-                        let event = LogEvent { line: l, stream: "stderr".to_string(), worktree_id: None };
-                        let _ = app_stderr.emit("pipeline-log", event);
-                    }
-                    Err(_) => break,
-                }
-            }
-        });
-
-        thread::spawn(move || {
-            let _ = child.wait();
-        });
-
-        Ok(())
-    }
-
-    #[tauri::command]
-    pub async fn stop_pipeline(
-        app: AppHandle,
-        state: tauri::State<'_, Arc<Mutex<PipelineState>>>,
-    ) -> Result<(), String> {
-        let pid = {
-            let mut s = state.lock().map_err(|e| e.to_string())?;
-            s.child_pid.take()
-        };
-
-        if let Some(pid) = pid {
-            #[cfg(unix)]
-            Command::new("kill")
-                .args(["-TERM", &pid.to_string()])
-                .spawn()
-                .map_err(|e| format!("Failed to send SIGTERM to pid {}: {}", pid, e))?
-                .wait()
-                .map_err(|e| format!("Failed to wait for kill command: {}", e))?;
-            #[cfg(windows)]
-            Command::new("taskkill")
-                .args(["/PID", &pid.to_string(), "/F"])
-                .spawn()
-                .map_err(|e| format!("Failed to taskkill pid {}: {}", pid, e))?
-                .wait()
-                .map_err(|e| format!("Failed to wait for taskkill: {}", e))?;
-        }
-
-        let _ = app.emit("pipeline-stopped", ());
-        Ok(())
-    }
-
-    #[tauri::command]
-    pub async fn pick_project_folder(app: AppHandle) -> Result<Option<String>, String> {
-        use tauri_plugin_dialog::DialogExt;
-        let path = app
-            .dialog()
-            .file()
-            .set_title("Select Project Folder")
-            .blocking_pick_folder();
-
-        Ok(path.map(|p| p.to_string()))
-    }
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let pipeline_state = Arc::new(Mutex::new(PipelineState::default()));
+    init_logging();
+    log::info!("Agentic Dashboard starting up");
 
-    tauri::Builder::default()
+    let pipeline_state = Arc::new(Mutex::new(PipelineState::default()));
+    let session_manager = Arc::new(session::manager::SessionManager::new());
+    let session_manager_cleanup = session_manager.clone();
+
+    let result = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_notification::init())
         .manage(pipeline_state)
+        .manage(session_manager)
         .invoke_handler(tauri::generate_handler![
-            commands::start_pipeline,
-            commands::stop_pipeline,
-            commands::pick_project_folder
+            // Bestehend
+            pipeline::commands::start_pipeline,
+            pipeline::commands::stop_pipeline,
+            pipeline::commands::pick_project_folder,
+            // Session-Commands
+            session::commands::commands::create_session,
+            session::commands::commands::write_session,
+            session::commands::commands::resize_session,
+            session::commands::commands::close_session,
+            session::commands::commands::list_sessions,
+            // Folder actions
+            session::folder_actions::commands::open_folder_in_explorer,
+            session::folder_actions::commands::open_terminal_in_folder,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .on_window_event(move |_window, event| {
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                // Alle Sessions sauber beenden beim Fenster-Close
+                let sessions = session_manager_cleanup.list_sessions();
+                for s in &sessions {
+                    if let Err(e) = session_manager_cleanup.close_session(&s.id) {
+                        log::error!("Failed to close session {} on shutdown: {}", s.id, e);
+                    }
+                }
+                if !sessions.is_empty() {
+                    log::info!("Closed {} sessions on window close.", sessions.len());
+                }
+            }
+        })
+        .run(tauri::generate_context!());
+
+    match result {
+        Ok(()) => log::info!("Agentic Dashboard exited cleanly"),
+        Err(e) => {
+            log::error!("Tauri application failed to run: {}", e);
+            eprintln!("Fatal: Tauri application failed to run: {}", e);
+            std::process::exit(1);
+        }
+    }
 }

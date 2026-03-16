@@ -1,43 +1,20 @@
 import { motion } from "framer-motion";
-import { GitBranch, CheckCircle2, Circle, Loader2, AlertTriangle } from "lucide-react";
-import type { Worktree, WorktreeStep, WorktreeStatus } from "../store/pipelineStore";
+import type { Worktree } from "../store/pipelineStore";
+import {
+  WORKTREE_STEPS,
+  STEP_LABELS,
+  getStatusStyle,
+  getWorktreeIcon,
+  getStepIcon,
+} from "../utils/statusConfig";
+import { DURATION, EASE, SPRING, staggerDelay } from "../utils/motion";
 
-const STEPS: WorktreeStep[] = [
-  "setup",
-  "plan",
-  "validate",
-  "code",
-  "review",
-  "self_verify",
-  "draft_pr",
-];
-
-const STEP_LABELS: Record<WorktreeStep, string> = {
-  setup: "Setup",
-  plan: "Plan",
-  validate: "Validate",
-  code: "Code",
-  review: "Review",
-  self_verify: "Self-Verify",
-  draft_pr: "Draft PR",
-};
-
-const STATUS_COLORS: Record<WorktreeStatus, string> = {
-  idle: "border-gray-700",
-  active: "border-neon-blue neon-glow-blue",
-  blocked: "border-red-500 neon-glow-red",
-  waiting_for_input: "border-neon-orange neon-glow-orange",
-  done: "border-neon-green neon-glow-green",
-  error: "border-red-500 neon-glow-red",
-};
-
-const STATUS_TEXT: Record<WorktreeStatus, string> = {
-  idle: "text-gray-500",
-  active: "text-neon-blue",
-  blocked: "text-red-400",
-  waiting_for_input: "text-orange-400",
-  done: "text-neon-green",
-  error: "text-red-400",
+const GLOW_MAP: Record<string, string> = {
+  active: "glow-accent",
+  done: "glow-success",
+  blocked: "glow-error",
+  error: "glow-error",
+  waiting_for_input: "glow-warning",
 };
 
 interface Props {
@@ -50,26 +27,29 @@ export function WorktreeNode({ worktree }: Props) {
   const isDone = status === "done";
   const isBlocked = status === "blocked" || status === "error";
 
-  const StatusIcon = isBlocked ? AlertTriangle : isDone ? CheckCircle2 : GitBranch;
+  const style = getStatusStyle(status);
+  const StatusIcon = getWorktreeIcon(status);
+  const glowClass = GLOW_MAP[status] ?? "";
 
   return (
     <motion.div
+      aria-label={`Worktree ${branch} – ${status.toUpperCase().replace("_", " ")}`}
       animate={{
         scale: isActive ? [1, 1.01, 1] : 1,
       }}
-      transition={{ duration: 2, repeat: isActive ? Infinity : 0 }}
-      className={`w-52 rounded-none border-2 ${STATUS_COLORS[status]} bg-dark-card overflow-hidden flex flex-col`}
+      transition={{ duration: DURATION.ambient / 4, repeat: isActive ? Infinity : 0, ease: EASE.out as unknown as string }}
+      className={`w-52 rounded-none border-2 ${style.border} ${glowClass} bg-dark-card overflow-hidden flex flex-col`}
     >
       {/* Header */}
       <div className="px-3 py-2 border-b border-dark-border">
         <div className="flex items-center gap-1.5 mb-1">
           <motion.div
             animate={{ rotate: isActive ? 360 : 0 }}
-            transition={{ duration: 4, repeat: isActive ? Infinity : 0, ease: "linear" }}
+            transition={{ duration: DURATION.ambient / 2, repeat: isActive ? Infinity : 0, ease: "linear" }}
           >
-            <StatusIcon className={`w-4 h-4 ${STATUS_TEXT[status]}`} />
+            <StatusIcon className={`w-4 h-4 ${style.text}`} />
           </motion.div>
-          <span className={`text-xs font-bold tracking-wider ${STATUS_TEXT[status]}`}>
+          <span className={`text-xs font-display font-bold tracking-wider ${style.text}`}>
             {status.toUpperCase().replace("_", " ")}
           </span>
         </div>
@@ -85,14 +65,14 @@ export function WorktreeNode({ worktree }: Props) {
       <div className="px-3 pt-2">
         <div className="flex justify-between text-xs mb-1">
           <span className="text-gray-500">Progress</span>
-          <span className={STATUS_TEXT[status]}>{progress}%</span>
+          <span className={style.text}>{progress}%</span>
         </div>
         <div className="w-full bg-gray-800 rounded-full h-1.5">
           <motion.div
-            className={`h-1.5 rounded-full ${isDone ? "bg-neon-green" : isBlocked ? "bg-red-500" : "bg-neon-blue"}`}
+            className={`h-1.5 rounded-full ${isDone ? "bg-success" : isBlocked ? "bg-error" : "bg-accent"}`}
             initial={{ width: 0 }}
             animate={{ width: `${progress}%` }}
-            transition={{ type: "spring", stiffness: 50 }}
+            transition={SPRING.gentle}
           />
         </div>
       </div>
@@ -100,35 +80,40 @@ export function WorktreeNode({ worktree }: Props) {
       {/* Steps checklist */}
       <div className="px-3 py-2">
         <div className="space-y-0.5">
-          {STEPS.map((step) => {
+          {WORKTREE_STEPS.map((step, index) => {
             const isCompleted = completedSteps.includes(step);
             const isCurrent = currentStep === step && !isDone;
+            const { icon: StepIcon, spinning } = getStepIcon(step, completedSteps, isDone ? null : currentStep);
             return (
-              <div key={step} className="flex items-center gap-1.5">
-                {isCompleted ? (
-                  <CheckCircle2 className="w-3 h-3 text-neon-green shrink-0" />
-                ) : isCurrent ? (
+              <motion.div
+                key={step}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: DURATION.fast, delay: staggerDelay(index), ease: EASE.out as unknown as string }}
+                className="flex items-center gap-1.5"
+              >
+                {spinning ? (
                   <motion.div
                     animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    transition={{ duration: DURATION.base * 3, repeat: Infinity, ease: "linear" }}
                   >
-                    <Loader2 className="w-3 h-3 text-neon-blue shrink-0" />
+                    <StepIcon className="w-3 h-3 text-accent shrink-0" />
                   </motion.div>
                 ) : (
-                  <Circle className="w-3 h-3 text-gray-700 shrink-0" />
+                  <StepIcon className={`w-3 h-3 ${isCompleted ? "text-success" : "text-gray-700"} shrink-0`} />
                 )}
                 <span
                   className={`text-xs ${
                     isCompleted
-                      ? "text-neon-green"
+                      ? "text-success"
                       : isCurrent
-                      ? "text-neon-blue"
+                      ? "text-accent"
                       : "text-gray-600"
                   }`}
                 >
                   {STEP_LABELS[step]}
                 </span>
-              </div>
+              </motion.div>
             );
           })}
         </div>

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 import type { OrchestratorStatus, Worktree } from "../store/pipelineStore";
+import { DURATION } from "../utils/motion";
 
 interface Props {
   worktreeCount: number;
@@ -9,6 +10,11 @@ interface Props {
   qaStatus: string;
   worktrees: Worktree[];
 }
+
+/* ── Color tokens for SVG (must be raw values, not Tailwind classes) ── */
+const COLOR_ACCENT  = "oklch(72% 0.14 190)";
+const COLOR_SUCCESS = "oklch(72% 0.16 155)";
+const COLOR_MUTED   = "oklch(26% 0.012 250)";
 
 function DataPacket({ path, color, delay = 0 }: { path: string; color: string; delay?: number }) {
   return (
@@ -60,7 +66,7 @@ export function ConnectionLines({ worktreeCount, dimensions, orchestratorStatus,
   const isQAActive = qaStatus === "running";
 
   return (
-    <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
+    <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }} aria-hidden="true">
       <defs>
         <filter id="glow-blue">
           <feGaussianBlur stdDeviation="2" result="coloredBlur" />
@@ -89,7 +95,7 @@ export function ConnectionLines({ worktreeCount, dimensions, orchestratorStatus,
           <g key={`orch-wt-${i}`}>
             <motion.path
               d={pathStr}
-              stroke={isActive ? "#00d4ff" : isDone ? "#00ff88" : "#1f2937"}
+              stroke={isActive ? COLOR_ACCENT : isDone ? COLOR_SUCCESS : COLOR_MUTED}
               strokeWidth={isActive ? 2 : 1}
               fill="none"
               strokeDasharray={isActive ? "6 3" : "none"}
@@ -98,10 +104,10 @@ export function ConnectionLines({ worktreeCount, dimensions, orchestratorStatus,
                 strokeDashoffset: isActive ? [0, -18] : 0,
                 opacity: isOrchActive ? 1 : 0.3,
               }}
-              transition={{ duration: 0.5, repeat: isActive ? Infinity : 0, ease: "linear" }}
+              transition={{ duration: DURATION.slow, repeat: isActive ? Infinity : 0, ease: "linear" }}
             />
             {isActive && (
-              <DataPacket path={pathStr} color="#00d4ff" delay={i * 0.4} />
+              <DataPacket path={pathStr} color={COLOR_ACCENT} delay={i * 0.4} />
             )}
           </g>
         );
@@ -117,7 +123,7 @@ export function ConnectionLines({ worktreeCount, dimensions, orchestratorStatus,
           <g key={`wt-qa-${i}`}>
             <motion.path
               d={pathStr}
-              stroke={isDone ? "#00ff88" : "#1f2937"}
+              stroke={isDone ? COLOR_SUCCESS : COLOR_MUTED}
               strokeWidth={isDone ? 2 : 1}
               fill="none"
               strokeDasharray={isDone ? "6 3" : "none"}
@@ -126,10 +132,10 @@ export function ConnectionLines({ worktreeCount, dimensions, orchestratorStatus,
                 strokeDashoffset: isDone ? [0, -18] : 0,
                 opacity: isDone || isQAActive ? 1 : 0.2,
               }}
-              transition={{ duration: 0.5, repeat: isDone ? Infinity : 0, ease: "linear" }}
+              transition={{ duration: DURATION.slow, repeat: isDone ? Infinity : 0, ease: "linear" }}
             />
             {isDone && (
-              <DataPacket path={pathStr} color="#00ff88" delay={i * 0.4} />
+              <DataPacket path={pathStr} color={COLOR_SUCCESS} delay={i * 0.4} />
             )}
           </g>
         );

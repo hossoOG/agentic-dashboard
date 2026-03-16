@@ -2,6 +2,77 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================
+   Design Tokens (Impeccable: OKLCH, Tinted Neutrals)
+   ============================================ */
+:root {
+  /* ── Accent (single primary — no neon overload) ── */
+  --color-accent: oklch(72% 0.14 190);         /* Teal-Cyan */
+  --color-accent-light: oklch(85% 0.08 190);
+  --color-accent-dark: oklch(50% 0.12 190);
+  --color-accent-subtle: oklch(25% 0.04 190);  /* For bg tints */
+
+  /* ── Semantic ── */
+  --color-success: oklch(72% 0.16 155);
+  --color-error: oklch(62% 0.22 25);
+  --color-warning: oklch(75% 0.14 70);
+  --color-info: oklch(68% 0.12 250);
+
+  /* ── Tinted Neutrals (cool blue undertone — Chroma 0.01) ── */
+  --neutral-50:  oklch(95% 0.008 250);
+  --neutral-100: oklch(90% 0.008 250);
+  --neutral-200: oklch(80% 0.008 250);
+  --neutral-300: oklch(70% 0.01  250);
+  --neutral-400: oklch(55% 0.01  250);
+  --neutral-500: oklch(45% 0.01  250);
+  --neutral-600: oklch(35% 0.01  250);
+  --neutral-700: oklch(26% 0.012 250);
+  --neutral-800: oklch(20% 0.012 250);
+  --neutral-900: oklch(15% 0.012 250);
+  --neutral-950: oklch(11% 0.012 250);
+
+  /* ── Surfaces (depth via lightness, not shadows) ── */
+  --surface-base:   var(--neutral-950);   /* Body background */
+  --surface-raised:  var(--neutral-900);  /* Cards */
+  --surface-overlay: var(--neutral-800);  /* Elevated panels, modals */
+
+  /* ── Typography ── */
+  --font-display: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Instrument Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+
+  --text-xs:   0.75rem;
+  --text-sm:   0.875rem;
+  --text-base: 1rem;
+  --text-lg:   1.25rem;
+  --text-xl:   clamp(1.5rem, 1rem + 2vw, 2rem);
+
+  --leading-tight:   1.25;
+  --leading-normal:  1.5;
+  --leading-relaxed: 1.65;
+
+  /* ── Motion (Impeccable: 100/300/500, expo easing) ── */
+  --duration-instant: 100ms;
+  --duration-fast:    200ms;
+  --duration-base:    300ms;
+  --duration-slow:    500ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in:  cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* ── Spacing (4pt base) ── */
+  --space-xs:  0.25rem;  /* 4px */
+  --space-sm:  0.5rem;   /* 8px */
+  --space-md:  0.75rem;  /* 12px */
+  --space-lg:  1rem;     /* 16px */
+  --space-xl:  1.5rem;   /* 24px */
+  --space-2xl: 2rem;     /* 32px */
+  --space-3xl: 3rem;     /* 48px */
+}
+
+/* ============================================
+   Base Styles
+   ============================================ */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -9,85 +80,110 @@
 }
 
 body {
-  background-color: #0a0e1a;
-  color: #e2e8f0;
-  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  background-color: var(--surface-base);
+  color: var(--neutral-200);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
   overflow: hidden;
   user-select: none;
+  -webkit-font-smoothing: antialiased;
 }
 
+/* ── Headings use display font ── */
+h1, h2, h3, h4, h5, h6,
+.font-display {
+  font-family: var(--font-display);
+  line-height: var(--leading-tight);
+}
+
+/* ── Monospace only for code/terminal ── */
+code, pre, kbd,
+.font-mono,
+.retro-terminal {
+  font-family: var(--font-mono);
+}
+
+/* ============================================
+   Scrollbar
+   ============================================ */
 ::-webkit-scrollbar {
   width: 4px;
 }
 ::-webkit-scrollbar-track {
-  background: #111827;
+  background: var(--surface-raised);
 }
 ::-webkit-scrollbar-thumb {
-  background: #374151;
+  background: var(--neutral-600);
   border-radius: 2px;
 }
 
-@keyframes dataflow {
-  0% { stroke-dashoffset: 200; opacity: 0.2; }
-  50% { opacity: 1; }
-  100% { stroke-dashoffset: 0; opacity: 0.2; }
+/* ============================================
+   Focus Rings (Impeccable: never outline:none without replacement)
+   ============================================ */
+:focus {
+  outline: none;
 }
 
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 5px currentColor, 0 0 10px currentColor; }
-  50% { box-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor; }
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
-@keyframes scan-line {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(100vh); }
+/* ============================================
+   Reduced Motion (Impeccable: PFLICHT)
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
+/* ============================================
+   Component Styles
+   ============================================ */
+
+/* ── Grid Background ── */
 .grid-bg {
-  background-image: 
-    linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+  background-image:
+    linear-gradient(var(--color-accent-subtle) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-accent-subtle) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 
-.neon-glow-green {
-  box-shadow: 0 0 8px #00ff88, 0 0 16px rgba(0, 255, 136, 0.3);
-}
-
-.neon-glow-blue {
-  box-shadow: 0 0 8px #00d4ff, 0 0 16px rgba(0, 212, 255, 0.3);
-}
-
-.neon-glow-red {
-  box-shadow: 0 0 8px #ff4444, 0 0 16px rgba(255, 68, 68, 0.3);
-}
-
-.neon-glow-orange {
-  box-shadow: 0 0 8px #ff6b00, 0 0 16px rgba(255, 107, 0, 0.3);
-}
-
+/* ── Terminal Block ── */
 .retro-terminal {
-  background: rgba(0, 0, 0, 0.8);
-  border: 1px solid #1f2937;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  background: var(--neutral-950);
+  border: 1px solid var(--neutral-700);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-relaxed);
 }
 
-.data-packet {
-  animation: movePacket 2s linear infinite;
+/* ── Subtle Glow (only for active states — not everywhere) ── */
+.glow-accent {
+  box-shadow: 0 0 6px oklch(72% 0.14 190 / 0.4), 0 0 12px oklch(72% 0.14 190 / 0.15);
+}
+.glow-success {
+  box-shadow: 0 0 6px oklch(72% 0.16 155 / 0.4), 0 0 12px oklch(72% 0.16 155 / 0.15);
+}
+.glow-error {
+  box-shadow: 0 0 6px oklch(62% 0.22 25 / 0.4), 0 0 12px oklch(62% 0.22 25 / 0.15);
+}
+.glow-warning {
+  box-shadow: 0 0 6px oklch(75% 0.14 70 / 0.4), 0 0 12px oklch(75% 0.14 70 / 0.15);
 }
 
-@keyframes movePacket {
-  0% { offset-distance: 0%; opacity: 1; }
-  90% { opacity: 1; }
-  100% { offset-distance: 100%; opacity: 0; }
-}
-
+/* ============================================
+   Isometric 3D View
+   ============================================ */
 .perspective-container {
   perspective: 2000px;
   overflow: hidden;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -96,25 +192,90 @@ body {
 .isometric-board {
   transform: rotateX(60deg) rotateZ(-45deg);
   transform-style: preserve-3d;
-  width: 140vw;
-  height: 140vh;
+  width: min(140vw, 2400px);
+  height: min(140vh, 1800px);
   position: relative;
-  background-image: 
-    linear-gradient(rgba(0, 212, 255, 0.1) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 212, 255, 0.1) 1px, transparent 1px);
+  background-image:
+    linear-gradient(oklch(72% 0.14 190 / 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(72% 0.14 190 / 0.06) 1px, transparent 1px);
   background-size: 50px 50px;
 }
 
 .isometric-node {
   transform: translateZ(40px);
   transform-style: preserve-3d;
-  box-shadow: 
-    -20px 20px 30px rgba(0,0,0,0.8),
-    -2px 2px 0px rgba(0, 212, 255, 0.5);
-  backdrop-filter: blur(10px);
-  transition: all 0.3s ease;
+  box-shadow:
+    -20px 20px 30px oklch(0% 0 0 / 0.6),
+    -2px 2px 0px oklch(72% 0.14 190 / 0.3);
+  transition: transform var(--duration-base) var(--ease-out);
 }
 
 .isometric-node:hover {
   transform: translateZ(50px);
+}
+
+/* ============================================
+   Animations (exponential easing, no bounce)
+   ============================================ */
+
+@keyframes status-pulse {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 4px currentColor;
+  }
+  50% {
+    opacity: 0.5;
+    box-shadow: 0 0 8px currentColor, 0 0 16px currentColor;
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes dataflow {
+  0% { stroke-dashoffset: 200; opacity: 0.3; }
+  50% { opacity: 0.8; }
+  100% { stroke-dashoffset: 0; opacity: 0.3; }
+}
+
+@keyframes movePacket {
+  0% { offset-distance: 0%; opacity: 1; }
+  90% { opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
+}
+
+.status-pulse-animation {
+  animation: status-pulse 2s var(--ease-in-out) infinite;
+}
+
+.spin-animation {
+  animation: spin 1.5s linear infinite;
+}
+
+.data-packet {
+  animation: movePacket 2s linear infinite;
+}
+
+/* Toast transitions (non-Framer-Motion fallback) */
+.toast-enter {
+  opacity: 0;
+  transform: translateX(80px);
+}
+.toast-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity var(--duration-base) var(--ease-out),
+              transform var(--duration-base) var(--ease-out);
+}
+.toast-exit {
+  opacity: 1;
+  transform: translateX(0);
+}
+.toast-exit-active {
+  opacity: 0;
+  transform: translateX(80px);
+  transition: opacity var(--duration-fast) var(--ease-in),
+              transform var(--duration-fast) var(--ease-in);
 }
