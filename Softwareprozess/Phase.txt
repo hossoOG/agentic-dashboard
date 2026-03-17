@@ -51,7 +51,7 @@ US-S4: [DONE] Als Entwickler (H) will ich in der Sidebar erkennen ob eine Sessio
 US-S5: [DONE] Als Entwickler (H) will ich globale Notizen im Dashboard festhalten.
 US-S6: [DONE] Als Entwickler (H) will ich die aktive Session mit Projektname im Header sehen.
 
---- Release v1.1.0 (GEPLANT) — Agenten-Transparenz ---
+--- Release v1.1.0 (ERLEDIGT — 2026-03-17) — Agenten-Transparenz ---
 Prioritaet: HOCH | Aufwand: MITTEL | Abhaengigkeiten: Tauri File-Read Command
 
 US-A1: Als Entwickler (H) will ich die CLAUDE.md eines Projekts im Dashboard lesen koennen,
