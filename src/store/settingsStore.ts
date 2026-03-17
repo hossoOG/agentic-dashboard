@@ -65,6 +65,7 @@ export interface SettingsState {
   locale: "de" | "en";
   defaultShell: "auto" | "powershell" | "bash" | "cmd" | "zsh";
   defaultProjectPath: string;
+  globalNotes: string;
 
   // Actions
   setTheme: (partial: Partial<ThemeSettings>) => void;
@@ -74,6 +75,7 @@ export interface SettingsState {
   setLocale: (locale: "de" | "en") => void;
   setDefaultShell: (shell: SettingsState["defaultShell"]) => void;
   setDefaultProjectPath: (path: string) => void;
+  setGlobalNotes: (notes: string) => void;
 
   addApiKeyMetadata: (entry: ApiKeyMetadataEntry) => void;
   removeApiKeyMetadata: (id: string) => void;
@@ -134,6 +136,7 @@ export const useSettingsStore = create<SettingsState>()(
       locale: "de",
       defaultShell: "auto",
       defaultProjectPath: "",
+      globalNotes: "",
 
       setTheme: (partial) =>
         set((state) => ({
@@ -160,6 +163,8 @@ export const useSettingsStore = create<SettingsState>()(
       setDefaultShell: (shell) => set({ defaultShell: shell }),
 
       setDefaultProjectPath: (path) => set({ defaultProjectPath: path }),
+
+      setGlobalNotes: (notes) => set({ globalNotes: notes }),
 
       addApiKeyMetadata: (entry) =>
         set((state) => ({
@@ -223,9 +228,10 @@ export const useSettingsStore = create<SettingsState>()(
           locale: "de",
           defaultShell: "auto",
           defaultProjectPath: "",
-          // apiKeys and favorites are intentionally NOT reset
+          // apiKeys, favorites and globalNotes are intentionally NOT reset
           apiKeys: state.apiKeys,
           favorites: state.favorites,
+          globalNotes: state.globalNotes,
         })),
     }),
     {

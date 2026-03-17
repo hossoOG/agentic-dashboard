@@ -1,23 +1,70 @@
-import { useState } from "react";
-import { Play, Square, FolderOpen, Cpu, Wifi } from "lucide-react";
-import { usePipelineStore } from "../store/pipelineStore";
-import { startMockPipeline } from "../store/mockPipeline";
+import { useState, useRef, useEffect } from "react";
+import { Cpu, FolderOpen, StickyNote } from "lucide-react";
+import { useSessionStore, selectActiveSession } from "../store/sessionStore";
+import { useSettingsStore } from "../store/settingsStore";
+import { version } from "../../package.json";
+
+function shortenPath(path: string): string {
+  const parts = path.replace(/\\/g, "/").split("/").filter(Boolean);
+  if (parts.length <= 3) return path;
+  return parts.slice(-2).join("/");
+}
+
+function NotesDropdown() {
+  const [open, setOpen] = useState(false);
+  const globalNotes = useSettingsStore((s) => s.globalNotes);
+  const setGlobalNotes = useSettingsStore((s) => s.setGlobalNotes);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={panelRef}>
+      <button
+        onClick={() => setOpen(!open)}
+        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-sm transition-all ${
+          open
+            ? "bg-accent/15 text-accent border border-accent/40"
+            : globalNotes
+              ? "text-accent hover:bg-white/5 border border-transparent"
+              : "text-neutral-400 hover:text-neutral-200 hover:bg-white/5 border border-transparent"
+        }`}
+        aria-label="Notizen"
+        title="Notizen"
+      >
+        <StickyNote className="w-4 h-4" />
+        <span className="text-xs hidden lg:inline">Notizen</span>
+      </button>
+
+      {open && (
+        <div className="absolute top-full right-0 mt-2 z-50 w-80 bg-surface-overlay border border-neutral-700 rounded-sm shadow-xl">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-700">
+            <span className="text-xs text-neutral-400 font-medium">Globale Notizen</span>
+          </div>
+          <textarea
+            value={globalNotes}
+            onChange={(e) => setGlobalNotes(e.target.value)}
+            placeholder="Stichsaetze, Ideen, TODOs..."
+            className="w-full h-48 p-3 bg-transparent text-sm text-neutral-200 placeholder-neutral-600 outline-none resize-none font-mono"
+            autoFocus
+          />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Header() {
-  const { isRunning, projectPath, setProjectPath, reset } = usePipelineStore();
-  const [localPath, setLocalPath] = useState(projectPath || "/my/project");
-
-  const handleStart = async () => {
-    try {
-      if (isRunning) {
-        reset();
-      } else {
-        await startMockPipeline();
-      }
-    } catch (err) {
-      console.error("[Header] handleStart failed:", err);
-    }
-  };
+  const activeSession = useSessionStore(selectActiveSession);
 
   return (
     <header className="flex items-center justify-between px-6 py-3 border-b-2 border-neutral-700 bg-surface-raised retro-terminal">
@@ -26,55 +73,31 @@ export function Header() {
         <span className="text-accent font-bold text-lg tracking-wider font-display">
           AGENTIC DASHBOARD
         </span>
-        <span className="text-xs text-neutral-400 border border-gray-700 px-2 py-0.5 rounded-none">
-          v0.1.0
+        <span className="text-xs text-neutral-400 border border-neutral-700 px-2 py-0.5 rounded-none">
+          v{version}
         </span>
       </div>
 
       <div className="flex items-center gap-4">
-        {/* Project path input */}
-        <div className="flex items-center gap-2 bg-surface-base border-2 border-neutral-700 rounded-none px-3 py-1.5">
-          <FolderOpen className="w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            value={localPath}
-            onChange={(e) => setLocalPath(e.target.value)}
-            onBlur={() => setProjectPath(localPath)}
-            className="bg-transparent text-sm text-neutral-200 outline-none w-64"
-            placeholder="/path/to/project"
-            aria-label="Projektpfad"
-          />
-        </div>
+        {/* Active session context */}
+        {activeSession ? (
+          <div className="flex items-center gap-2 text-sm text-neutral-300">
+            <FolderOpen className="w-4 h-4 text-neutral-500 shrink-0" />
+            <span className="font-bold truncate max-w-[200px]">{activeSession.title}</span>
+            <span className="text-neutral-600">·</span>
+            <span className="text-neutral-500 truncate max-w-[250px]">
+              {shortenPath(activeSession.folder)}
+            </span>
+          </div>
+        ) : (
+          <span className="text-sm text-neutral-500">Keine Session ausgewaehlt</span>
+        )}
 
-        {/* Status indicator */}
-        <div className="flex items-center gap-2">
-          <Wifi
-            className={`w-4 h-4 ${isRunning ? "text-success animate-pulse" : "text-neutral-400"}`}
-          />
-          <span className={`text-xs ${isRunning ? "text-success" : "text-neutral-400"}`}>
-            {isRunning ? "LIVE" : "IDLE"}
-          </span>
-        </div>
+        {/* Divider */}
+        <div className="w-px h-5 bg-neutral-700" />
 
-        {/* Start/Stop button */}
-        <button
-          onClick={handleStart}
-          className={`flex items-center gap-2 px-4 py-2 rounded-none font-medium text-sm transition-all ${
-            isRunning
-              ? "bg-error/10 border border-error text-error hover:bg-red-900/50"
-              : "bg-success/10 border border-success text-success hover:bg-success/20 glow-success"
-          }`}
-        >
-          {isRunning ? (
-            <>
-              <Square className="w-4 h-4" /> STOP
-            </>
-          ) : (
-            <>
-              <Play className="w-4 h-4" /> START PIPELINE
-            </>
-          )}
-        </button>
+        {/* Notes */}
+        <NotesDropdown />
       </div>
     </header>
   );
