@@ -137,9 +137,10 @@ PHASE 2 — PLANUNG (v1.1.0 Agenten-Transparenz)
 Scope: US-A1, US-A2, US-A3 (US-A4 Audit als Stretch Goal)
 
 UI-Konzept:
-- Neuer Tab "Agent Config" in der linken SideNav (unter Sessions, ueber Settings)
-- ODER: Panel innerhalb der Session-Ansicht (Tab-Leiste ueber dem Terminal)
-- Entscheidung: [OFFEN — mit User klaeren]
+- ENTSCHIEDEN (2026-03-17): Tab-Leiste ueber dem Terminal in der Session-Ansicht.
+  Begruendung: Kontextgebunden — Config gehoert zur Session die gerade laeuft.
+  Tabs: [Terminal] [CLAUDE.md] [Skills] [Hooks]
+  Beim Session-Wechsel aktualisiert sich der Inhalt automatisch.
 
 Technische Bausteine:
 1. Tauri-Command: `read_project_file(folder, relative_path)` → String
@@ -155,5 +156,120 @@ Reihenfolge:
 5. Integration + Verifikation
 
 ================================================================================
-PHASE 3-7 — wird nach Abschluss von Phase 2 fortgesetzt
+PHASE 3 — ENTWURF (v1.1.0 Agenten-Transparenz)
+================================================================================
+
+3.1 UI-Architektur
+-------------------
+
+Aktuelle Struktur (SessionManagerView, Single-Modus):
+
+  ┌──────────────────────────────────────────────────────────┐
+  │ Header (Session-Kontext + Notizen)                       │
+  ├────────────┬─────────────────────────────────────────────┤
+  │ SessionList│ TerminalToolbar (Layout-Toggle)             │
+  │ (280px)    ├─────────────────────────────────────────────┤
+  │            │ SessionTerminal (xterm.js, 100% Platz)      │
+  │            │                                             │
+  │            │                                             │
+  ├────────────┴─────────────────────────────────────────────┤
+  │ SessionStatusBar                                         │
+  └──────────────────────────────────────────────────────────┘
+
+Neue Struktur mit Tab-Leiste:
+
+  ┌──────────────────────────────────────────────────────────┐
+  │ Header (Session-Kontext + Notizen)                       │
+  ├────────────┬─────────────────────────────────────────────┤
+  │ SessionList│ TerminalToolbar (Layout-Toggle)             │
+  │ (280px)    ├─────────────────────────────────────────────┤
+  │            │ ContentTabs: [Terminal] [CLAUDE.md] [Skills]│[Hooks]
+  │            ├─────────────────────────────────────────────┤
+  │            │ Tab-Content (je nach aktivem Tab):          │
+  │            │  - Terminal: SessionTerminal (xterm.js)     │
+  │            │  - CLAUDE.md: Markdown-Viewer (read-only)   │
+  │            │  - Skills: Liste + Detail-Ansicht           │
+  │            │  - Hooks: JSON-Viewer (strukturiert)        │
+  ├────────────┴─────────────────────────────────────────────┤
+  │ SessionStatusBar                                         │
+  └──────────────────────────────────────────────────────────┘
+
+Tab-Leiste: h-9 (36px), zwischen TerminalToolbar und Content.
+Nur im Single-Modus sichtbar (Grid-Modus zeigt nur Terminals).
+Default-Tab: "terminal" (kein Verhaltens-Bruch fuer bestehende User).
+
+3.2 Neue Tauri-Commands (Rust Backend)
+----------------------------------------
+
+Command 1: read_project_file(folder: String, relative_path: String) -> String
+  - Liest Datei aus Projektordner (z.B. folder + "/CLAUDE.md")
+  - Security: Pfad wird kanonisiert, muss innerhalb von folder bleiben
+  - Fehlerfall: Leerer String wenn Datei nicht existiert
+
+Command 2: list_project_dir(folder: String, relative_path: String) -> Vec<String>
+  - Listet Dateien in Unterordner (z.B. folder + "/.claude/skills/")
+  - Gibt nur Dateinamen zurueck, keine vollen Pfade
+  - Fehlerfall: Leere Liste wenn Ordner nicht existiert
+
+3.3 Neue Frontend-Komponenten
+-------------------------------
+
+ContentTabs.tsx (NEU):
+  - Tab-Leiste mit 4 Tabs: Terminal, CLAUDE.md, Skills, Hooks
+  - State: lokaler useState oder im sessionStore
+  - Props: activeTab, onTabChange
+  - Styling: accent-Farbe fuer aktiven Tab (wie SideNav-Pattern)
+
+ClaudeMdViewer.tsx (NEU):
+  - Laedt CLAUDE.md via read_project_file(folder, "CLAUDE.md")
+  - Rendert als Markdown (react-markdown oder einfaches <pre> fuer v1)
+  - Refresh-Button zum Neuladen
+  - Leerer Zustand: "Keine CLAUDE.md gefunden"
+
+SkillsViewer.tsx (NEU):
+  - Laedt Skill-Liste via list_project_dir(folder, ".claude/skills")
+  - Linke Liste: Skill-Dateien (.md)
+  - Rechte Seite: Inhalt der ausgewaehlten Skill-Datei
+  - Leerer Zustand: "Keine Skills konfiguriert"
+
+HooksViewer.tsx (NEU):
+  - Laedt .claude/settings.json via read_project_file
+  - Parsed JSON, zeigt hooks-Sektion strukturiert an
+  - Unterscheidung: Projekt-Settings vs. User-Settings
+  - Leerer Zustand: "Keine Hooks konfiguriert"
+
+3.4 Aenderungen an bestehenden Dateien
+-----------------------------------------
+
+SessionManagerView.tsx:
+  - Import ContentTabs + Viewer-Komponenten
+  - Neuer State: contentTab ("terminal" | "claude-md" | "skills" | "hooks")
+  - Tab-Leiste zwischen TerminalToolbar und Content-Area einfuegen
+  - Content-Area rendert je nach contentTab die passende Komponente
+  - Reset auf "terminal" bei Session-Wechsel
+
+src-tauri/src/lib.rs:
+  - Neue Commands registrieren: read_project_file, list_project_dir
+
+src-tauri/src/session/commands.rs (oder neues Modul):
+  - Implementierung der zwei Commands mit Path-Validation
+
+3.5 Abhaengigkeiten
+---------------------
+
+Keine neuen npm-Pakete noetig fuer v1 (Markdown als <pre> mit Whitespace).
+Optional spaeter: react-markdown fuer schoenes Rendering.
+
+3.6 Implementierungsreihenfolge
+---------------------------------
+
+Schritt 1: Tauri-Commands (read_project_file, list_project_dir)
+Schritt 2: ContentTabs.tsx + Integration in SessionManagerView
+Schritt 3: ClaudeMdViewer.tsx (US-A1)
+Schritt 4: SkillsViewer.tsx (US-A2)
+Schritt 5: HooksViewer.tsx (US-A3)
+Schritt 6: Verifikation (tsc, build, visueller Test)
+
+================================================================================
+PHASE 4-7 — wird nach Abschluss von Phase 3 fortgesetzt
 ================================================================================
