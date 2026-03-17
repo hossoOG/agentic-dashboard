@@ -1,6 +1,8 @@
+import { useState, useEffect } from "react";
 import { Maximize2, X } from "lucide-react";
 import { useSessionStore } from "../../store/sessionStore";
 import { SessionTerminal } from "./SessionTerminal";
+import { getActivityLevel } from "./activityLevel";
 
 interface GridCellProps {
   sessionId: string;
@@ -10,11 +12,15 @@ interface GridCellProps {
   onRemove: () => void;
 }
 
-function StatusDot({ status }: { status: string }) {
+function StatusDot({ status, isThinking }: { status: string; isThinking: boolean }) {
   switch (status) {
     case "running":
     case "starting":
-      return <span className="w-2 h-2 rounded-full bg-success status-pulse-animation shrink-0" />;
+      return isThinking ? (
+        <span className="w-2 h-2 rounded-full bg-info status-breathe-animation shrink-0" />
+      ) : (
+        <span className="w-2 h-2 rounded-full bg-success status-pulse-animation shrink-0" />
+      );
     case "waiting":
       return <span className="w-2 h-2 rounded-full bg-yellow-400 status-pulse-animation shrink-0" />;
     case "done":
@@ -36,6 +42,18 @@ export function GridCell({
   const session = useSessionStore((s) => s.sessions.find((sess) => sess.id === sessionId));
   const title = session?.title ?? "Session";
   const status = session?.status ?? "starting";
+  const lastOutputAt = session?.lastOutputAt ?? Date.now();
+
+  const [now, setNow] = useState(Date.now());
+  const isRunning = status === "running" || status === "starting";
+
+  useEffect(() => {
+    if (!isRunning) return;
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [isRunning]);
+
+  const isThinking = isRunning && getActivityLevel(lastOutputAt, now) === "thinking";
 
   return (
     <div
@@ -56,7 +74,7 @@ export function GridCell({
         `}
         style={{ height: "28px", minHeight: "28px" }}
       >
-        <StatusDot status={status} />
+        <StatusDot status={status} isThinking={isThinking} />
         <span className="text-xs text-neutral-200 font-bold truncate flex-1">
           {title}
         </span>

@@ -250,6 +250,23 @@ code, pre, kbd,
   animation: status-pulse 2s var(--ease-in-out) infinite;
 }
 
+@keyframes status-breathe {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 4px currentColor;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    box-shadow: 0 0 8px currentColor;
+    transform: scale(1.15);
+  }
+}
+
+.status-breathe-animation {
+  animation: status-breathe 3s var(--ease-in-out) infinite;
+}
+
 .spin-animation {
   animation: spin 1.5s linear infinite;
 }

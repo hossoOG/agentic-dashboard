@@ -29,3 +29,5 @@ C - Andere AI projecte sollen gestartet werden können vom Dashboard aus.
 
 Anforderung
 Es soll ein Konkretes Protokoll und information schema geben für den austausch zwischen den verschiedenen Services, (.json oder so ähnlich)
+
+H - In der Sidebar soll erkennbar sein ob eine Claude Session noch aktiv arbeitet oder nicht. Visueller Indikator pro Session: aktiv (Output kommt), still/denkend (kein Output seit X Sekunden), wartend (User-Input), fertig, fehler. (Hinzugefügt: 2026-03-17, v1.1.0)

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { X, Check, AlertTriangle, LayoutGrid, FolderOpen, Terminal } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import type { ClaudeSession } from "../../store/sessionStore";
+import { getActivityLevel, type ActivityLevel } from "./activityLevel";
 
 interface SessionCardProps {
   session: ClaudeSession;
@@ -18,11 +19,19 @@ function formatDuration(ms: number): string {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-function StatusDot({ status }: { status: ClaudeSession["status"] }) {
+function StatusDot({
+  status,
+  activityLevel,
+}: {
+  status: ClaudeSession["status"];
+  activityLevel: ActivityLevel | null;
+}) {
   switch (status) {
     case "running":
     case "starting":
-      return (
+      return activityLevel === "thinking" ? (
+        <span className="w-2.5 h-2.5 rounded-full bg-info status-breathe-animation shrink-0" />
+      ) : (
         <span className="w-2.5 h-2.5 rounded-full bg-success status-pulse-animation shrink-0" />
       );
     case "waiting":
@@ -40,20 +49,23 @@ function StatusDot({ status }: { status: ClaudeSession["status"] }) {
   }
 }
 
-function TimeDisplay({ session }: { session: ClaudeSession }) {
-  const [now, setNow] = useState(Date.now());
-
-  useEffect(() => {
-    if (session.status === "running" || session.status === "starting") {
-      const interval = setInterval(() => setNow(Date.now()), 1000);
-      return () => clearInterval(interval);
-    }
-  }, [session.status]);
-
+function TimeDisplay({
+  session,
+  now,
+  activityLevel,
+}: {
+  session: ClaudeSession;
+  now: number;
+  activityLevel: ActivityLevel | null;
+}) {
   switch (session.status) {
     case "running":
     case "starting":
-      return (
+      return activityLevel === "thinking" ? (
+        <span className="text-info">
+          Denkt... (seit {formatDuration(now - session.createdAt)})
+        </span>
+      ) : (
         <span className="text-gray-500">
           Laeuft seit {formatDuration(now - session.createdAt)}
         </span>
@@ -83,6 +95,18 @@ function shortenPath(path: string): string {
 }
 
 export function SessionCard({ session, isActive, isInGrid, onClick, onClose }: SessionCardProps) {
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    if (session.status === "running" || session.status === "starting") {
+      const interval = setInterval(() => setNow(Date.now()), 1000);
+      return () => clearInterval(interval);
+    }
+  }, [session.status]);
+
+  const isRunning = session.status === "running" || session.status === "starting";
+  const activityLevel = isRunning ? getActivityLevel(session.lastOutputAt, now) : null;
+
   return (
     <div
       onClick={onClick}
@@ -133,7 +157,7 @@ export function SessionCard({ session, isActive, isInGrid, onClick, onClose }: S
 
       {/* Title row */}
       <div className="flex items-center gap-2 pr-5">
-        <StatusDot status={session.status} />
+        <StatusDot status={session.status} activityLevel={activityLevel} />
         <span className="font-bold text-sm text-gray-200 truncate">
           {session.title}
         </span>
@@ -149,7 +173,7 @@ export function SessionCard({ session, isActive, isInGrid, onClick, onClose }: S
 
       {/* Time display */}
       <div className="mt-0.5 pl-[18px] text-xs">
-        <TimeDisplay session={session} />
+        <TimeDisplay session={session} now={now} activityLevel={activityLevel} />
       </div>
     </div>
   );
