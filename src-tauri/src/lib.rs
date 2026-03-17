@@ -123,6 +123,9 @@ pub fn run() {
             // Folder actions
             session::folder_actions::commands::open_folder_in_explorer,
             session::folder_actions::commands::open_terminal_in_folder,
+            // File reader (Agent Config Viewer)
+            session::file_reader::commands::read_project_file,
+            session::file_reader::commands::list_project_dir,
         ])
         .on_window_event(move |_window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {

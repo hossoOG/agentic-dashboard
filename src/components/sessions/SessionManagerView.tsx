@@ -8,6 +8,10 @@ import { TerminalToolbar } from "./TerminalToolbar";
 import { NewSessionDialog } from "./NewSessionDialog";
 import { SessionStatusBar } from "./SessionStatusBar";
 import { EmptyState } from "./EmptyState";
+import { ContentTabs, type ContentTab } from "./ContentTabs";
+import { ClaudeMdViewer } from "./ClaudeMdViewer";
+import { SkillsViewer } from "./SkillsViewer";
+import { HooksViewer } from "./HooksViewer";
 import { useSessionStore, selectActiveSession } from "../../store/sessionStore";
 import { useSettingsStore } from "../../store/settingsStore";
 import type { FavoriteFolder } from "../../store/settingsStore";
@@ -15,6 +19,7 @@ import type { SessionShell } from "../../store/sessionStore";
 
 export function SessionManagerView() {
   const [showNewDialog, setShowNewDialog] = useState(false);
+  const [contentTab, setContentTab] = useState<ContentTab>("terminal");
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const activeSession = useSessionStore(selectActiveSession);
   const layoutMode = useSessionStore((s) => s.layoutMode);
@@ -24,6 +29,11 @@ export function SessionManagerView() {
   const setFocusedGridSession = useSessionStore((s) => s.setFocusedGridSession);
   const maximizeGridSession = useSessionStore((s) => s.maximizeGridSession);
   const removeFromGrid = useSessionStore((s) => s.removeFromGrid);
+
+  // Reset content tab to terminal when switching sessions
+  useEffect(() => {
+    setContentTab("terminal");
+  }, [activeSessionId]);
 
   // Register Tauri event listeners for session lifecycle
   useEffect(() => {
@@ -132,11 +142,24 @@ export function SessionManagerView() {
             />
           )}
 
+          {/* Content tabs — only in single mode with active session */}
+          {layoutMode === "single" && activeSessionId && (
+            <ContentTabs activeTab={contentTab} onTabChange={setContentTab} />
+          )}
+
           {/* Content area */}
           <div className="flex-1 min-h-0">
             {layoutMode === "single" ? (
               activeSessionId ? (
-                <SessionTerminal sessionId={activeSessionId} />
+                contentTab === "terminal" ? (
+                  <SessionTerminal sessionId={activeSessionId} />
+                ) : contentTab === "claude-md" ? (
+                  <ClaudeMdViewer folder={activeSession?.folder ?? ""} />
+                ) : contentTab === "skills" ? (
+                  <SkillsViewer folder={activeSession?.folder ?? ""} />
+                ) : contentTab === "hooks" ? (
+                  <HooksViewer folder={activeSession?.folder ?? ""} />
+                ) : null
               ) : (
                 <EmptyState onNewSession={() => setShowNewDialog(true)} />
               )
