@@ -12,6 +12,7 @@ import { ContentTabs, type ContentTab } from "./ContentTabs";
 import { ClaudeMdViewer } from "./ClaudeMdViewer";
 import { SkillsViewer } from "./SkillsViewer";
 import { HooksViewer } from "./HooksViewer";
+import { GitHubViewer } from "./GitHubViewer";
 import { useSessionStore, selectActiveSession } from "../../store/sessionStore";
 import { useSettingsStore } from "../../store/settingsStore";
 import type { FavoriteFolder } from "../../store/settingsStore";
@@ -159,6 +160,8 @@ export function SessionManagerView() {
                   <SkillsViewer folder={activeSession?.folder ?? ""} />
                 ) : contentTab === "hooks" ? (
                   <HooksViewer folder={activeSession?.folder ?? ""} />
+                ) : contentTab === "github" ? (
+                  <GitHubViewer folder={activeSession?.folder ?? ""} />
                 ) : null
               ) : (
                 <EmptyState onNewSession={() => setShowNewDialog(true)} />

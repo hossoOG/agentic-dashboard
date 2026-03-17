@@ -81,7 +81,7 @@ US-A4: Als Entwickler (H) will ich nach einer Session pruefen koennen ob die Age
        - Zusammenfassung: welche Skills wurden aufgerufen vs. welche existieren
        - Abweichungen vom CLAUDE.md hervorheben (Stretch Goal, v1.2.0+)
 
---- Release v1.2.0 (GEPLANT) — GitHub-Integration ---
+--- Release v1.2.0 (ERLEDIGT — 2026-03-17) — GitHub-Integration ---
 Prioritaet: MITTEL | Aufwand: HOCH | Abhaengigkeiten: GitHub Token oder gh CLI
 
 US-G1: Als Entwickler (H) will ich pro Session/Projekt die offenen PRs sehen,
@@ -271,5 +271,37 @@ Schritt 5: HooksViewer.tsx (US-A3)
 Schritt 6: Verifikation (tsc, build, visueller Test)
 
 ================================================================================
-PHASE 4-7 — wird nach Abschluss von Phase 3 fortgesetzt
+PHASE 2+3 — PLANUNG & ENTWURF (v1.2.0 GitHub-Integration)
+================================================================================
+
+Scope: US-G1 (PRs), US-G2 (Issues), US-G3 (Branch/Commit)
+
+Machbarkeit (verifiziert):
+- tauri-plugin-shell installiert + aktiviert
+- std::process::Command Pattern im Backend vorhanden (folder_actions, pipeline)
+- api.github.com bereits in CSP connect-src erlaubt
+- apiKeys[] im settingsStore bereit fuer GitHub Token
+- gh CLI wird bereits im logParser erkannt
+
+Ansatz: git CLI fuer lokale Infos (Branch, Commit), gh CLI fuer GitHub-Daten (PRs, Issues).
+Kein direkter GitHub API Call vom Frontend — alles via Tauri-Commands (sicherer, Token bleibt im Backend).
+
+UI-Konzept:
+- Neuer Content-Tab "GitHub" in der Tab-Leiste (neben Terminal, CLAUDE.md, Skills, Hooks)
+- Zeigt: Branch + letzter Commit (oben), PRs (Mitte), Issues (unten)
+- Fallback: "gh CLI nicht gefunden" oder "kein Git-Repo" Hinweis
+
+Tauri-Commands:
+1. get_git_info(folder) -> { branch, lastCommit: { hash, message, date }, remoteUrl }
+2. get_github_prs(folder) -> Vec<{ number, title, author, status, url }>
+3. get_github_issues(folder) -> Vec<{ number, title, labels, assignee, url }>
+
+Implementierungsreihenfolge:
+1. Tauri-Commands: git_info, github_prs, github_issues
+2. GitHubViewer.tsx Frontend-Komponente
+3. ContentTabs um "GitHub" Tab erweitern
+4. Verifikation
+
+================================================================================
+PHASE 4-7 — wird nach Abschluss fortgesetzt
 ================================================================================

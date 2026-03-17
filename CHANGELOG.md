@@ -4,6 +4,21 @@ Alle relevanten Änderungen am Agentic Dashboard werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.2.0] — 2026-03-17
+
+GitHub-Integration: Git- und GitHub-Status direkt im Session-View.
+
+### Features
+- **GitHub Tab**: Neuer Content-Tab mit Branch, letztem Commit, PRs und Issues
+- **Git Info**: Aktueller Branch + letzter Commit pro Projekt (US-G3)
+- **Pull Requests**: Offene PRs mit Titel, Autor, Review-Status und Link (US-G1)
+- **Issues**: Offene Issues mit Labels, Assignee und Link (US-G2)
+- **Fehlerbehandlung**: Graceful Fallback wenn gh CLI nicht installiert oder kein Git-Repo
+
+### Backend
+- Neue Tauri-Commands: `get_git_info`, `get_github_prs`, `get_github_issues`
+- Nutzt `git` CLI fuer lokale Daten, `gh` CLI fuer GitHub API
+
 ## [1.1.0] — 2026-03-17
 
 Agenten-Transparenz: Projekt-Konfiguration direkt im Session-View einsehen.

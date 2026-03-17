@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex};
 
 pub mod adp;
 pub mod error;
+pub mod github;
 pub mod pipeline;
 pub mod session;
 
@@ -126,6 +127,10 @@ pub fn run() {
             // File reader (Agent Config Viewer)
             session::file_reader::commands::read_project_file,
             session::file_reader::commands::list_project_dir,
+            // GitHub integration
+            github::commands::commands::get_git_info,
+            github::commands::commands::get_github_prs,
+            github::commands::commands::get_github_issues,
         ])
         .on_window_event(move |_window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {

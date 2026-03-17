@@ -1,6 +1,6 @@
-import { Terminal, FileText, Puzzle, Webhook } from "lucide-react";
+import { Terminal, FileText, Puzzle, Webhook, Github } from "lucide-react";
 
-export type ContentTab = "terminal" | "claude-md" | "skills" | "hooks";
+export type ContentTab = "terminal" | "claude-md" | "skills" | "hooks" | "github";
 
 interface ContentTabsProps {
   activeTab: ContentTab;
@@ -12,6 +12,7 @@ const tabs: { id: ContentTab; label: string; icon: typeof Terminal }[] = [
   { id: "claude-md", label: "CLAUDE.md", icon: FileText },
   { id: "skills", label: "Skills", icon: Puzzle },
   { id: "hooks", label: "Hooks", icon: Webhook },
+  { id: "github", label: "GitHub", icon: Github },
 ];
 
 export function ContentTabs({ activeTab, onTabChange }: ContentTabsProps) {
