@@ -76,14 +76,14 @@ export function Toast({ toast, onDismiss }: ToastProps) {
             {toast.title}
           </p>
           {toast.message && (
-            <p className="text-xs text-gray-400 mt-1 leading-relaxed">
+            <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
               {toast.message}
             </p>
           )}
         </div>
         <button
           onClick={() => onDismiss(toast.id)}
-          className="text-gray-500 hover:text-gray-300 transition-colors shrink-0"
+          className="text-neutral-500 hover:text-neutral-300 transition-colors shrink-0"
         >
           <X className="w-4 h-4" />
         </button>

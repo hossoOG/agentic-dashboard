@@ -15,7 +15,7 @@ export function TerminalToolbar({
   gridCount,
 }: TerminalToolbarProps) {
   return (
-    <div className="flex items-center justify-between h-9 px-3 bg-surface-raised border-b border-dark-border shrink-0">
+    <div className="flex items-center justify-between h-9 px-3 bg-surface-raised border-b border-neutral-700 shrink-0">
       {/* Left: title or grid info */}
       <span className="text-xs text-neutral-300 truncate">
         {layoutMode === "single"

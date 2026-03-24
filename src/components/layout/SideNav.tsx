@@ -35,8 +35,8 @@ export function SideNav({ badges = {} }: SideNavProps) {
               relative group flex items-center justify-center w-10 h-10 rounded-none
               transition-all duration-150
               ${isActive
-                ? "text-accent bg-accent/10 border-l-2 border-accent"
-                : "text-neutral-400 hover:text-neutral-200 hover:bg-white/5 border-l-2 border-transparent"
+                ? "text-accent bg-accent-a10 border-l-2 border-accent"
+                : "text-neutral-400 hover:text-neutral-200 hover:bg-hover-overlay border-l-2 border-transparent"
               }
             `}
             aria-label={item.label}

@@ -12,9 +12,9 @@ interface Props {
 }
 
 /* ── Color tokens for SVG (must be raw values, not Tailwind classes) ── */
-const COLOR_ACCENT  = "oklch(72% 0.14 190)";
-const COLOR_SUCCESS = "oklch(72% 0.16 155)";
-const COLOR_MUTED   = "oklch(26% 0.012 250)";
+const COLOR_ACCENT  = "var(--color-accent)";
+const COLOR_SUCCESS = "var(--color-success)";
+const COLOR_MUTED   = "var(--color-neutral-700)";
 
 function DataPacket({ path, color, delay = 0 }: { path: string; color: string; delay?: number }) {
   return (

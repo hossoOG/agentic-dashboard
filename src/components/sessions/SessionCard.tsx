@@ -29,6 +29,9 @@ function StatusDot({
   switch (status) {
     case "running":
     case "starting":
+      if (activityLevel === "idle") {
+        return <span className="w-2.5 h-2.5 rounded-full bg-neutral-500 shrink-0" />;
+      }
       return activityLevel === "thinking" ? (
         <span className="w-2.5 h-2.5 rounded-full bg-info status-breathe-animation shrink-0" />
       ) : (
@@ -61,12 +64,19 @@ function TimeDisplay({
   switch (session.status) {
     case "running":
     case "starting":
+      if (activityLevel === "idle") {
+        return (
+          <span className="text-neutral-500">
+            Idle seit {formatDuration(now - session.lastOutputAt)}
+          </span>
+        );
+      }
       return activityLevel === "thinking" ? (
         <span className="text-info">
-          Denkt... (seit {formatDuration(now - session.createdAt)})
+          Denkt... (seit {formatDuration(now - session.lastOutputAt)})
         </span>
       ) : (
-        <span className="text-gray-500">
+        <span className="text-neutral-500">
           Laeuft seit {formatDuration(now - session.createdAt)}
         </span>
       );
@@ -74,13 +84,13 @@ function TimeDisplay({
       return <span className="text-yellow-400">Wartet auf Input</span>;
     case "done":
       return (
-        <span className="text-gray-500">
+        <span className="text-neutral-500">
           Fertig ({formatDuration((session.finishedAt ?? now) - session.createdAt)})
         </span>
       );
     case "error":
       return (
-        <span className="text-red-400">
+        <span className="text-error">
           Fehler (Exit {session.exitCode ?? "?"})
         </span>
       );
@@ -114,8 +124,8 @@ export function SessionCard({ session, isActive, isInGrid, onClick, onClose }: S
         relative group px-3 py-2.5 cursor-pointer transition-all duration-150
         border-l-2
         ${isActive
-          ? "border-l-success bg-success/5"
-          : "border-l-transparent hover:bg-white/5"
+          ? "border-l-success bg-success-a05"
+          : "border-l-transparent hover:bg-hover-overlay"
         }
       `}
     >
@@ -126,7 +136,7 @@ export function SessionCard({ session, isActive, isInGrid, onClick, onClose }: S
             e.stopPropagation();
             invoke("open_folder_in_explorer", { path: session.folder });
           }}
-          className="p-0.5 text-gray-600 hover:text-gray-300"
+          className="p-0.5 text-neutral-600 hover:text-neutral-300"
           aria-label="Ordner im Explorer oeffnen"
           title="Ordner im Explorer oeffnen"
         >
@@ -137,7 +147,7 @@ export function SessionCard({ session, isActive, isInGrid, onClick, onClose }: S
             e.stopPropagation();
             invoke("open_terminal_in_folder", { path: session.folder });
           }}
-          className="p-0.5 text-gray-600 hover:text-gray-300"
+          className="p-0.5 text-neutral-600 hover:text-neutral-300"
           aria-label="Terminal im Ordner oeffnen"
           title="Terminal im Ordner oeffnen"
         >
@@ -148,7 +158,7 @@ export function SessionCard({ session, isActive, isInGrid, onClick, onClose }: S
             e.stopPropagation();
             onClose();
           }}
-          className="p-0.5 text-gray-600 hover:text-gray-300"
+          className="p-0.5 text-neutral-600 hover:text-neutral-300"
           aria-label="Session schliessen"
         >
           <X className="w-3.5 h-3.5" />
@@ -158,7 +168,7 @@ export function SessionCard({ session, isActive, isInGrid, onClick, onClose }: S
       {/* Title row */}
       <div className="flex items-center gap-2 pr-5">
         <StatusDot status={session.status} activityLevel={activityLevel} />
-        <span className="font-bold text-sm text-gray-200 truncate">
+        <span className="font-bold text-sm text-neutral-200 truncate">
           {session.title}
         </span>
         {isInGrid && (
@@ -167,7 +177,7 @@ export function SessionCard({ session, isActive, isInGrid, onClick, onClose }: S
       </div>
 
       {/* Folder path */}
-      <div className="mt-1 pl-[18px] text-xs text-gray-500 truncate">
+      <div className="mt-1 pl-[18px] text-xs text-neutral-500 truncate">
         {shortenPath(session.folder)}
       </div>
 

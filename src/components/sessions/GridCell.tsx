@@ -12,10 +12,11 @@ interface GridCellProps {
   onRemove: () => void;
 }
 
-function StatusDot({ status, isThinking }: { status: string; isThinking: boolean }) {
+function StatusDot({ status, isThinking, isIdle }: { status: string; isThinking: boolean; isIdle: boolean }) {
   switch (status) {
     case "running":
     case "starting":
+      if (isIdle) return <span className="w-2 h-2 rounded-full bg-neutral-500 shrink-0" />;
       return isThinking ? (
         <span className="w-2 h-2 rounded-full bg-info status-breathe-animation shrink-0" />
       ) : (
@@ -53,7 +54,9 @@ export function GridCell({
     return () => clearInterval(interval);
   }, [isRunning]);
 
-  const isThinking = isRunning && getActivityLevel(lastOutputAt, now) === "thinking";
+  const activityLevel = isRunning ? getActivityLevel(lastOutputAt, now) : null;
+  const isThinking = activityLevel === "thinking";
+  const isIdle = activityLevel === "idle";
 
   return (
     <div
@@ -74,7 +77,7 @@ export function GridCell({
         `}
         style={{ height: "28px", minHeight: "28px" }}
       >
-        <StatusDot status={status} isThinking={isThinking} />
+        <StatusDot status={status} isThinking={isThinking} isIdle={isIdle} />
         <span className="text-xs text-neutral-200 font-bold truncate flex-1">
           {title}
         </span>

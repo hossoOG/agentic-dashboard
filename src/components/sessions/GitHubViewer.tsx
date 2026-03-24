@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-shell";
 import {
   RefreshCw,
   GitBranch,
@@ -42,12 +43,23 @@ interface GithubIssue {
   url: string;
 }
 
+// Simple in-memory cache to avoid re-fetching on tab switches
+interface CacheEntry {
+  gitInfo: GitInfo | null;
+  prs: GithubPR[];
+  issues: GithubIssue[];
+  ghError: string;
+  timestamp: number;
+}
+const cache = new Map<string, CacheEntry>();
+const CACHE_TTL = 60_000; // 1 minute
+
 function statusColor(status: string): string {
   switch (status) {
     case "APPROVED":
       return "text-success";
     case "CHANGES_REQUESTED":
-      return "text-red-400";
+      return "text-error";
     default:
       return "text-yellow-400";
   }
@@ -66,6 +78,15 @@ function statusLabel(status: string): string {
   }
 }
 
+async function openUrl(url: string) {
+  try {
+    await open(url);
+  } catch {
+    // Fallback: try window.open (won't work in Tauri, but harmless)
+    console.warn("shell.open failed for:", url);
+  }
+}
+
 export function GitHubViewer({ folder }: GitHubViewerProps) {
   const [gitInfo, setGitInfo] = useState<GitInfo | null>(null);
   const [prs, setPrs] = useState<GithubPR[]>([]);
@@ -73,41 +94,82 @@ export function GitHubViewer({ folder }: GitHubViewerProps) {
   const [gitError, setGitError] = useState<string>("");
   const [ghError, setGhError] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const mountedRef = useRef(true);
 
-  const load = async () => {
+  const applyCache = useCallback((entry: CacheEntry) => {
+    setGitInfo(entry.gitInfo);
+    setPrs(entry.prs);
+    setIssues(entry.issues);
+    setGhError(entry.ghError);
+    setGitError("");
+    setLoading(false);
+  }, []);
+
+  const load = useCallback(async (forceRefresh = false) => {
+    // Check cache first (unless forced refresh)
+    if (!forceRefresh) {
+      const cached = cache.get(folder);
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        applyCache(cached);
+        return;
+      }
+    }
+
     setLoading(true);
     setGitError("");
     setGhError("");
 
-    // Git info (always works if git repo)
-    try {
-      const info = await invoke<GitInfo>("get_git_info", { folder });
-      setGitInfo(info);
-    } catch (err) {
-      setGitInfo(null);
-      setGitError(String(err));
-    }
+    let newGitInfo: GitInfo | null = null;
+    let newPrs: GithubPR[] = [];
+    let newIssues: GithubIssue[] = [];
+    let newGitError = "";
+    let newGhError = "";
 
-    // GitHub PRs + Issues (needs gh CLI)
-    try {
-      const [prResult, issueResult] = await Promise.all([
+    // Run all three commands in parallel
+    const [gitResult, ghResult] = await Promise.allSettled([
+      invoke<GitInfo>("get_git_info", { folder }),
+      Promise.all([
         invoke<GithubPR[]>("get_github_prs", { folder }),
         invoke<GithubIssue[]>("get_github_issues", { folder }),
-      ]);
-      setPrs(prResult);
-      setIssues(issueResult);
-    } catch (err) {
-      setPrs([]);
-      setIssues([]);
-      setGhError(String(err));
+      ]),
+    ]);
+
+    if (gitResult.status === "fulfilled") {
+      newGitInfo = gitResult.value;
+    } else {
+      newGitError = String(gitResult.reason);
     }
 
+    if (ghResult.status === "fulfilled") {
+      [newPrs, newIssues] = ghResult.value;
+    } else {
+      newGhError = String(ghResult.reason);
+    }
+
+    // Update cache
+    cache.set(folder, {
+      gitInfo: newGitInfo,
+      prs: newPrs,
+      issues: newIssues,
+      ghError: newGhError,
+      timestamp: Date.now(),
+    });
+
+    if (!mountedRef.current) return;
+
+    setGitInfo(newGitInfo);
+    setPrs(newPrs);
+    setIssues(newIssues);
+    setGitError(newGitError);
+    setGhError(newGhError);
     setLoading(false);
-  };
+  }, [folder, applyCache]);
 
   useEffect(() => {
+    mountedRef.current = true;
     load();
-  }, [folder]);
+    return () => { mountedRef.current = false; };
+  }, [load]);
 
   if (loading) {
     return (
@@ -133,7 +195,7 @@ export function GitHubViewer({ folder }: GitHubViewerProps) {
       <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-700 shrink-0">
         <span className="text-xs text-neutral-400 font-medium">GitHub</span>
         <button
-          onClick={load}
+          onClick={() => load(true)}
           className="p-1 text-neutral-500 hover:text-neutral-300 transition-colors"
           title="Neu laden"
         >
@@ -159,7 +221,17 @@ export function GitHubViewer({ folder }: GitHubViewerProps) {
               )}
             </div>
             {gitInfo.remote_url && (
-              <div className="text-xs text-neutral-600 truncate">{gitInfo.remote_url}</div>
+              <button
+                onClick={() => {
+                  const url = gitInfo.remote_url
+                    .replace(/\.git$/, "")
+                    .replace(/^git@github\.com:/, "https://github.com/");
+                  if (url.startsWith("https://")) openUrl(url);
+                }}
+                className="text-xs text-neutral-600 hover:text-accent truncate cursor-pointer transition-colors text-left"
+              >
+                {gitInfo.remote_url}
+              </button>
             )}
           </div>
         )}
@@ -198,16 +270,13 @@ export function GitHubViewer({ folder }: GitHubViewerProps) {
                       {statusLabel(pr.status)}
                     </span>
                     {pr.url && (
-                      <a
-                        href={pr.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
+                      <button
+                        onClick={() => openUrl(pr.url)}
                         className="p-0.5 text-neutral-600 hover:text-neutral-300 opacity-0 group-hover:opacity-100 transition-opacity"
                         title="Im Browser oeffnen"
                       >
                         <ExternalLink className="w-3 h-3" />
-                      </a>
+                      </button>
                     )}
                   </div>
                 ))}
@@ -239,7 +308,7 @@ export function GitHubViewer({ folder }: GitHubViewerProps) {
                     {issue.labels.map((label) => (
                       <span
                         key={label}
-                        className="text-[10px] px-1.5 py-0.5 bg-accent/10 text-accent rounded-sm"
+                        className="text-[10px] px-1.5 py-0.5 bg-accent-a10 text-accent rounded-sm"
                       >
                         {label}
                       </span>
@@ -248,16 +317,13 @@ export function GitHubViewer({ folder }: GitHubViewerProps) {
                       <span className="text-xs text-neutral-500">{issue.assignee}</span>
                     )}
                     {issue.url && (
-                      <a
-                        href={issue.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
+                      <button
+                        onClick={() => openUrl(issue.url)}
                         className="p-0.5 text-neutral-600 hover:text-neutral-300 opacity-0 group-hover:opacity-100 transition-opacity"
                         title="Im Browser oeffnen"
                       >
                         <ExternalLink className="w-3 h-3" />
-                      </a>
+                      </button>
                     )}
                   </div>
                 ))}

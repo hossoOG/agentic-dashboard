@@ -15,25 +15,25 @@ export function SessionStatusBar() {
       <div className="flex items-center gap-4">
         <span className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-success status-pulse-animation" />
-          <span className="text-gray-400">{counts.active} aktiv</span>
+          <span className="text-neutral-400">{counts.active} aktiv</span>
         </span>
-        <span className="text-gray-600">·</span>
+        <span className="text-neutral-600">·</span>
         <span className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-yellow-400 status-pulse-animation" />
-          <span className="text-gray-400">{counts.waiting} wartend</span>
+          <span className="text-neutral-400">{counts.waiting} wartend</span>
         </span>
-        <span className="text-gray-600">·</span>
+        <span className="text-neutral-600">·</span>
         <span className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-success" />
-          <span className="text-gray-400">{counts.done} fertig</span>
+          <span className="text-neutral-400">{counts.done} fertig</span>
         </span>
-        <span className="text-gray-600">·</span>
+        <span className="text-neutral-600">·</span>
         <span className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-red-500" />
-          <span className="text-gray-400">{counts.error} Fehler</span>
+          <span className="text-neutral-400">{counts.error} Fehler</span>
         </span>
       </div>
-      <div className="text-gray-500">
+      <div className="text-neutral-500">
         {activeSession ? SHELL_LABELS[activeSession.shell] ?? activeSession.shell : "—"}
       </div>
     </div>

@@ -327,16 +327,43 @@ impl SessionManager {
         }
     }
 
+    /// Strips ANSI escape sequences (CSI sequences like \x1b[...m).
+    fn strip_ansi(s: &str) -> String {
+        let mut result = String::with_capacity(s.len());
+        let mut chars = s.chars().peekable();
+        while let Some(c) = chars.next() {
+            if c == '\x1b' {
+                // Skip ESC[ ... (final byte 0x40-0x7E)
+                if chars.peek() == Some(&'[') {
+                    chars.next(); // consume '['
+                    while let Some(&next) = chars.peek() {
+                        chars.next();
+                        if next.is_ascii() && (0x40..=0x7E).contains(&(next as u8)) {
+                            break;
+                        }
+                    }
+                }
+            } else {
+                result.push(c);
+            }
+        }
+        result
+    }
+
     /// Heuristik: erkennt ob Claude auf Input wartet.
     ///
     /// Prueft den letzten Output-Snippet auf typische Prompt-Muster:
     /// - Endet mit "> " oder "? " (Claude's interaktive Prompts)
-    /// - Endet mit "..." gefolgt von Newline (Denkpause)
+    /// - Endet mit "❯ " (Claude CLI Prompt)
     /// - Enthaelt "(y/n)" oder "[Y/n]" (Ja/Nein-Frage)
     fn detect_status(snippet: &str) -> String {
-        let trimmed = snippet.trim_end();
+        let clean = Self::strip_ansi(snippet);
+        // Only trim newlines/CR — keep trailing spaces for prompt detection
+        let trimmed = clean.trim_end_matches(|c: char| c == '\n' || c == '\r');
+
         if trimmed.ends_with("> ")
             || trimmed.ends_with("? ")
+            || trimmed.ends_with("❯ ")
             || trimmed.ends_with("(y/n)")
             || trimmed.ends_with("[Y/n]")
             || trimmed.ends_with("[y/N]")

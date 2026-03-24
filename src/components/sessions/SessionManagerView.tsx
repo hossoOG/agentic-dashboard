@@ -127,7 +127,7 @@ export function SessionManagerView() {
     <div className="flex flex-col h-full">
       <div className="flex flex-1 min-h-0">
         {/* Left column: Session list */}
-        <div className="w-[280px] min-w-[280px] border-r border-dark-border flex flex-col">
+        <div className="w-[280px] min-w-[280px] border-r border-neutral-700 flex flex-col">
           <SessionList onNewSession={() => setShowNewDialog(true)} onQuickStart={handleQuickStart} />
         </div>
 

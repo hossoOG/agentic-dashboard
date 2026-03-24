@@ -27,8 +27,8 @@ export function ContentTabs({ activeTab, onTabChange }: ContentTabsProps) {
             onClick={() => onTabChange(tab.id)}
             className={`flex items-center gap-1.5 px-3 h-full text-xs font-medium transition-colors duration-150 border-b-2 ${
               isActive
-                ? "text-accent border-accent bg-accent/5"
-                : "text-neutral-400 border-transparent hover:text-neutral-200 hover:bg-white/5"
+                ? "text-accent border-accent bg-accent-a05"
+                : "text-neutral-400 border-transparent hover:text-neutral-200 hover:bg-hover-overlay"
             }`}
           >
             <Icon className="w-3.5 h-3.5" />

@@ -38,11 +38,11 @@ export function FavoritesList({ onQuickStart }: FavoritesListProps) {
   return (
     <div>
       {/* Section header */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-dark-border">
-        <span className="text-xs text-gray-500 tracking-widest">FAVORITEN</span>
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-neutral-700">
+        <span className="text-xs text-neutral-500 tracking-widest">FAVORITEN</span>
         <button
           onClick={handleAddFavorite}
-          className="text-gray-500 hover:text-neon-green transition-colors"
+          className="text-neutral-500 hover:text-accent transition-colors"
           aria-label="Ordner als Favorit hinzufuegen"
         >
           <FolderPlus className="w-3.5 h-3.5" />
@@ -63,7 +63,7 @@ export function FavoritesList({ onQuickStart }: FavoritesListProps) {
 
       {/* Empty state */}
       {favorites.length === 0 && (
-        <div className="px-3 py-2 text-xs text-gray-600">
+        <div className="px-3 py-2 text-xs text-neutral-600">
           Ordner hinzufuegen fuer Schnellstart
         </div>
       )}

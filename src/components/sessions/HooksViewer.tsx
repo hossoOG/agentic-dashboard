@@ -85,7 +85,7 @@ export function HooksViewer({ folder }: HooksViewerProps) {
           <button
             onClick={() => setShowRaw(!showRaw)}
             className={`px-2 py-0.5 text-xs rounded-sm transition-colors ${
-              showRaw ? "text-accent bg-accent/10" : "text-neutral-500 hover:text-neutral-300"
+              showRaw ? "text-accent bg-accent-a10" : "text-neutral-500 hover:text-neutral-300"
             }`}
           >
             {showRaw ? "Strukturiert" : "Raw JSON"}

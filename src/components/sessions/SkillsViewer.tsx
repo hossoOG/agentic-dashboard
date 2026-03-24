@@ -98,8 +98,8 @@ export function SkillsViewer({ folder }: SkillsViewerProps) {
               onClick={() => setSelectedSkill(name)}
               className={`w-full text-left px-3 py-2 text-xs truncate transition-colors ${
                 selectedSkill === name
-                  ? "text-accent bg-accent/10 border-l-2 border-accent"
-                  : "text-neutral-300 hover:bg-white/5 border-l-2 border-transparent"
+                  ? "text-accent bg-accent-a10 border-l-2 border-accent"
+                  : "text-neutral-300 hover:bg-hover-overlay border-l-2 border-transparent"
               }`}
             >
               {name}

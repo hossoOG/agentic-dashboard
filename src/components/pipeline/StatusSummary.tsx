@@ -51,7 +51,7 @@ export function StatusSummary() {
       icon: Activity,
       label: "Aktiv",
       value: summary.activeCount,
-      color: "text-neon-blue",
+      color: "text-accent",
     },
     {
       icon: CheckCircle2,
@@ -63,13 +63,13 @@ export function StatusSummary() {
       icon: AlertTriangle,
       label: "Fehler",
       value: summary.errorCount,
-      color: summary.errorCount > 0 ? "text-red-400" : "text-gray-500",
+      color: summary.errorCount > 0 ? "text-error" : "text-neutral-500",
     },
     {
       icon: Clock,
       label: "Laufzeit",
       value: formatDuration(elapsed),
-      color: isRunning ? "text-neon-blue" : "text-gray-400",
+      color: isRunning ? "text-accent" : "text-neutral-400",
       isText: true,
     },
     {
@@ -93,14 +93,14 @@ export function StatusSummary() {
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className="flex items-center justify-center gap-6 px-6 py-2 bg-dark-card border-b border-dark-border"
+      className="flex items-center justify-center gap-6 px-6 py-2 bg-surface-raised border-b border-neutral-700"
     >
       {items.map((item) => {
         const Icon = item.icon;
         return (
           <div key={item.label} className="flex items-center gap-2">
             <Icon className={`w-4 h-4 ${item.color}`} />
-            <span className="text-xs text-gray-500 tracking-wide">{item.label}</span>
+            <span className="text-xs text-neutral-500 tracking-wide">{item.label}</span>
             <span className={`text-sm font-bold font-mono ${item.color}`}>
               {item.value}
             </span>

@@ -29,14 +29,14 @@ export function ErrorAlert({ errors, onRetry, onDismiss }: Props) {
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
             className="flex items-center gap-3 px-4 py-2.5 bg-red-950/60 border border-red-500/50 glow-red"
           >
-            <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+            <AlertTriangle className="w-4 h-4 text-error shrink-0" />
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 text-xs">
-                <span className="font-bold text-red-400 font-mono tracking-wider">
+                <span className="font-bold text-error font-mono tracking-wider">
                   {error.worktreeId}
                 </span>
-                <span className="text-gray-500">/</span>
+                <span className="text-neutral-500">/</span>
                 <span className="text-red-300">{error.step}</span>
               </div>
               <div className="text-xs text-red-200/70 truncate mt-0.5" title={error.message}>
@@ -46,7 +46,7 @@ export function ErrorAlert({ errors, onRetry, onDismiss }: Props) {
 
             <button
               onClick={() => onRetry(error.worktreeId)}
-              className="flex items-center gap-1 px-2 py-1 text-xs text-accent border border-accent/40 hover:bg-accent/10 transition-colors tracking-wide"
+              className="flex items-center gap-1 px-2 py-1 text-xs text-accent border border-accent-a40 hover:bg-accent-a10 transition-colors tracking-wide"
             >
               <RefreshCw className="w-3 h-3" />
               Retry
@@ -54,7 +54,7 @@ export function ErrorAlert({ errors, onRetry, onDismiss }: Props) {
 
             <button
               onClick={() => onDismiss(error.id)}
-              className="p-1 text-gray-500 hover:text-gray-300 transition-colors"
+              className="p-1 text-neutral-500 hover:text-neutral-300 transition-colors"
             >
               <X className="w-3.5 h-3.5" />
             </button>

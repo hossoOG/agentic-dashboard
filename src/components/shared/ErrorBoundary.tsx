@@ -61,7 +61,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               {this.state.error?.message ?? "Ein unbekannter Fehler ist aufgetreten."}
             </p>
             {this.state.error?.stack && (
-              <pre className="text-xs text-gray-500 mt-2 whitespace-pre-wrap break-all max-h-32 overflow-y-auto">
+              <pre className="text-xs text-neutral-500 mt-2 whitespace-pre-wrap break-all max-h-32 overflow-y-auto">
                 {this.state.error.stack}
               </pre>
             )}

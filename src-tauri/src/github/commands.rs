@@ -33,8 +33,20 @@ pub struct GithubIssue {
     pub url: String,
 }
 
+/// Creates a Command with hidden console window on Windows.
+fn silent_command(program: &str) -> Command {
+    let mut cmd = Command::new(program);
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    cmd
+}
+
 fn run_command(folder: &str, program: &str, args: &[&str]) -> Result<String, String> {
-    let output = Command::new(program)
+    let output = silent_command(program)
         .args(args)
         .current_dir(folder)
         .output()
@@ -50,9 +62,9 @@ fn run_command(folder: &str, program: &str, args: &[&str]) -> Result<String, Str
 
 fn is_command_available(cmd: &str) -> bool {
     #[cfg(target_os = "windows")]
-    let check = Command::new("where").arg(cmd).output();
+    let check = silent_command("where").arg(cmd).output();
     #[cfg(not(target_os = "windows"))]
-    let check = Command::new("which").arg(cmd).output();
+    let check = silent_command("which").arg(cmd).output();
 
     check.map(|o| o.status.success()).unwrap_or(false)
 }

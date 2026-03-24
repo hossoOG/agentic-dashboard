@@ -97,7 +97,7 @@ export function NewSessionDialog({ onClose }: NewSessionDialogProps) {
 
         {/* Dialog */}
         <motion.div
-          className="relative w-full max-w-md bg-dark-card border-2 border-dark-border p-6"
+          className="relative w-full max-w-md bg-surface-raised border-2 border-neutral-700 p-6"
           onClick={(e) => e.stopPropagation()}
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -111,7 +111,7 @@ export function NewSessionDialog({ onClose }: NewSessionDialogProps) {
             </h2>
             <button
               onClick={onClose}
-              className="text-gray-500 hover:text-gray-300 transition-colors"
+              className="text-neutral-500 hover:text-neutral-300 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -119,7 +119,7 @@ export function NewSessionDialog({ onClose }: NewSessionDialogProps) {
 
           {/* Folder Picker */}
           <div className="mb-4">
-            <label className="block text-xs text-gray-400 mb-1.5 tracking-wide">
+            <label className="block text-xs text-neutral-400 mb-1.5 tracking-wide">
               Ordner:
             </label>
             <div className="flex gap-2">
@@ -128,11 +128,11 @@ export function NewSessionDialog({ onClose }: NewSessionDialogProps) {
                 value={folder}
                 readOnly
                 placeholder="Ordner waehlen..."
-                className="flex-1 bg-dark-bg border border-dark-border px-3 py-2 text-sm text-gray-300 font-mono placeholder:text-gray-600 focus:outline-none focus:border-neon-green/50"
+                className="flex-1 bg-surface-base border border-neutral-700 px-3 py-2 text-sm text-neutral-300 font-mono placeholder:text-neutral-600 focus:outline-none focus:border-accent"
               />
               <button
                 onClick={handlePickFolder}
-                className="flex items-center gap-1.5 px-3 py-2 bg-dark-bg border border-dark-border text-gray-400 hover:text-neon-green hover:border-neon-green/50 transition-colors text-xs"
+                className="flex items-center gap-1.5 px-3 py-2 bg-surface-base border border-neutral-700 text-neutral-400 hover:text-accent hover:border-accent transition-colors text-xs"
               >
                 <FolderOpen className="w-4 h-4" />
                 Waehlen
@@ -142,7 +142,7 @@ export function NewSessionDialog({ onClose }: NewSessionDialogProps) {
 
           {/* Title Input */}
           <div className="mb-4">
-            <label className="block text-xs text-gray-400 mb-1.5 tracking-wide">
+            <label className="block text-xs text-neutral-400 mb-1.5 tracking-wide">
               Titel (optional):
             </label>
             <input
@@ -150,13 +150,13 @@ export function NewSessionDialog({ onClose }: NewSessionDialogProps) {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={folder ? extractFolderName(folder) : "Session-Titel"}
-              className="w-full bg-dark-bg border border-dark-border px-3 py-2 text-sm text-gray-300 font-mono placeholder:text-gray-600 focus:outline-none focus:border-neon-green/50"
+              className="w-full bg-surface-base border border-neutral-700 px-3 py-2 text-sm text-neutral-300 font-mono placeholder:text-neutral-600 focus:outline-none focus:border-accent"
             />
           </div>
 
           {/* Shell Selection */}
           <div className="mb-6">
-            <label className="block text-xs text-gray-400 mb-2 tracking-wide">
+            <label className="block text-xs text-neutral-400 mb-2 tracking-wide">
               Shell:
             </label>
             <div className="space-y-2">
@@ -170,7 +170,7 @@ export function NewSessionDialog({ onClose }: NewSessionDialogProps) {
                     className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
                       selectedShell === opt.value
                         ? "border-neon-green"
-                        : "border-gray-600 group-hover:border-gray-400"
+                        : "border-neutral-600 group-hover:border-neutral-400"
                     }`}
                   >
                     {selectedShell === opt.value && (
@@ -179,7 +179,7 @@ export function NewSessionDialog({ onClose }: NewSessionDialogProps) {
                   </span>
                   <span
                     className={`text-sm ${
-                      selectedShell === opt.value ? "text-gray-200" : "text-gray-500"
+                      selectedShell === opt.value ? "text-neutral-200" : "text-neutral-500"
                     }`}
                   >
                     {opt.label}
@@ -191,7 +191,7 @@ export function NewSessionDialog({ onClose }: NewSessionDialogProps) {
 
           {/* Error message */}
           {createError && (
-            <div className="mb-4 px-3 py-2 bg-red-900/20 border border-red-700 text-red-400 text-xs font-mono">
+            <div className="mb-4 px-3 py-2 bg-red-900/20 border border-red-700 text-error text-xs font-mono">
               {createError}
             </div>
           )}
@@ -200,7 +200,7 @@ export function NewSessionDialog({ onClose }: NewSessionDialogProps) {
           <div className="flex justify-end gap-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-xs text-gray-400 hover:text-gray-200 border border-dark-border hover:border-gray-500 transition-colors"
+              className="px-4 py-2 text-xs text-neutral-400 hover:text-neutral-200 border border-neutral-700 hover:border-neutral-500 transition-colors"
             >
               Abbrechen
             </button>

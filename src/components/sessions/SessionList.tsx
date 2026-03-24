@@ -39,9 +39,9 @@ export function SessionList({ onNewSession, onQuickStart }: SessionListProps) {
   const sorted = sortSessions(sessions);
 
   return (
-    <div className="flex flex-col h-full bg-dark-bg">
+    <div className="flex flex-col h-full bg-surface-base">
       {/* New Session Button */}
-      <div className="p-3 border-b border-dark-border">
+      <div className="p-3 border-b border-neutral-700">
         <button
           onClick={onNewSession}
           className="flex items-center justify-center gap-2 w-full px-3 py-2 bg-neon-green/10 border border-neon-green text-neon-green text-xs font-bold tracking-widest hover:bg-neon-green/20 transition-colors"
@@ -58,7 +58,7 @@ export function SessionList({ onNewSession, onQuickStart }: SessionListProps) {
 
         {/* Sessions section header (only when favorites exist) */}
         {favorites.length > 0 && (
-          <div className="px-3 py-1.5 text-xs text-gray-500 tracking-widest border-b border-dark-border">
+          <div className="px-3 py-1.5 text-xs text-neutral-500 tracking-widest border-b border-neutral-700">
             SESSIONS
           </div>
         )}
@@ -99,7 +99,7 @@ export function SessionList({ onNewSession, onQuickStart }: SessionListProps) {
           );
         })}
         {sessions.length === 0 && (
-          <div className="p-4 text-center text-gray-600 text-xs">
+          <div className="p-4 text-center text-neutral-600 text-xs">
             Keine Sessions vorhanden
           </div>
         )}

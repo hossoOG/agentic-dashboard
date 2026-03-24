@@ -13,7 +13,7 @@ const SettingsPlaceholder = React.lazy(() =>
 function NeonSpinner() {
   return (
     <div className="flex items-center justify-center h-full w-full bg-surface-base">
-      <div className="w-8 h-8 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+      <div className="w-8 h-8 border-2 border-accent-a30 border-t-accent rounded-full animate-spin" />
     </div>
   );
 }

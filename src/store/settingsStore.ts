@@ -15,7 +15,7 @@ export interface FavoriteFolder {
 }
 
 export interface ThemeSettings {
-  mode: "dark";
+  mode: "dark" | "light";
   accentColor: string;
   reducedMotion: boolean;
   animationSpeed: number;
@@ -66,6 +66,7 @@ export interface SettingsState {
   defaultShell: "auto" | "powershell" | "bash" | "cmd" | "zsh";
   defaultProjectPath: string;
   globalNotes: string;
+  projectNotes: Record<string, string>;
 
   // Actions
   setTheme: (partial: Partial<ThemeSettings>) => void;
@@ -76,6 +77,7 @@ export interface SettingsState {
   setDefaultShell: (shell: SettingsState["defaultShell"]) => void;
   setDefaultProjectPath: (path: string) => void;
   setGlobalNotes: (notes: string) => void;
+  setProjectNotes: (folder: string, notes: string) => void;
 
   addApiKeyMetadata: (entry: ApiKeyMetadataEntry) => void;
   removeApiKeyMetadata: (id: string) => void;
@@ -137,6 +139,7 @@ export const useSettingsStore = create<SettingsState>()(
       defaultShell: "auto",
       defaultProjectPath: "",
       globalNotes: "",
+      projectNotes: {},
 
       setTheme: (partial) =>
         set((state) => ({
@@ -165,6 +168,14 @@ export const useSettingsStore = create<SettingsState>()(
       setDefaultProjectPath: (path) => set({ defaultProjectPath: path }),
 
       setGlobalNotes: (notes) => set({ globalNotes: notes }),
+
+      setProjectNotes: (folder, notes) =>
+        set((state) => {
+          const key = folder.replace(/\\/g, "/").toLowerCase();
+          return {
+            projectNotes: { ...state.projectNotes, [key]: notes },
+          };
+        }),
 
       addApiKeyMetadata: (entry) =>
         set((state) => ({
@@ -228,10 +239,11 @@ export const useSettingsStore = create<SettingsState>()(
           locale: "de",
           defaultShell: "auto",
           defaultProjectPath: "",
-          // apiKeys, favorites and globalNotes are intentionally NOT reset
+          // apiKeys, favorites, globalNotes and projectNotes are intentionally NOT reset
           apiKeys: state.apiKeys,
           favorites: state.favorites,
           globalNotes: state.globalNotes,
+          projectNotes: state.projectNotes,
         })),
     }),
     {

@@ -1,7 +1,9 @@
-import { useState, useRef, useEffect } from "react";
-import { Cpu, FolderOpen, StickyNote } from "lucide-react";
+import { useState } from "react";
+import { Cpu, FolderOpen, Sun, Moon } from "lucide-react";
 import { useSessionStore, selectActiveSession } from "../store/sessionStore";
 import { useSettingsStore } from "../store/settingsStore";
+import { NotesPanel } from "./shared/NotesPanel";
+import { ChangelogDialog } from "./shared/ChangelogDialog";
 import { version } from "../../package.json";
 
 function shortenPath(path: string): string {
@@ -10,61 +12,25 @@ function shortenPath(path: string): string {
   return parts.slice(-2).join("/");
 }
 
-function NotesDropdown() {
-  const [open, setOpen] = useState(false);
-  const globalNotes = useSettingsStore((s) => s.globalNotes);
-  const setGlobalNotes = useSettingsStore((s) => s.setGlobalNotes);
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open]);
+function ThemeToggle() {
+  const mode = useSettingsStore((s) => s.theme.mode);
+  const setTheme = useSettingsStore((s) => s.setTheme);
 
   return (
-    <div className="relative" ref={panelRef}>
-      <button
-        onClick={() => setOpen(!open)}
-        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-sm transition-all ${
-          open
-            ? "bg-accent/15 text-accent border border-accent/40"
-            : globalNotes
-              ? "text-accent hover:bg-white/5 border border-transparent"
-              : "text-neutral-400 hover:text-neutral-200 hover:bg-white/5 border border-transparent"
-        }`}
-        aria-label="Notizen"
-        title="Notizen"
-      >
-        <StickyNote className="w-4 h-4" />
-        <span className="text-xs hidden lg:inline">Notizen</span>
-      </button>
-
-      {open && (
-        <div className="absolute top-full right-0 mt-2 z-50 w-80 bg-surface-overlay border border-neutral-700 rounded-sm shadow-xl">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-700">
-            <span className="text-xs text-neutral-400 font-medium">Globale Notizen</span>
-          </div>
-          <textarea
-            value={globalNotes}
-            onChange={(e) => setGlobalNotes(e.target.value)}
-            placeholder="Stichsaetze, Ideen, TODOs..."
-            className="w-full h-48 p-3 bg-transparent text-sm text-neutral-200 placeholder-neutral-600 outline-none resize-none font-mono"
-            autoFocus
-          />
-        </div>
-      )}
-    </div>
+    <button
+      onClick={() => setTheme({ mode: mode === "dark" ? "light" : "dark" })}
+      className="flex items-center justify-center w-8 h-8 rounded-sm text-neutral-400 hover:text-neutral-200 hover:bg-hover-overlay transition-colors"
+      aria-label={mode === "dark" ? "Light Mode aktivieren" : "Dark Mode aktivieren"}
+      title={mode === "dark" ? "Light Mode" : "Dark Mode"}
+    >
+      {mode === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+    </button>
   );
 }
 
 export function Header() {
   const activeSession = useSessionStore(selectActiveSession);
+  const [showChangelog, setShowChangelog] = useState(false);
 
   return (
     <header className="flex items-center justify-between px-6 py-3 border-b-2 border-neutral-700 bg-surface-raised retro-terminal">
@@ -73,9 +39,14 @@ export function Header() {
         <span className="text-accent font-bold text-lg tracking-wider font-display">
           AGENTIC DASHBOARD
         </span>
-        <span className="text-xs text-neutral-400 border border-neutral-700 px-2 py-0.5 rounded-none">
+        <button
+          onClick={() => setShowChangelog(true)}
+          className="text-xs text-neutral-400 border border-neutral-700 px-2 py-0.5 rounded-none hover:text-accent hover:border-accent transition-colors cursor-pointer"
+          title="Changelog anzeigen"
+        >
           v{version}
-        </span>
+        </button>
+        {showChangelog && <ChangelogDialog onClose={() => setShowChangelog(false)} />}
       </div>
 
       <div className="flex items-center gap-4">
@@ -96,8 +67,11 @@ export function Header() {
         {/* Divider */}
         <div className="w-px h-5 bg-neutral-700" />
 
+        {/* Theme Toggle */}
+        <ThemeToggle />
+
         {/* Notes */}
-        <NotesDropdown />
+        <NotesPanel />
       </div>
     </header>
   );

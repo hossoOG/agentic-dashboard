@@ -21,10 +21,10 @@ export function OrchestratorNode() {
       aria-label={`Orchestrator – ${config.label}`}
       animate={VARIANTS.breathe(isActive)}
       transition={{ duration: DURATION.ambient / 4, repeat: isActive ? Infinity : 0, ease: EASE.out as unknown as string }}
-      className={`w-80 rounded-none border-2 ${style.border} bg-dark-card ${glowClass} overflow-hidden`}
+      className={`w-80 rounded-none border-2 ${style.border} bg-surface-raised ${glowClass} overflow-hidden`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-dark-border">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-700">
         <div className="flex items-center gap-2">
           <motion.div
             animate={VARIANTS.spin(isActive)}
@@ -55,14 +55,14 @@ export function OrchestratorNode() {
               initial={VARIANTS.fadeInLeft.initial}
               animate={VARIANTS.fadeInLeft.animate}
               transition={{ duration: DURATION.fast, ease: EASE.out as unknown as string }}
-              className="text-xs text-gray-300 py-0.5"
+              className="text-xs text-neutral-300 py-0.5"
             >
               <span className="text-success mr-1">›</span>
               {log}
             </motion.div>
           ))}
           {orchestratorLog.length === 0 && (
-            <div className="text-gray-600 text-xs italic">Waiting to start...</div>
+            <div className="text-neutral-600 text-xs italic">Waiting to start...</div>
           )}
         </AnimatePresence>
       </div>

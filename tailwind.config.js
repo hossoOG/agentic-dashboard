@@ -4,46 +4,57 @@ export default {
   theme: {
     extend: {
       colors: {
-        /* ── Accent (single primary) ── */
-        accent: "oklch(72% 0.14 190)",
-        "accent-light": "oklch(85% 0.08 190)",
-        "accent-dark": "oklch(50% 0.12 190)",
-        "accent-subtle": "oklch(25% 0.04 190)",
+        /* ── Accent (single primary, CSS-variable-backed) ── */
+        accent: "var(--color-accent)",
+        "accent-light": "var(--color-accent-light)",
+        "accent-dark": "var(--color-accent-dark)",
+        "accent-subtle": "var(--color-accent-subtle)",
 
         /* ── Semantic ── */
-        success: "oklch(72% 0.16 155)",
-        error: "oklch(62% 0.22 25)",
-        warning: "oklch(75% 0.14 70)",
-        info: "oklch(68% 0.12 250)",
+        success: "var(--color-success)",
+        error: "var(--color-error)",
+        warning: "var(--color-warning)",
+        info: "var(--color-info)",
 
-        /* ── Tinted Neutrals (cool blue undertone) ── */
+        /* ── Tinted Neutrals (switch with theme) ── */
         neutral: {
-          50:  "oklch(95% 0.008 250)",
-          100: "oklch(90% 0.008 250)",
-          200: "oklch(80% 0.008 250)",
-          300: "oklch(70% 0.01 250)",
-          400: "oklch(55% 0.01 250)",
-          500: "oklch(45% 0.01 250)",
-          600: "oklch(35% 0.01 250)",
-          700: "oklch(26% 0.012 250)",
-          800: "oklch(20% 0.012 250)",
-          900: "oklch(15% 0.012 250)",
-          950: "oklch(11% 0.012 250)",
+          50:  "var(--neutral-50)",
+          100: "var(--neutral-100)",
+          200: "var(--neutral-200)",
+          300: "var(--neutral-300)",
+          400: "var(--neutral-400)",
+          500: "var(--neutral-500)",
+          600: "var(--neutral-600)",
+          700: "var(--neutral-700)",
+          800: "var(--neutral-800)",
+          900: "var(--neutral-900)",
+          950: "var(--neutral-950)",
         },
 
         /* ── Surfaces ── */
-        "surface-base":    "oklch(11% 0.012 250)",
-        "surface-raised":  "oklch(15% 0.012 250)",
-        "surface-overlay": "oklch(20% 0.012 250)",
+        "surface-base":    "var(--surface-base)",
+        "surface-raised":  "var(--surface-raised)",
+        "surface-overlay": "var(--surface-overlay)",
+
+        /* ── Alpha variants (for opacity modifiers) ── */
+        "accent-a10": "var(--accent-a10)",
+        "accent-a15": "var(--accent-a15)",
+        "accent-a40": "var(--accent-a40)",
+        "accent-a05": "var(--accent-a05)",
+        "accent-a30": "var(--accent-a30)",
+        "success-a05": "var(--success-a05)",
+
+        /* ── Hover overlay ── */
+        "hover-overlay": "var(--hover-overlay)",
 
         /* ── Legacy aliases (for gradual migration) ── */
-        "neon-green":  "oklch(72% 0.16 155)",
-        "neon-blue":   "oklch(72% 0.14 190)",
+        "neon-green":  "var(--color-success)",
+        "neon-blue":   "var(--color-accent)",
         "neon-purple":  "oklch(60% 0.20 300)",
-        "neon-orange":  "oklch(75% 0.14 70)",
-        "dark-bg":     "oklch(11% 0.012 250)",
-        "dark-card":   "oklch(15% 0.012 250)",
-        "dark-border": "oklch(26% 0.012 250)",
+        "neon-orange":  "var(--color-warning)",
+        "dark-bg":     "var(--surface-base)",
+        "dark-card":   "var(--surface-raised)",
+        "dark-border": "var(--neutral-700)",
       },
       fontFamily: {
         display: ["Space Grotesk", "Segoe UI", "system-ui", "sans-serif"],

@@ -3,38 +3,49 @@
 @tailwind utilities;
 
 /* ============================================
-   Design Tokens (Impeccable: OKLCH, Tinted Neutrals)
+   Design Tokens — Light Mode (default)
    ============================================ */
 :root {
-  /* ── Accent (single primary — no neon overload) ── */
-  --color-accent: oklch(72% 0.14 190);         /* Teal-Cyan */
-  --color-accent-light: oklch(85% 0.08 190);
-  --color-accent-dark: oklch(50% 0.12 190);
-  --color-accent-subtle: oklch(25% 0.04 190);  /* For bg tints */
+  /* ── Accent (tuned for white backgrounds) ── */
+  --color-accent: oklch(55% 0.16 190);
+  --color-accent-light: oklch(72% 0.10 190);
+  --color-accent-dark: oklch(40% 0.14 190);
+  --color-accent-subtle: oklch(92% 0.03 190);
 
   /* ── Semantic ── */
-  --color-success: oklch(72% 0.16 155);
-  --color-error: oklch(62% 0.22 25);
-  --color-warning: oklch(75% 0.14 70);
-  --color-info: oklch(68% 0.12 250);
+  --color-success: oklch(52% 0.18 155);
+  --color-error: oklch(52% 0.24 25);
+  --color-warning: oklch(58% 0.16 70);
+  --color-info: oklch(52% 0.14 250);
 
-  /* ── Tinted Neutrals (cool blue undertone — Chroma 0.01) ── */
-  --neutral-50:  oklch(95% 0.008 250);
-  --neutral-100: oklch(90% 0.008 250);
-  --neutral-200: oklch(80% 0.008 250);
-  --neutral-300: oklch(70% 0.01  250);
-  --neutral-400: oklch(55% 0.01  250);
-  --neutral-500: oklch(45% 0.01  250);
-  --neutral-600: oklch(35% 0.01  250);
-  --neutral-700: oklch(26% 0.012 250);
-  --neutral-800: oklch(20% 0.012 250);
-  --neutral-900: oklch(15% 0.012 250);
-  --neutral-950: oklch(11% 0.012 250);
+  /* ── Tinted Neutrals (light mode: high numbers = dark text) ── */
+  --neutral-50:  oklch(98% 0.005 250);
+  --neutral-100: oklch(95% 0.005 250);
+  --neutral-200: oklch(25% 0.01  250);  /* primary text (dark on light) */
+  --neutral-300: oklch(32% 0.01  250);
+  --neutral-400: oklch(45% 0.01  250);  /* secondary text */
+  --neutral-500: oklch(55% 0.01  250);  /* muted text */
+  --neutral-600: oklch(70% 0.008 250);  /* decorative separators */
+  --neutral-700: oklch(82% 0.008 250);  /* borders */
+  --neutral-800: oklch(92% 0.005 250);  /* subtle backgrounds */
+  --neutral-900: oklch(96% 0.003 250);  /* card backgrounds */
+  --neutral-950: oklch(99% 0.002 250);  /* base background */
 
-  /* ── Surfaces (depth via lightness, not shadows) ── */
-  --surface-base:   var(--neutral-950);   /* Body background */
-  --surface-raised:  var(--neutral-900);  /* Cards */
-  --surface-overlay: var(--neutral-800);  /* Elevated panels, modals */
+  /* ── Surfaces ── */
+  --surface-base:    oklch(97% 0.003 250);
+  --surface-raised:  oklch(100% 0 0);
+  --surface-overlay: oklch(98% 0.003 250);
+
+  /* ── Hover overlay ── */
+  --hover-overlay: oklch(0% 0 0 / 0.04);
+
+  /* ── Alpha variants (for opacity modifiers) ── */
+  --accent-a10: oklch(55% 0.16 190 / 0.10);
+  --accent-a15: oklch(55% 0.16 190 / 0.15);
+  --accent-a40: oklch(55% 0.16 190 / 0.40);
+  --accent-a05: oklch(55% 0.16 190 / 0.05);
+  --accent-a30: oklch(55% 0.16 190 / 0.30);
+  --success-a05: oklch(52% 0.18 155 / 0.05);
 
   /* ── Typography ── */
   --font-display: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
@@ -71,6 +82,46 @@
 }
 
 /* ============================================
+   Design Tokens — Dark Mode
+   ============================================ */
+.dark {
+  --color-accent: oklch(72% 0.14 190);
+  --color-accent-light: oklch(85% 0.08 190);
+  --color-accent-dark: oklch(50% 0.12 190);
+  --color-accent-subtle: oklch(25% 0.04 190);
+
+  --color-success: oklch(72% 0.16 155);
+  --color-error: oklch(62% 0.22 25);
+  --color-warning: oklch(75% 0.14 70);
+  --color-info: oklch(68% 0.12 250);
+
+  --neutral-50:  oklch(95% 0.008 250);
+  --neutral-100: oklch(90% 0.008 250);
+  --neutral-200: oklch(80% 0.008 250);
+  --neutral-300: oklch(70% 0.01  250);
+  --neutral-400: oklch(55% 0.01  250);
+  --neutral-500: oklch(45% 0.01  250);
+  --neutral-600: oklch(35% 0.01  250);
+  --neutral-700: oklch(26% 0.012 250);
+  --neutral-800: oklch(20% 0.012 250);
+  --neutral-900: oklch(15% 0.012 250);
+  --neutral-950: oklch(11% 0.012 250);
+
+  --surface-base:    var(--neutral-950);
+  --surface-raised:  var(--neutral-900);
+  --surface-overlay: var(--neutral-800);
+
+  --hover-overlay: oklch(100% 0 0 / 0.05);
+
+  --accent-a10: oklch(72% 0.14 190 / 0.10);
+  --accent-a15: oklch(72% 0.14 190 / 0.15);
+  --accent-a40: oklch(72% 0.14 190 / 0.40);
+  --accent-a05: oklch(72% 0.14 190 / 0.05);
+  --accent-a30: oklch(72% 0.14 190 / 0.30);
+  --success-a05: oklch(72% 0.16 155 / 0.05);
+}
+
+/* ============================================
    Base Styles
    ============================================ */
 * {
@@ -88,6 +139,14 @@ body {
   overflow: hidden;
   user-select: none;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Theme transition for smooth mode switch */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease, box-shadow 200ms ease !important;
 }
 
 /* ── Headings use display font ── */
@@ -162,18 +221,38 @@ code, pre, kbd,
   line-height: var(--leading-relaxed);
 }
 
+/* Light mode: terminal keeps dark look */
+:root:not(.dark) .retro-terminal {
+  background: var(--surface-raised);
+  border-color: var(--neutral-700);
+}
+
 /* ── Subtle Glow (only for active states — not everywhere) ── */
 .glow-accent {
-  box-shadow: 0 0 6px oklch(72% 0.14 190 / 0.4), 0 0 12px oklch(72% 0.14 190 / 0.15);
+  box-shadow: 0 0 6px var(--color-accent) / 0.4, 0 0 12px var(--color-accent) / 0.15;
 }
 .glow-success {
-  box-shadow: 0 0 6px oklch(72% 0.16 155 / 0.4), 0 0 12px oklch(72% 0.16 155 / 0.15);
+  box-shadow: 0 0 6px var(--color-success) / 0.4, 0 0 12px var(--color-success) / 0.15;
 }
 .glow-error {
-  box-shadow: 0 0 6px oklch(62% 0.22 25 / 0.4), 0 0 12px oklch(62% 0.22 25 / 0.15);
+  box-shadow: 0 0 6px var(--color-error) / 0.4, 0 0 12px var(--color-error) / 0.15;
 }
 .glow-warning {
-  box-shadow: 0 0 6px oklch(75% 0.14 70 / 0.4), 0 0 12px oklch(75% 0.14 70 / 0.15);
+  box-shadow: 0 0 6px var(--color-warning) / 0.4, 0 0 12px var(--color-warning) / 0.15;
+}
+
+/* Light mode: softer glows as subtle shadows */
+:root:not(.dark) .glow-accent {
+  box-shadow: 0 1px 4px oklch(55% 0.16 190 / 0.15), 0 0 8px oklch(55% 0.16 190 / 0.08);
+}
+:root:not(.dark) .glow-success {
+  box-shadow: 0 1px 4px oklch(52% 0.18 155 / 0.15), 0 0 8px oklch(52% 0.18 155 / 0.08);
+}
+:root:not(.dark) .glow-error {
+  box-shadow: 0 1px 4px oklch(52% 0.24 25 / 0.15), 0 0 8px oklch(52% 0.24 25 / 0.08);
+}
+:root:not(.dark) .glow-warning {
+  box-shadow: 0 1px 4px oklch(58% 0.16 70 / 0.15), 0 0 8px oklch(58% 0.16 70 / 0.08);
 }
 
 /* ============================================
@@ -196,18 +275,29 @@ code, pre, kbd,
   height: min(140vh, 1800px);
   position: relative;
   background-image:
-    linear-gradient(oklch(72% 0.14 190 / 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, oklch(72% 0.14 190 / 0.06) 1px, transparent 1px);
+    linear-gradient(var(--color-accent-subtle) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-accent-subtle) 1px, transparent 1px);
   background-size: 50px 50px;
 }
 
 .isometric-node {
   transform: translateZ(40px);
   transform-style: preserve-3d;
+  transition: transform var(--duration-base) var(--ease-out);
+}
+
+/* Dark mode: dramatic shadows */
+.dark .isometric-node {
   box-shadow:
     -20px 20px 30px oklch(0% 0 0 / 0.6),
     -2px 2px 0px oklch(72% 0.14 190 / 0.3);
-  transition: transform var(--duration-base) var(--ease-out);
+}
+
+/* Light mode: conventional drop shadows */
+:root:not(.dark) .isometric-node {
+  box-shadow:
+    -8px 8px 20px oklch(0% 0 0 / 0.08),
+    -2px 2px 6px oklch(0% 0 0 / 0.06);
 }
 
 .isometric-node:hover {

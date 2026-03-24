@@ -4,8 +4,11 @@ import { AppShell } from "./components/layout/AppShell";
 import { parseLogLine, applyParsedEvents } from "./store/logParser";
 import { logError } from "./utils/errorLogger";
 import { installGlobalErrorHandlers } from "./utils/globalErrorHandler";
+import { useThemeEffect } from "./hooks/useThemeEffect";
 
 function App() {
+  useThemeEffect();
+
   // Guard against double-registration in React Strict Mode: the ref persists
   // across the mount → unmount → remount cycle that Strict Mode triggers in dev.
   const listenerActive = useRef(false);

@@ -38,10 +38,10 @@ export function WorktreeNode({ worktree }: Props) {
         scale: isActive ? [1, 1.01, 1] : 1,
       }}
       transition={{ duration: DURATION.ambient / 4, repeat: isActive ? Infinity : 0, ease: EASE.out as unknown as string }}
-      className={`w-52 rounded-none border-2 ${style.border} ${glowClass} bg-dark-card overflow-hidden flex flex-col`}
+      className={`w-52 rounded-none border-2 ${style.border} ${glowClass} bg-surface-raised overflow-hidden flex flex-col`}
     >
       {/* Header */}
-      <div className="px-3 py-2 border-b border-dark-border">
+      <div className="px-3 py-2 border-b border-neutral-700">
         <div className="flex items-center gap-1.5 mb-1">
           <motion.div
             animate={{ rotate: isActive ? 360 : 0 }}
@@ -53,10 +53,10 @@ export function WorktreeNode({ worktree }: Props) {
             {status.toUpperCase().replace("_", " ")}
           </span>
         </div>
-        <div className="text-xs text-gray-400 truncate" title={branch}>
+        <div className="text-xs text-neutral-400 truncate" title={branch}>
           🌿 {branch.replace("refs/heads/", "")}
         </div>
-        <div className="text-xs text-gray-500 truncate mt-0.5" title={issue}>
+        <div className="text-xs text-neutral-500 truncate mt-0.5" title={issue}>
           {issue}
         </div>
       </div>
@@ -64,10 +64,10 @@ export function WorktreeNode({ worktree }: Props) {
       {/* Progress bar */}
       <div className="px-3 pt-2">
         <div className="flex justify-between text-xs mb-1">
-          <span className="text-gray-500">Progress</span>
+          <span className="text-neutral-500">Progress</span>
           <span className={style.text}>{progress}%</span>
         </div>
-        <div className="w-full bg-gray-800 rounded-full h-1.5">
+        <div className="w-full bg-neutral-800 rounded-full h-1.5">
           <motion.div
             className={`h-1.5 rounded-full ${isDone ? "bg-success" : isBlocked ? "bg-error" : "bg-accent"}`}
             initial={{ width: 0 }}
@@ -100,7 +100,7 @@ export function WorktreeNode({ worktree }: Props) {
                     <StepIcon className="w-3 h-3 text-accent shrink-0" />
                   </motion.div>
                 ) : (
-                  <StepIcon className={`w-3 h-3 ${isCompleted ? "text-success" : "text-gray-700"} shrink-0`} />
+                  <StepIcon className={`w-3 h-3 ${isCompleted ? "text-success" : "text-neutral-700"} shrink-0`} />
                 )}
                 <span
                   className={`text-xs ${
@@ -108,7 +108,7 @@ export function WorktreeNode({ worktree }: Props) {
                       ? "text-success"
                       : isCurrent
                       ? "text-accent"
-                      : "text-gray-600"
+                      : "text-neutral-600"
                   }`}
                 >
                   {STEP_LABELS[step]}
@@ -122,12 +122,12 @@ export function WorktreeNode({ worktree }: Props) {
       {/* Mini terminal log */}
       <div className="retro-terminal m-2 mt-1 p-2 h-16 overflow-hidden rounded-none">
         {logs.slice(-4).map((log, i) => (
-          <div key={i} className="text-xs text-gray-400 truncate leading-tight py-0.5">
-            <span className="text-gray-600">›</span> {log.replace(`[${currentStep}] `, "")}
+          <div key={i} className="text-xs text-neutral-400 truncate leading-tight py-0.5">
+            <span className="text-neutral-600">›</span> {log.replace(`[${currentStep}] `, "")}
           </div>
         ))}
         {logs.length === 0 && (
-          <div className="text-gray-700 text-xs italic">No logs yet...</div>
+          <div className="text-neutral-700 text-xs italic">No logs yet...</div>
         )}
       </div>
     </motion.div>

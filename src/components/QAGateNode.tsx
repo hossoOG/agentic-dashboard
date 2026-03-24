@@ -31,10 +31,10 @@ export function QAGateNode() {
         scale: isRunning ? [1, 1.01, 1] : 1,
       }}
       transition={{ duration: DURATION.ambient / 5, repeat: isRunning ? Infinity : 0, ease: EASE.out as unknown as string }}
-      className={`rounded-none border-2 bg-dark-card overflow-hidden w-96 retro-terminal ${overallStyle.border} ${overallStyle.text} ${glowClass}`}
+      className={`rounded-none border-2 bg-surface-raised overflow-hidden w-96 retro-terminal ${overallStyle.border} ${overallStyle.text} ${glowClass}`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-dark-border">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-700">
         <div className="flex items-center gap-2">
           <ShieldIcon className="w-5 h-5" />
           <span className="font-display font-bold text-sm tracking-widest">QA GATE</span>
@@ -57,7 +57,7 @@ export function QAGateNode() {
                 >
                   <Icon className={`w-4 h-4 ${checkStyle.text}`} />
                 </motion.div>
-                <span className="text-sm text-gray-300">{label}</span>
+                <span className="text-sm text-neutral-300">{label}</span>
               </div>
               <div className={`text-xs font-mono px-2 py-0.5 rounded-none border ${checkStyle.border} ${checkStyle.text} ${checkStyle.bg}/10`}>
                 {status.toUpperCase()}
@@ -70,7 +70,7 @@ export function QAGateNode() {
       {/* Status bar */}
       {overallStatus !== "idle" && (
         <div className="px-4 pb-3">
-          <div className="w-full bg-gray-800 rounded-full h-1.5">
+          <div className="w-full bg-neutral-800 rounded-full h-1.5">
             <motion.div
               className={`h-1.5 rounded-full ${overallStyle.bg}`}
               initial={{ width: 0 }}
