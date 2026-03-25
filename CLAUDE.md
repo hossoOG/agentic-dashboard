@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Agentic Dashboard** — Desktop-App zur Echtzeit-Visualisierung einer agentenbasierten Pipeline. Zeigt aktive Agents, Ausführungsschritte, QA-Gate-Status in einer gamifizierten isometrischen 2.5D-Oberfläche. Integriert Anthropic's Claude CLI (`claude m`) mit einem visuellen Monitoring-Dashboard.
+**Agentic Dashboard** — Desktop-App zum Verwalten und Ueberwachen von Claude CLI Sessions. Multi-Session-Terminal mit Projekt-Kontext (CLAUDE.md, Skills, Hooks, GitHub), Favoriten-System und Notizen. Gebaut mit Tauri v2 + React.
 
 **Tech-Stack**: React 18 + TypeScript + Vite (Frontend), Tauri v2 + Rust (Backend), Zustand (State), Tailwind CSS + Framer Motion (Styling/Animation)
 
@@ -25,42 +25,46 @@ npm run tauri build      # Kompletter Desktop-Build (Frontend + Rust)
 
 ## Architecture
 
-**Frontend** (`src/`): React-Komponenten mit isometrischer 3D-Darstellung. Zustand-Store für Pipeline-State. Regex-basierter Log-Parser für Event-Demultiplexing.
+**Frontend** (`src/`): React-Komponenten. Session Manager als Hauptansicht. Zustand-Stores fuer State-Management. Pipeline-View (isometrisch) als Sekundaeransicht.
 
-**Backend** (`src-tauri/`): Rust/Tauri spawnt `claude m` als Child-Process, streamt stdout/stderr als `pipeline-log` Events an das Frontend.
+**Backend** (`src-tauri/`): Rust/Tauri verwaltet PTY-Sessions (Claude CLI), liest Projektdateien, ruft GitHub-Daten via `gh` CLI ab.
 
-**Datenfluss**: Claude CLI → Rust (Event-Emitter) → React Listener (`App.tsx`) → Log-Parser → Zustand-Store → UI-Komponenten
+**Datenfluss Sessions**: User → Session erstellen → Rust spawnt PTY → `session-output` Events → xterm.js Terminal
 
-**Schlüssel-Dateien**:
-- `src/store/pipelineStore.ts` — Zustand Store (Orchestrator, Worktrees, QA-Gate)
-- `src/store/logParser.ts` — Regex-basierter Log-Demultiplexer
-- `src/store/mockPipeline.ts` — Mock-Daten für Entwicklung (aktuell Standard)
-- `src-tauri/src/lib.rs` — Tauri Commands (start/stop pipeline, folder picker)
-- `src/components/DashboardMap.tsx` — Isometrische Hauptansicht
+**Schluessel-Dateien**:
+- `src/store/sessionStore.ts` — Session-Management (ephemerer State)
+- `src/store/settingsStore.ts` — Persistierter State (Favorites, Notes, Theme)
+- `src/store/uiStore.ts` — UI-State (Tabs, Toasts)
+- `src/store/pipelineStore.ts` — Pipeline-State (Orchestrator, Worktrees, QA-Gate)
+- `src-tauri/src/session/` — Rust Session Manager (PTY, Commands)
+- `src/components/sessions/SessionManagerView.tsx` — Haupt-View
 
-**Tailwind Custom Colors**: `neon-green` (#00ff88), `neon-blue` (#00d4ff), `neon-purple` (#b300ff), `neon-orange` (#ff6b00), `dark-bg/card/border`
+**Geloeschter Code**: 12 nie integrierte Dateien (Pipeline-Komponenten, ADP-Adapter, serviceStore, terminalStore, logRedactor, constants) wurden am 2026-03-25 nach gruendlichem Audit entfernt. Details in `tasks/lessons.md`.
 
 ## Arbeitsweise
 
 - **Plan-First**: Bei nicht-trivialen Tasks (3+ Schritte oder Architektur-Entscheidungen) → Plan Mode. Bei Problemen: STOP → sofort re-planen, nicht weiterpushen.
 - **Subagents liberal einsetzen**: Research, Exploration und parallele Analyse an Subagents delegieren. Ein Task pro Subagent. Main Context Window sauber halten.
-- **Verification vor Done**: Task erst abgeschlossen wenn bewiesen funktioniert — Tests laufen, Logs geprüft, Diff demonstriert. Maßstab: "Würde ein Staff Engineer das absegnen?"
-- **Eleganz (balanciert)**: Bei nicht-trivialen Änderungen hinterfragen: "Gibt es einen eleganteren Weg?" Aber bei einfachen Fixes nicht over-engineeren.
-- **Autonomes Bug-Fixing**: Bug-Reports selbstständig lösen. Logs lesen, Fehler finden, Tests fixen — ohne Rückfragen. Zero Context-Switching für den User.
-- **Root Causes**: Keine temporären Fixes. Ursachen finden. Senior-Developer-Standard.
+- **Verification vor Done**: Task erst abgeschlossen wenn bewiesen funktioniert — Build gruen, Diff demonstriert. Massstab: "Wuerde ein Staff Engineer das absegnen?"
+- **Eleganz (balanciert)**: Bei nicht-trivialen Aenderungen hinterfragen: "Gibt es einen eleganteren Weg?" Aber bei einfachen Fixes nicht over-engineeren.
+- **Autonomes Bug-Fixing**: Bug-Reports selbststaendig loesen. Logs lesen, Fehler finden — ohne Rueckfragen. Zero Context-Switching fuer den User.
+- **Root Causes**: Keine temporaeren Fixes. Ursachen finden. Senior-Developer-Standard.
+- **Kleine Commits**: Max 5-10 Dateien pro Commit. Features in logische Schritte aufteilen.
 
 ## Task Management
 
 - **Planen**: Tasks in `tasks/todo.md` mit checkbaren Items erfassen
 - **Tracken**: Items abhaken sobald erledigt, nicht batchen
+- **Ideen einfangen**: Spontane Ideen → `tasks/ideas.md` (kein Filter, kein Urteil)
 - **Lernen**: Nach jeder User-Korrektur → `tasks/lessons.md` updaten (Fehler, Korrektur, Regel)
-- **Lessons reviewen**: Bei Session-Start `tasks/lessons.md` auf relevante Patterns prüfen
+- **Lessons reviewen**: Bei Session-Start `tasks/lessons.md` auf relevante Patterns pruefen
+- **Sprint-Planung**: Ideen aus `ideas.md` priorisieren → `todo.md` uebernehmen
 
 ## Kommunikationsregeln
 
 - **Keine unverifizierten Behauptungen:** Lies immer zuerst den Code/Config/Skill, BEVOR du Aussagen machst. Belege mit Dateien und Zeilennummern.
 - **Unsicherheit kennzeichnen:** Grobe Zuversicht angeben (z.B. "~70% sicher"), Vermutungen klar markieren.
-- **Keine Annahmen über Skills/Configs:** Nie behaupten was ein Skill tut, ohne ihn gelesen zu haben.
+- **Keine Annahmen ueber Skills/Configs:** Nie behaupten was ein Skill tut, ohne ihn gelesen zu haben.
 
 ## Development Workflow Rules
 
@@ -70,40 +74,50 @@ npm run tauri build      # Kompletter Desktop-Build (Frontend + Rust)
 
 ## Testing Requirements
 
-- **Build-Verifizierung vor "Done"**: `npx tsc --noEmit && npm run build` müssen grün sein.
-- **Visuelles Testen**: Dashboard im Dev-Modus (`npm run tauri dev`) prüfen — Mock-Pipeline startet automatisch.
-- **Rust-Änderungen**: `cargo check` im `src-tauri/` Verzeichnis ausführen.
+- **Build-Verifizierung vor "Done"**: `npx tsc --noEmit && npm run build` muessen gruen sein.
+- **Visuelles Testen**: Dashboard im Dev-Modus (`npm run tauri dev`) pruefen.
+- **Rust-Aenderungen**: `cargo check` im `src-tauri/` Verzeichnis ausfuehren.
 
 ## Workflow Compliance
 
-- **Skill-Pipeline ist ein Vertrag**: Bei `/implement`, `/feature`, `/bugfix` etc. IMMER zuerst die SKILL.md komplett lesen, dann Phase für Phase ausführen. Keine Phase überspringen, nicht "zusammenfassen".
+- **Skill-Pipeline ist ein Vertrag**: Bei `/implement`, `/feature`, `/bugfix` etc. IMMER zuerst die SKILL.md komplett lesen, dann Phase fuer Phase ausfuehren. Keine Phase ueberspringen, nicht "zusammenfassen".
 - **STOPP-Punkte einhalten**: Wenn eine Phase "STOPP" sagt → STOPP. Nicht "zur Effizienz" weiter machen.
-- **Sub-Agents nutzen wenn vorgeschrieben**: Wenn eine Phase einen Sub-Agent vorschreibt, diesen Agent starten — nicht die Aufgabe selbst übernehmen.
+- **Sub-Agents nutzen wenn vorgeschrieben**: Wenn eine Phase einen Sub-Agent vorschreibt, diesen Agent starten — nicht die Aufgabe selbst uebernehmen.
 
 ## Code Quality Gates
 
 - **Null-Safety**: Optional chaining (`?.`) und nullish coalescing (`??`) bei Tauri-Events, Store-Zugriffen und User-Input.
-- **Signature Changes → Alle Caller updaten**: Nach Änderung einer Funktion/Action-Signatur: Grep nach allen Usages im gesamten Codebase, ALLE updaten. Kein Commit mit broken Callers.
-- **Nicht behaupten, verifizieren**: "Funktioniert" erst sagen wenn der Beweis vorliegt (Build-Log, Screenshot). Keine Annahmen über Dev-Server oder Konfiguration.
-- **Pre-PR Pflicht**: Vor `gh pr create` MÜSSEN fehlerfrei sein: 1) `npx tsc --noEmit` 2) `npm run build`. Bei Failure → zuerst fixen.
+- **Signature Changes → Alle Caller updaten**: Nach Aenderung einer Funktion/Action-Signatur: Grep nach allen Usages im gesamten Codebase, ALLE updaten. Kein Commit mit broken Callers.
+- **Nicht behaupten, verifizieren**: "Funktioniert" erst sagen wenn der Beweis vorliegt (Build-Log, Screenshot). Keine Annahmen ueber Dev-Server oder Konfiguration.
+- **Pre-PR Pflicht**: Vor `gh pr create` MUESSEN fehlerfrei sein: 1) `npx tsc --noEmit` 2) `npm run build`. Bei Failure → zuerst fixen.
 
 ## Coding Conventions
 
 - Conventional Commits: `feat(scope):`, `fix(scope):`, `chore(scope):`
 - **Scopes**: `ui`, `store`, `parser`, `tauri`, `config`
 - **React**: Functional Components, Hooks, kein class-based
-- **State**: Zustand — neue State-Slices in `pipelineStore.ts`, keine lokalen useState für shared state
-- **Styling**: Tailwind Utility Classes bevorzugen, Custom CSS nur für Animationen/3D-Transforms in `index.css`
+- **State**: Zustand — Session-State in `sessionStore.ts`, persistierter State in `settingsStore.ts`, UI-State in `uiStore.ts`
+- **Styling**: Tailwind Utility Classes bevorzugen, Custom CSS nur fuer Animationen/3D-Transforms in `index.css`
 - **Rust**: Tauri Commands in `lib.rs` im `mod commands {}` Block (wegen rustc 1.94 E0255 Workaround)
 
 ## Parallele Entwicklung
 
 - `.claude/worktrees/` ist in .gitignore — jeder Worktree bekommt eigenen Branch + Arbeitskopie
-- Nach Fertigstellung: PR reviewen, Worktree wird automatisch aufgeräumt
+- Nach Fertigstellung: PR reviewen, Worktree wird automatisch aufgeraeumt
 
 ## Projekt-spezifische Hinweise
 
-- **Mock vs. Real Mode**: Aktuell läuft das Dashboard im Mock-Modus (`mockPipeline.ts`). Für echten Betrieb muss der START-Button in `Header.tsx` den Tauri-Command `start_pipeline` aufrufen.
-- **Log-Parser Regex**: Patterns in `logParser.ts` müssen gegen echte Claude CLI-Ausgabe validiert werden.
-- **Worktree-ID**: Kommt immer als `null` vom Rust-Backend — Demultiplexing passiert komplett im JS Log-Parser via Kontext-Tracking.
+- **Session-basiert**: Die App dreht sich um Claude CLI Sessions mit PTY. Jede Session hat einen Ordner, ein Terminal, und Kontext-Tabs (CLAUDE.md, Skills, Hooks, GitHub).
+- **Pipeline-View**: Isometrische 2.5D-Ansicht existiert als Sekundaer-View (`DashboardMap.tsx`). Laeuft nur im Mock-Modus, Real-Modus nicht implementiert.
 - **Tauri v2**: API-Imports immer aus `@tauri-apps/api` (v2), nicht v1-Syntax.
+- **Protokoll-Schema**: `src/protocols/schema.ts` definiert das ADP-Protokoll und wird von `pipelineStore.ts` aktiv importiert (`ADPError`). Nicht loeschen.
+
+## Prozess-Dokumentation
+
+- `Softwareprozess/Phase.txt` — Aktuelle Roadmap und Release-Status
+- `Softwareprozess/lessons-learned.md` — Historische Lessons (bis 2026-03-16)
+- `tasks/todo.md` — Sprint-Backlog
+- `tasks/ideas.md` — Ideen-Sammlung
+- `tasks/lessons.md` — Aktuelle Lessons Learned (ab 2026-03-25)
+- `Softwareprozess/Anforderungsanalyse.md` — [ARCHIVED] Urspruengliche Anforderungen
+- `Softwareprozess/Planung.md` — [ARCHIVED] Urspruenglicher Sprint-Plan

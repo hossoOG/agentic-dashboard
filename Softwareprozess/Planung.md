@@ -1,8 +1,12 @@
-# Phase 2: Planung — Agentic Dashboard
+# [ARCHIVED] Phase 2: Planung — Agentic Dashboard
+
+> **ARCHIVED (2026-03-25):** Dieses Dokument beschreibt die urspruengliche 8-Wochen-Sprint-Roadmap
+> fuer die Pipeline-Visualisierung. Der Sprint-Plan wurde nach dem Pivot zum Session Manager
+> nie ausgefuehrt. Aktuelle Planung steht in `Phase.txt`. Bleibt als historische Referenz.
 
 **Datum:** 2026-03-15
 **Phase:** 2 (Planung) aus `Phase.txt`
-**Status:** Abgeschlossen
+**Status:** Abgeschlossen (archiviert nach Pivot)
 **Methode:** 10 Spezialisten-Agenten parallel (Sprint Planner, System Architect, Rust Backend, Frontend Components, Critical Path, DevOps, State Modeler, API Integration, ADP Migration, QA Strategy)
 
 ---

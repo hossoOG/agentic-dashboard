@@ -1,8 +1,13 @@
-# Anforderungsanalyse — Agentic Dashboard
+# [ARCHIVED] Anforderungsanalyse — Agentic Dashboard
+
+> **ARCHIVED (2026-03-25):** Dieses Dokument beschreibt die urspruengliche Anforderungsanalyse
+> fuer die isometrische Pipeline-Visualisierung. Nach dem Pivot zum Session Manager (2026-03-16)
+> sind die meisten User Stories hier NICHT mehr aktuell. Aktuelle Stories stehen in `Phase.txt`.
+> Dieses Dokument bleibt als historische Referenz erhalten.
 
 **Datum:** 2026-03-15
 **Phase:** 1 (Anforderungsanalyse) aus `Phase.txt`
-**Status:** Abgeschlossen
+**Status:** Abgeschlossen (archiviert nach Pivot)
 **Methode:** 10 Spezialisten-Agenten parallel (Persona-Analyse, Pipeline-Viz, Terminal, Security, Cross-Platform, AI-Hub, Protokoll, UX/Gamification, Machbarkeit)
 
 ---
