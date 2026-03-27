@@ -9,6 +9,32 @@ pub mod pipeline;
 pub mod session;
 pub mod settings;
 
+mod commands {
+    #[tauri::command]
+    pub async fn open_log_window(app: tauri::AppHandle) -> Result<(), String> {
+        use tauri::{Manager, WebviewWindowBuilder};
+
+        // If window already exists, just focus it
+        if let Some(win) = app.get_webview_window("log-viewer") {
+            let _ = win.set_focus();
+            return Ok(());
+        }
+
+        WebviewWindowBuilder::new(
+            &app,
+            "log-viewer",
+            tauri::WebviewUrl::App("index.html?view=logs".into()),
+        )
+        .title("AgenticExplorer \u{2014} Logs")
+        .inner_size(900.0, 600.0)
+        .resizable(true)
+        .build()
+        .map_err(|e| format!("Failed to create log window: {}", e))?;
+
+        Ok(())
+    }
+}
+
 fn init_logging() {
     use env_logger::Builder;
     use log::LevelFilter;
@@ -148,6 +174,8 @@ pub fn run() {
             library::commands::commands::get_library_item_path,
             // Log reader
             log_reader::commands::read_backend_log,
+            // Log window
+            commands::open_log_window,
             // User settings (Documents/AgenticExplorer/)
             settings::commands::load_user_settings,
             settings::commands::save_user_settings,
