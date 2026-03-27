@@ -1,0 +1,323 @@
+// src-tauri/src/session/agent_detector.rs
+//
+// Detects Claude Code subagent spawns, completions, and worktree creation
+// from PTY terminal output. Operates on ANSI-stripped text.
+
+use regex::Regex;
+use std::collections::HashMap;
+
+/// Maximum buffer size for rolling output window (in chars).
+const MAX_BUFFER: usize = 4000;
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct AgentInfo {
+    pub id: String,
+    pub name: Option<String>,
+    pub task: Option<String>,
+    pub status: String, // "running" | "completed" | "error"
+    pub detected_at: i64,
+    pub completed_at: Option<i64>,
+    pub worktree_path: Option<String>,
+}
+
+// --- Tauri Event Payloads ---
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct AgentDetectedEvent {
+    pub session_id: String,
+    pub agent_id: String,
+    pub name: Option<String>,
+    pub task: Option<String>,
+    pub detected_at: i64,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct AgentCompletedEvent {
+    pub session_id: String,
+    pub agent_id: String,
+    pub status: String,
+    pub completed_at: i64,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct WorktreeDetectedEvent {
+    pub session_id: String,
+    pub path: String,
+    pub branch: Option<String>,
+    pub agent_id: Option<String>,
+}
+
+// --- Worktree scan result ---
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct WorktreeInfo {
+    pub path: String,
+    pub branch: Option<String>,
+    pub is_main: bool,
+}
+
+/// Events emitted by the detector after processing a chunk.
+#[derive(Clone, Debug)]
+pub enum AgentEvent {
+    Detected(AgentDetectedEvent),
+    Completed(AgentCompletedEvent),
+    Worktree(WorktreeDetectedEvent),
+}
+
+struct AgentPatterns {
+    agent_launch: Regex,
+    agent_name_task: Regex,
+    agent_complete: Regex,
+    agent_error: Regex,
+    worktree_create: Regex,
+    worktree_path: Regex,
+}
+
+impl AgentPatterns {
+    fn new() -> Self {
+        Self {
+            // Matches patterns like "Agent launched", "Starting agent", "⏳ Starting agent"
+            agent_launch: Regex::new(
+                r"(?i)(?:agent\s+launched|starting\s+agent|spawning.*agent|tool.*:\s*agent)"
+            ).unwrap(),
+            // Try to extract agent name/task from surrounding text
+            agent_name_task: Regex::new(
+                r#"(?i)(?:agent|name)[:\s]+["']?([^"'\n]{3,60})["']?"#
+            ).unwrap(),
+            // Matches agent completion patterns
+            agent_complete: Regex::new(
+                r"(?i)(?:agent\s+completed|agent\s+finished|agent.*done|completed\s+successfully)"
+            ).unwrap(),
+            // Matches agent error patterns
+            agent_error: Regex::new(
+                r"(?i)(?:agent\s+(?:failed|error|crashed)|agent.*error)"
+            ).unwrap(),
+            // Matches worktree creation
+            worktree_create: Regex::new(
+                r"(?i)(?:git\s+worktree\s+add|created?\s+worktree|worktree\s+created)"
+            ).unwrap(),
+            // Extract worktree path
+            worktree_path: Regex::new(
+                r#"(?:worktree[s]?[/\\]|worktree\s+add\s+)([^\s\n"']+)"#
+            ).unwrap(),
+        }
+    }
+}
+
+pub struct AgentDetector {
+    session_id: String,
+    buffer: String,
+    known_agents: HashMap<String, AgentInfo>,
+    agent_counter: u32,
+    patterns: AgentPatterns,
+    /// Track what we've already processed to avoid duplicate events
+    last_processed_len: usize,
+}
+
+impl AgentDetector {
+    pub fn new(session_id: String) -> Self {
+        Self {
+            session_id,
+            buffer: String::with_capacity(MAX_BUFFER),
+            known_agents: HashMap::new(),
+            agent_counter: 0,
+            patterns: AgentPatterns::new(),
+            last_processed_len: 0,
+        }
+    }
+
+    /// Feed a chunk of ANSI-stripped terminal output and return any detected events.
+    pub fn feed(&mut self, stripped_chunk: &str) -> Vec<AgentEvent> {
+        // Append to rolling buffer
+        self.buffer.push_str(stripped_chunk);
+
+        // Trim buffer if too large (keep the tail)
+        if self.buffer.len() > MAX_BUFFER {
+            let mut trim_at = self.buffer.len() - (MAX_BUFFER / 2);
+            // Find a valid char boundary (advance until we hit one)
+            while trim_at < self.buffer.len() && !self.buffer.is_char_boundary(trim_at) {
+                trim_at += 1;
+            }
+            self.buffer = self.buffer[trim_at..].to_string();
+            self.last_processed_len = 0; // Reset — we shifted the buffer
+        }
+
+        let mut events = Vec::new();
+
+        // Only scan the new portion of the buffer
+        let scan_start = self.last_processed_len.min(self.buffer.len());
+        let scan_text = &self.buffer[scan_start..];
+
+        if scan_text.is_empty() {
+            self.last_processed_len = self.buffer.len();
+            return events;
+        }
+
+        // Check for agent launches
+        if self.patterns.agent_launch.is_match(scan_text) {
+            self.agent_counter += 1;
+            let agent_id = format!("{}-agent-{}", self.session_id, self.agent_counter);
+            let now = chrono::Utc::now().timestamp_millis();
+
+            // Try to extract name/task from context
+            let name = self.patterns.agent_name_task
+                .captures(scan_text)
+                .and_then(|c| c.get(1))
+                .map(|m| m.as_str().trim().to_string());
+
+            let info = AgentInfo {
+                id: agent_id.clone(),
+                name: name.clone(),
+                task: name.clone(), // Use name as task for now
+                status: "running".to_string(),
+                detected_at: now,
+                completed_at: None,
+                worktree_path: None,
+            };
+
+            self.known_agents.insert(agent_id.clone(), info);
+
+            events.push(AgentEvent::Detected(AgentDetectedEvent {
+                session_id: self.session_id.clone(),
+                agent_id,
+                name: name.clone(),
+                task: name,
+                detected_at: now,
+            }));
+        }
+
+        // Check for agent completions
+        if self.patterns.agent_complete.is_match(scan_text) {
+            if let Some(agent_id) = self.find_running_agent() {
+                let now = chrono::Utc::now().timestamp_millis();
+                if let Some(info) = self.known_agents.get_mut(&agent_id) {
+                    info.status = "completed".to_string();
+                    info.completed_at = Some(now);
+                }
+                events.push(AgentEvent::Completed(AgentCompletedEvent {
+                    session_id: self.session_id.clone(),
+                    agent_id,
+                    status: "completed".to_string(),
+                    completed_at: now,
+                }));
+            }
+        }
+
+        // Check for agent errors
+        if self.patterns.agent_error.is_match(scan_text) {
+            if let Some(agent_id) = self.find_running_agent() {
+                let now = chrono::Utc::now().timestamp_millis();
+                if let Some(info) = self.known_agents.get_mut(&agent_id) {
+                    info.status = "error".to_string();
+                    info.completed_at = Some(now);
+                }
+                events.push(AgentEvent::Completed(AgentCompletedEvent {
+                    session_id: self.session_id.clone(),
+                    agent_id,
+                    status: "error".to_string(),
+                    completed_at: now,
+                }));
+            }
+        }
+
+        // Check for worktree creation
+        if self.patterns.worktree_create.is_match(scan_text) {
+            let path = self.patterns.worktree_path
+                .captures(scan_text)
+                .and_then(|c| c.get(1))
+                .map(|m| m.as_str().trim().to_string())
+                .unwrap_or_else(|| "unknown".to_string());
+
+            // Try to associate with the most recent running agent
+            let agent_id = self.find_running_agent();
+
+            // Update agent's worktree path
+            if let Some(ref aid) = agent_id {
+                if let Some(info) = self.known_agents.get_mut(aid) {
+                    info.worktree_path = Some(path.clone());
+                }
+            }
+
+            events.push(AgentEvent::Worktree(WorktreeDetectedEvent {
+                session_id: self.session_id.clone(),
+                path,
+                branch: None,
+                agent_id,
+            }));
+        }
+
+        self.last_processed_len = self.buffer.len();
+        events
+    }
+
+    /// Find the most recently spawned agent that's still running.
+    fn find_running_agent(&self) -> Option<String> {
+        self.known_agents
+            .values()
+            .filter(|a| a.status == "running")
+            .max_by_key(|a| a.detected_at)
+            .map(|a| a.id.clone())
+    }
+
+    /// Get all known agents for this session.
+    pub fn known_agents(&self) -> &HashMap<String, AgentInfo> {
+        &self.known_agents
+    }
+}
+
+/// Scan a project folder for git worktrees.
+/// Uses `git worktree list --porcelain` for reliable parsing.
+pub fn scan_worktrees_in_folder(folder: &str) -> Result<Vec<WorktreeInfo>, String> {
+    let output = std::process::Command::new("git")
+        .args(["worktree", "list", "--porcelain"])
+        .current_dir(folder)
+        .output()
+        .map_err(|e| format!("Failed to run git worktree list: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("git worktree list failed: {}", stderr.trim()));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut worktrees = Vec::new();
+    let mut current_path: Option<String> = None;
+    let mut current_branch: Option<String> = None;
+    let mut is_bare = false;
+
+    for line in stdout.lines() {
+        if line.starts_with("worktree ") {
+            // Save previous entry
+            if let Some(path) = current_path.take() {
+                if !is_bare {
+                    worktrees.push(WorktreeInfo {
+                        path,
+                        branch: current_branch.take(),
+                        is_main: worktrees.is_empty(), // First worktree is main
+                    });
+                }
+            }
+            current_path = Some(line[9..].to_string());
+            current_branch = None;
+            is_bare = false;
+        } else if line.starts_with("branch ") {
+            let branch = line[7..].to_string();
+            current_branch = Some(branch.replace("refs/heads/", ""));
+        } else if line == "bare" {
+            is_bare = true;
+        }
+    }
+
+    // Don't forget the last entry
+    if let Some(path) = current_path {
+        if !is_bare {
+            worktrees.push(WorktreeInfo {
+                path,
+                branch: current_branch,
+                is_main: worktrees.is_empty(),
+            });
+        }
+    }
+
+    Ok(worktrees)
+}

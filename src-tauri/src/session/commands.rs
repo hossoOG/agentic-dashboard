@@ -80,4 +80,13 @@ pub mod commands {
         log::debug!("list_sessions called");
         Ok(manager.list_sessions())
     }
+
+    /// Scan for git worktrees in a project folder.
+    #[tauri::command]
+    pub async fn scan_worktrees(
+        folder: String,
+    ) -> Result<Vec<super::super::agent_detector::WorktreeInfo>, String> {
+        log::debug!("scan_worktrees called: folder={}", folder);
+        super::super::agent_detector::scan_worktrees_in_folder(&folder)
+    }
 }

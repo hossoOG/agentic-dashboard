@@ -13,9 +13,11 @@ name = "agentic-dashboard"
 version = "1.2.0"
 dependencies = [
  "chrono",
+ "dirs",
  "env_logger",
  "log",
  "portable-pty",
+ "regex",
  "serde",
  "serde_json",
  "tauri",

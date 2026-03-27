@@ -8,19 +8,25 @@ import { TerminalToolbar } from "./TerminalToolbar";
 import { NewSessionDialog } from "./NewSessionDialog";
 import { SessionStatusBar } from "./SessionStatusBar";
 import { EmptyState } from "./EmptyState";
-import { ContentTabs, type ContentTab } from "./ContentTabs";
+import { ContentTabs, type PrimaryTab, type ConfigSubTab } from "./ContentTabs";
 import { ClaudeMdViewer } from "./ClaudeMdViewer";
 import { SkillsViewer } from "./SkillsViewer";
 import { HooksViewer } from "./HooksViewer";
 import { GitHubViewer } from "./GitHubViewer";
+import { AgentBottomPanel } from "./AgentBottomPanel";
+import { LibraryViewer } from "./LibraryViewer";
 import { useSessionStore, selectActiveSession } from "../../store/sessionStore";
 import { useSettingsStore } from "../../store/settingsStore";
+import { useUIStore } from "../../store/uiStore";
+import { useAgentStore } from "../../store/agentStore";
 import type { FavoriteFolder } from "../../store/settingsStore";
 import type { SessionShell } from "../../store/sessionStore";
 
 export function SessionManagerView() {
   const [showNewDialog, setShowNewDialog] = useState(false);
-  const [contentTab, setContentTab] = useState<ContentTab>("terminal");
+  const [primaryTab, setPrimaryTab] = useState<PrimaryTab>("terminal");
+  const configSubTab = useUIStore((s) => s.configSubTab);
+  const setConfigSubTab = useUIStore((s) => s.setConfigSubTab);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const activeSession = useSessionStore(selectActiveSession);
   const layoutMode = useSessionStore((s) => s.layoutMode);
@@ -31,9 +37,16 @@ export function SessionManagerView() {
   const maximizeGridSession = useSessionStore((s) => s.maximizeGridSession);
   const removeFromGrid = useSessionStore((s) => s.removeFromGrid);
 
-  // Reset content tab to terminal when switching sessions
+  const handleTabChange = (primary: PrimaryTab, configSub?: ConfigSubTab) => {
+    setPrimaryTab(primary);
+    if (configSub) {
+      setConfigSubTab(configSub);
+    }
+  };
+
+  // Reset to terminal tab when switching sessions
   useEffect(() => {
-    setContentTab("terminal");
+    setPrimaryTab("terminal");
   }, [activeSessionId]);
 
   // Register Tauri event listeners for session lifecycle
@@ -91,6 +104,82 @@ export function SessionManagerView() {
       })
     );
 
+    // agent-detected → add agent to store
+    unlisteners.push(
+      listen<{
+        session_id: string;
+        agent_id: string;
+        name: string | null;
+        task: string | null;
+        detected_at: number;
+      }>("agent-detected", (event) => {
+        try {
+          const p = event?.payload;
+          if (!p?.session_id || !p?.agent_id) return;
+          useAgentStore.getState().addAgent({
+            id: p.agent_id,
+            sessionId: p.session_id,
+            parentAgentId: null,
+            name: p.name ?? null,
+            task: p.task ?? null,
+            status: "running",
+            detectedAt: p.detected_at ?? Date.now(),
+            completedAt: null,
+            worktreePath: null,
+          });
+        } catch (err) {
+          console.error("[SessionManagerView] agent-detected handler error:", err);
+        }
+      })
+    );
+
+    // agent-completed → update agent status
+    unlisteners.push(
+      listen<{
+        session_id: string;
+        agent_id: string;
+        status: string;
+        completed_at: number;
+      }>("agent-completed", (event) => {
+        try {
+          const p = event?.payload;
+          if (!p?.agent_id) return;
+          const status = p.status === "error" ? "error" : "completed";
+          useAgentStore.getState().updateAgentStatus(
+            p.agent_id,
+            status as "completed" | "error",
+            p.completed_at ?? Date.now()
+          );
+        } catch (err) {
+          console.error("[SessionManagerView] agent-completed handler error:", err);
+        }
+      })
+    );
+
+    // worktree-detected → add worktree to store
+    unlisteners.push(
+      listen<{
+        session_id: string;
+        path: string;
+        branch: string | null;
+        agent_id: string | null;
+      }>("worktree-detected", (event) => {
+        try {
+          const p = event?.payload;
+          if (!p?.session_id || !p?.path) return;
+          useAgentStore.getState().addWorktree({
+            path: p.path,
+            branch: p.branch ?? null,
+            agentId: p.agent_id ?? null,
+            sessionId: p.session_id,
+            active: true,
+          });
+        } catch (err) {
+          console.error("[SessionManagerView] worktree-detected handler error:", err);
+        }
+      })
+    );
+
     return () => {
       unlisteners.forEach((p) => p.then((unlisten) => unlisten()).catch(console.error));
     };
@@ -123,6 +212,9 @@ export function SessionManagerView() {
     }
   }
 
+  // Determine what content to show
+  const showConfig = primaryTab === "config";
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex flex-1 min-h-0">
@@ -145,24 +237,37 @@ export function SessionManagerView() {
 
           {/* Content tabs — only in single mode with active session */}
           {layoutMode === "single" && activeSessionId && (
-            <ContentTabs activeTab={contentTab} onTabChange={setContentTab} />
+            <ContentTabs
+              activeTab={primaryTab}
+              configSubTab={configSubTab}
+              onTabChange={handleTabChange}
+            />
           )}
 
           {/* Content area */}
           <div className="flex-1 min-h-0">
             {layoutMode === "single" ? (
               activeSessionId ? (
-                contentTab === "terminal" ? (
-                  <SessionTerminal sessionId={activeSessionId} />
-                ) : contentTab === "claude-md" ? (
-                  <ClaudeMdViewer folder={activeSession?.folder ?? ""} />
-                ) : contentTab === "skills" ? (
-                  <SkillsViewer folder={activeSession?.folder ?? ""} />
-                ) : contentTab === "hooks" ? (
-                  <HooksViewer folder={activeSession?.folder ?? ""} />
-                ) : contentTab === "github" ? (
-                  <GitHubViewer folder={activeSession?.folder ?? ""} />
-                ) : null
+                showConfig ? (
+                  configSubTab === "claude-md" ? (
+                    <ClaudeMdViewer folder={activeSession?.folder ?? ""} />
+                  ) : configSubTab === "skills" ? (
+                    <SkillsViewer folder={activeSession?.folder ?? ""} />
+                  ) : configSubTab === "hooks" ? (
+                    <HooksViewer folder={activeSession?.folder ?? ""} />
+                  ) : configSubTab === "github" ? (
+                    <GitHubViewer folder={activeSession?.folder ?? ""} />
+                  ) : configSubTab === "library" ? (
+                    <LibraryViewer folder={activeSession?.folder ?? ""} />
+                  ) : null
+                ) : (
+                  <div className="flex flex-col h-full">
+                    <div className="flex-1 min-h-0">
+                      <SessionTerminal sessionId={activeSessionId} />
+                    </div>
+                    <AgentBottomPanel sessionId={activeSessionId} />
+                  </div>
+                )
               ) : (
                 <EmptyState onNewSession={() => setShowNewDialog(true)} />
               )

@@ -153,6 +153,7 @@ impl SessionManager {
         // Reader-Thread: liest PTY-Output und emittiert Events
         let read_id = id.clone();
         let read_app = app.clone();
+        let mut agent_detector = super::agent_detector::AgentDetector::new(id.clone());
         thread::spawn(move || {
             log::info!("Session {} reader thread started", read_id);
             let mut buf = [0u8; 4096];
@@ -195,10 +196,30 @@ impl SessionManager {
                             SessionStatusEvent {
                                 id: read_id.clone(),
                                 status,
-                                snippet,
+                                snippet: snippet.clone(),
                             },
                         ) {
                             log::error!("Session {} failed to emit session-status: {}", read_id, e);
+                        }
+
+                        // Agent detection: feed stripped output to detector
+                        let stripped = Self::strip_ansi(&data);
+                        let agent_events = agent_detector.feed(&stripped);
+                        for event in agent_events {
+                            match event {
+                                super::agent_detector::AgentEvent::Detected(e) => {
+                                    log::info!("Session {} agent detected: {}", read_id, e.agent_id);
+                                    let _ = read_app.emit("agent-detected", e);
+                                }
+                                super::agent_detector::AgentEvent::Completed(e) => {
+                                    log::info!("Session {} agent completed: {} ({})", read_id, e.agent_id, e.status);
+                                    let _ = read_app.emit("agent-completed", e);
+                                }
+                                super::agent_detector::AgentEvent::Worktree(e) => {
+                                    log::info!("Session {} worktree detected: {}", read_id, e.path);
+                                    let _ = read_app.emit("worktree-detected", e);
+                                }
+                            }
                         }
                     }
                     Err(e) => {
