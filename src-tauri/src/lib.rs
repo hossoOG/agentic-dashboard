@@ -152,6 +152,8 @@ pub fn run() {
             // User settings (Documents/AgenticExplorer/)
             settings::commands::load_user_settings,
             settings::commands::save_user_settings,
+            settings::commands::save_note_file,
+            settings::commands::save_favorites_file,
         ])
         .on_window_event(move |_window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {

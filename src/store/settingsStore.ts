@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { tauriStorage } from "./tauriStorage";
@@ -124,6 +125,26 @@ const defaultPipeline: PipelineSettings = {
 };
 
 // ============================================================================
+// File persistence (Documents/AgenticExplorer/)
+// ============================================================================
+
+const isTauri = "__TAURI_INTERNALS__" in window;
+
+function saveNoteFile(noteKey: string, content: string): void {
+  if (!isTauri) return;
+  invoke("save_note_file", { noteKey, content }).catch((err) => {
+    console.error("[settingsStore] Failed to save note file:", err);
+  });
+}
+
+function saveFavoritesFile(favorites: FavoriteFolder[]): void {
+  if (!isTauri) return;
+  invoke("save_favorites_file", { data: JSON.stringify(favorites, null, 2) }).catch((err) => {
+    console.error("[settingsStore] Failed to save favorites file:", err);
+  });
+}
+
+// ============================================================================
 // Store (with persist middleware)
 // ============================================================================
 
@@ -168,11 +189,15 @@ export const useSettingsStore = create<SettingsState>()(
 
       setDefaultProjectPath: (path) => set({ defaultProjectPath: path }),
 
-      setGlobalNotes: (notes) => set({ globalNotes: notes }),
+      setGlobalNotes: (notes) => {
+        set({ globalNotes: notes });
+        saveNoteFile("global", notes);
+      },
 
       setProjectNotes: (folder, notes) =>
         set((state) => {
           const key = folder.replace(/\\/g, "/").toLowerCase();
+          saveNoteFile(key, notes);
           return {
             projectNotes: { ...state.projectNotes, [key]: notes },
           };
@@ -207,20 +232,26 @@ export const useSettingsStore = create<SettingsState>()(
             addedAt: Date.now(),
             lastUsedAt: Date.now(),
           };
-          return { favorites: [...state.favorites, favorite] };
+          const updated = [...state.favorites, favorite];
+          saveFavoritesFile(updated);
+          return { favorites: updated };
         }),
 
       removeFavorite: (id) =>
-        set((state) => ({
-          favorites: state.favorites.filter((f) => f.id !== id),
-        })),
+        set((state) => {
+          const updated = state.favorites.filter((f) => f.id !== id);
+          saveFavoritesFile(updated);
+          return { favorites: updated };
+        }),
 
       updateFavoriteLastUsed: (id) =>
-        set((state) => ({
-          favorites: state.favorites.map((f) =>
+        set((state) => {
+          const updated = state.favorites.map((f) =>
             f.id === id ? { ...f, lastUsedAt: Date.now() } : f
-          ),
-        })),
+          );
+          saveFavoritesFile(updated);
+          return { favorites: updated };
+        }),
 
       reorderFavorites: (ids) =>
         set((state) => {
@@ -228,7 +259,9 @@ export const useSettingsStore = create<SettingsState>()(
           const reordered = ids.map((id) => byId.get(id)).filter(Boolean) as FavoriteFolder[];
           // Append any favorites not in the ids array (safety net)
           const remaining = state.favorites.filter((f) => !ids.includes(f.id));
-          return { favorites: [...reordered, ...remaining] };
+          const updated = [...reordered, ...remaining];
+          saveFavoritesFile(updated);
+          return { favorites: updated };
         }),
 
       resetToDefaults: () =>
