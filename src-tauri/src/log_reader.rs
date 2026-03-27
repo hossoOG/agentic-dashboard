@@ -3,12 +3,12 @@ use std::path::PathBuf;
 
 fn log_file_path() -> PathBuf {
     if let Some(data_dir) = std::env::var_os("LOCALAPPDATA") {
-        let dir = PathBuf::from(data_dir).join("agentic-dashboard");
-        return dir.join("agentic-dashboard.log");
+        let dir = PathBuf::from(data_dir).join("agentic-explorer");
+        return dir.join("agentic-explorer.log");
     }
     std::env::current_dir()
         .unwrap_or_else(|_| PathBuf::from("."))
-        .join("agentic-dashboard.log")
+        .join("agentic-explorer.log")
 }
 
 pub mod commands {

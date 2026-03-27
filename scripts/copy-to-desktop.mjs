@@ -2,8 +2,8 @@ import { copyFileSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 
-const src = join("src-tauri", "target", "release", "agentic-dashboard.exe");
-const dest = join(homedir(), "Desktop", "agentic-dashboard.exe");
+const src = join("src-tauri", "target", "release", "AgenticExplorer.exe");
+const dest = join(homedir(), "Desktop", "AgenticExplorer.exe");
 
 try {
   copyFileSync(src, dest);

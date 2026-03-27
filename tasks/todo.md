@@ -1,4 +1,4 @@
-# Agentic Dashboard — Sprint Backlog
+# AgenticExplorer — Sprint Backlog
 
 > **Kanban Board**: https://github.com/users/hossoOG/projects/3
 > Alle neuen Tasks werden als GitHub Issues erfasst und ueber das Board getrackt.

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Agentic Dashboard** — Desktop-App zum Verwalten und Ueberwachen von Claude CLI Sessions. Multi-Session-Terminal mit Projekt-Kontext (CLAUDE.md, Skills, Hooks, GitHub), Favoriten-System und Notizen. Gebaut mit Tauri v2 + React.
+**AgenticExplorer** — Desktop-App zum Verwalten und Ueberwachen von Claude CLI Sessions. Multi-Session-Terminal mit Projekt-Kontext (CLAUDE.md, Skills, Hooks, GitHub), Favoriten-System und Notizen. Gebaut mit Tauri v2 + React.
 
 **Tech-Stack**: React 18 + TypeScript + Vite (Frontend), Tauri v2 + Rust (Backend), Zustand (State), Tailwind CSS + Framer Motion (Styling/Animation)
 

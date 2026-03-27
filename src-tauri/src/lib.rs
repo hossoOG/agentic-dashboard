@@ -13,7 +13,7 @@ fn init_logging() {
     use log::LevelFilter;
     use std::io::Write;
 
-    // File logger: WARN+ to agentic-dashboard.log in current dir (or app data dir)
+    // File logger: WARN+ to agentic-explorer.log in current dir (or app data dir)
     let log_path = dirs_next_or_cwd();
     let log_file = std::fs::OpenOptions::new()
         .create(true)
@@ -63,21 +63,21 @@ fn init_logging() {
     }
 
     if builder.try_init().is_err() {
-        eprintln!("[agentic-dashboard] Logger already initialized, skipping.");
+        eprintln!("[agentic-explorer] Logger already initialized, skipping.");
     }
 }
 
 fn dirs_next_or_cwd() -> std::path::PathBuf {
     // Try to use the app's local data dir, fallback to cwd
     if let Some(data_dir) = std::env::var_os("LOCALAPPDATA") {
-        let dir = std::path::PathBuf::from(data_dir).join("agentic-dashboard");
+        let dir = std::path::PathBuf::from(data_dir).join("agentic-explorer");
         if std::fs::create_dir_all(&dir).is_ok() {
-            return dir.join("agentic-dashboard.log");
+            return dir.join("agentic-explorer.log");
         }
     }
     std::env::current_dir()
         .unwrap_or_else(|_| std::path::PathBuf::from("."))
-        .join("agentic-dashboard.log")
+        .join("agentic-explorer.log")
 }
 
 #[derive(Clone, serde::Serialize)]
