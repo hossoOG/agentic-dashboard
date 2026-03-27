@@ -4,6 +4,8 @@ import { useSessionStore, selectActiveSession } from "../store/sessionStore";
 import { useSettingsStore } from "../store/settingsStore";
 import { NotesPanel } from "./shared/NotesPanel";
 import { ChangelogDialog } from "./shared/ChangelogDialog";
+import { UpdateNotification } from "./shared/UpdateNotification";
+import { useAutoUpdate } from "../hooks/useAutoUpdate";
 import { version } from "../../package.json";
 
 function shortenPath(path: string): string {
@@ -31,6 +33,7 @@ function ThemeToggle() {
 export function Header() {
   const activeSession = useSessionStore(selectActiveSession);
   const [showChangelog, setShowChangelog] = useState(false);
+  const { status, progress, error, newVersion, downloadAndInstall, dismiss } = useAutoUpdate();
 
   return (
     <header className="flex items-center justify-between px-6 py-3 border-b-2 border-neutral-700 bg-surface-raised retro-terminal">
@@ -47,6 +50,14 @@ export function Header() {
           v{version}
         </button>
         {showChangelog && <ChangelogDialog onClose={() => setShowChangelog(false)} />}
+        <UpdateNotification
+          status={status}
+          progress={progress}
+          error={error}
+          newVersion={newVersion}
+          onUpdate={downloadAndInstall}
+          onDismiss={dismiss}
+        />
       </div>
 
       <div className="flex items-center gap-4">
