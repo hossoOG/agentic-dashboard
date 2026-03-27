@@ -34,25 +34,76 @@ fn sanitize_note_filename(folder_key: &str) -> String {
         .to_string()
 }
 
+/// Rotate up to 3 backup copies before overwriting settings.json.
+/// Best-effort: failures are logged but do not block the save.
+fn create_settings_backup(path: &std::path::Path) {
+    if !path.exists() {
+        return;
+    }
+    if let Some(dir) = path.parent() {
+        // Rotate: .backup.3 → delete, .backup.2 → .backup.3, .backup.1 → .backup.2
+        for i in (1..3).rev() {
+            let from = dir.join(format!("settings.backup.{}.json", i));
+            let to = dir.join(format!("settings.backup.{}.json", i + 1));
+            if from.exists() {
+                let _ = std::fs::rename(&from, &to);
+            }
+        }
+        // Current → .backup.1
+        let backup = dir.join("settings.backup.1.json");
+        if let Err(e) = std::fs::copy(path, &backup) {
+            log::warn!("Settings backup failed: {}", e);
+        }
+    }
+}
+
+/// Try loading from the most recent valid backup file.
+fn load_from_backup() -> Result<String, String> {
+    let dir = settings_dir()?;
+    for i in 1..=3 {
+        let backup = dir.join(format!("settings.backup.{}.json", i));
+        if let Ok(data) = std::fs::read_to_string(&backup) {
+            if serde_json::from_str::<serde_json::Value>(&data).is_ok() {
+                log::info!("Restored settings from backup {}", i);
+                return Ok(data);
+            }
+        }
+    }
+    // All backups failed or missing → fresh start
+    Ok(String::new())
+}
+
 pub mod commands {
     use super::*;
 
     /// Load settings JSON from Documents/AgenticExplorer/settings.json
     /// Returns empty string if file doesn't exist yet (first run).
+    /// Falls back to backup files if the main file is corrupted.
     #[tauri::command]
     pub async fn load_user_settings() -> Result<String, String> {
         let path = settings_path()?;
         if !path.exists() {
             return Ok(String::new());
         }
-        std::fs::read_to_string(&path)
-            .map_err(|e| format!("Failed to read settings: {}", e))
+        let data = std::fs::read_to_string(&path)
+            .map_err(|e| format!("Failed to read settings: {}", e))?;
+
+        // Validate JSON; fall back to backup if corrupted
+        match serde_json::from_str::<serde_json::Value>(&data) {
+            Ok(_) => Ok(data),
+            Err(_) => {
+                log::warn!("Settings file corrupted, trying backup");
+                load_from_backup()
+            }
+        }
     }
 
     /// Save settings JSON to Documents/AgenticExplorer/settings.json
+    /// Creates a rotating backup before each write.
     #[tauri::command]
     pub async fn save_user_settings(data: String) -> Result<(), String> {
         let path = settings_path()?;
+        create_settings_backup(&path);
         std::fs::write(&path, data)
             .map_err(|e| format!("Failed to write settings: {}", e))
     }

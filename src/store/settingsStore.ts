@@ -145,6 +145,32 @@ function saveFavoritesFile(favorites: FavoriteFolder[]): void {
 }
 
 // ============================================================================
+// Schema versioning & migration
+// ============================================================================
+
+const SETTINGS_VERSION = 1;
+
+type MigrationFn = (state: Record<string, unknown>) => Record<string, unknown>;
+const migrations: Record<number, MigrationFn> = {
+  // Future migrations go here, e.g.:
+  // 2: (state) => ({ ...state, newField: "defaultValue" }),
+};
+
+function runMigrations(
+  persisted: Record<string, unknown>,
+  fromVersion: number
+): Record<string, unknown> {
+  let state = { ...persisted };
+  for (let v = fromVersion + 1; v <= SETTINGS_VERSION; v++) {
+    const migrateFn = migrations[v];
+    if (migrateFn) {
+      state = migrateFn(state);
+    }
+  }
+  return state;
+}
+
+// ============================================================================
 // Store (with persist middleware)
 // ============================================================================
 
@@ -283,6 +309,28 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: "agentic-dashboard-settings",
       storage: createJSONStorage(() => tauriStorage),
+      version: SETTINGS_VERSION,
+      migrate: (persisted: unknown, version: number) => {
+        if (version < SETTINGS_VERSION) {
+          return runMigrations(
+            persisted as Record<string, unknown>,
+            version
+          );
+        }
+        return persisted;
+      },
+      merge: (persisted: unknown, current: SettingsState): SettingsState => {
+        const p = persisted as Partial<SettingsState> | undefined;
+        if (!p) return current;
+        return {
+          ...current,
+          ...p,
+          theme: { ...current.theme, ...(p.theme ?? {}) },
+          notifications: { ...current.notifications, ...(p.notifications ?? {}) },
+          sound: { ...current.sound, ...(p.sound ?? {}) },
+          pipeline: { ...current.pipeline, ...(p.pipeline ?? {}) },
+        };
+      },
     }
   )
 );
