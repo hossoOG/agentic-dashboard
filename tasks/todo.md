@@ -1,21 +1,42 @@
 # Agentic Dashboard — Sprint Backlog
 
-> Aktueller Sprint: **Konsolidierung** (ab 2026-03-25)
-> Ziel: Prozess-Reife erhoehen, Tech Debt abbauen, Grundlage fuer sauberes Feature-Forward
+> **Kanban Board**: https://github.com/users/hossoOG/projects/3
+> Alle neuen Tasks werden als GitHub Issues erfasst und ueber das Board getrackt.
 
-## Konsolidierungs-Sprint
+## Abgeschlossen: Konsolidierungs-Sprint (2026-03-25)
 
-- [x] Retrospektive durchfuehren (Analyse: Git, User Stories, Prozess, Code, Features)
+- [x] Retrospektive durchfuehren
 - [x] Task-Tracking und Idea-Capture einrichten
 - [x] Planungsdokumente archivieren + aktuelle Roadmap
-- [x] Toten Code aufraeumen (12 Dateien geloescht, verifiziert durch 5-Agenten-Audit)
+- [x] Toten Code aufraeumen (12 Dateien)
 - [x] CLAUDE.md an Realitaet anpassen
-- [x] Lessons Learned aus Retrospektive dokumentieren
+- [x] Lessons Learned dokumentieren
 
-## Naechster Sprint (Feature-Forward)
+## Abgeschlossen: Performance & Dependencies (2026-03-27)
 
-> Wird nach Konsolidierung geplant. Ideen siehe `ideas.md`.
+- [x] SessionCard Memoization + Shared Timer (#6)
+- [x] Zustand Selector Stabilisierung (#7)
+- [x] Vite Manual Chunking (#4)
+- [x] React.lazy Config Viewers (#5)
+- [x] Remove Notification Plugin (#9)
+- [x] Agent Detector Regex OnceLock (#10)
+- [x] Rust Error Handling Konsistenz (#8)
+- [x] Log Viewer als neuer SideNav-Tab
+
+## Aktueller Sprint: Feature-Forward
+
+> Issues und Fortschritt auf dem [Kanban Board](https://github.com/users/hossoOG/projects/3)
+
+- [ ] Library als eigenen SideNav-Tab (#11)
+- [ ] Pipeline-View mit echten agentStore-Daten (#12)
+- [ ] User Stories: Pipeline-Ueberwachung (#13)
+- [ ] Prozess: User Stories evaluieren (#16)
+
+## Backlog
+
+- [ ] Node/Graph-basierte Session-Visualisierung (#14)
+- [ ] Gamification-System (#15)
 
 ---
 
-*Format: `- [ ] Task` / `- [x] Erledigt` — Items sofort abhaken wenn fertig.*
+*Format: `- [ ] Task (#issue)` — Items auf GitHub Board tracken.*
