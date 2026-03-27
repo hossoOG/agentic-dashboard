@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
 import { Maximize2, X } from "lucide-react";
 import { useSessionStore } from "../../store/sessionStore";
 import { SessionTerminal } from "./SessionTerminal";
 import { getActivityLevel } from "./activityLevel";
+import { useNowTick } from "../../hooks/useNowTick";
 
 interface GridCellProps {
   sessionId: string;
@@ -45,14 +45,8 @@ export function GridCell({
   const status = session?.status ?? "starting";
   const lastOutputAt = session?.lastOutputAt ?? Date.now();
 
-  const [now, setNow] = useState(Date.now());
+  const now = useNowTick();
   const isRunning = status === "running" || status === "starting";
-
-  useEffect(() => {
-    if (!isRunning) return;
-    const interval = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, [isRunning]);
 
   const activityLevel = isRunning ? getActivityLevel(lastOutputAt, now) : null;
   const isThinking = activityLevel === "thinking";
