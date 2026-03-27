@@ -101,7 +101,7 @@ impl Default for PipelineState {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     init_logging();
-    log::info!("Agentic Dashboard starting up");
+    log::info!("AgenticExplorer starting up");
 
     let pipeline_state = Arc::new(Mutex::new(PipelineState::default()));
     let session_manager = Arc::new(session::manager::SessionManager::new());
@@ -171,7 +171,7 @@ pub fn run() {
         .run(tauri::generate_context!());
 
     match result {
-        Ok(()) => log::info!("Agentic Dashboard exited cleanly"),
+        Ok(()) => log::info!("AgenticExplorer exited cleanly"),
         Err(e) => {
             log::error!("Tauri application failed to run: {}", e);
             eprintln!("Fatal: Tauri application failed to run: {}", e);

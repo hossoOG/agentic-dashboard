@@ -281,7 +281,7 @@ export const useSettingsStore = create<SettingsState>()(
         })),
     }),
     {
-      name: "agentic-dashboard-settings",
+      name: "agentic-explorer-settings",
       storage: createJSONStorage(() => tauriStorage),
     }
   )

@@ -48,7 +48,7 @@ impl fmt::Display for ADPErrorCode {
     }
 }
 
-/// Structured error type for the Agentic Dashboard Protocol.
+/// Structured error type for the AgenticExplorer Protocol.
 /// Mirrors the `ADPError` interface from `schema.ts`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ADPError {

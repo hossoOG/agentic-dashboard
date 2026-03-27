@@ -23,7 +23,15 @@ export function initTauriStorage(): Promise<void> {
   initPromise = invoke<string>("load_user_settings")
     .then((data) => {
       if (data) {
-        cache.set("agentic-dashboard-settings", data);
+        cache.set("agentic-explorer-settings", data);
+      }
+
+      // One-time migration from old key
+      const oldKey = "agentic-dashboard-settings";
+      const newKey = "agentic-explorer-settings";
+      if (cache.has(oldKey) && !cache.has(newKey)) {
+        cache.set(newKey, cache.get(oldKey)!);
+        cache.delete(oldKey);
       }
     })
     .catch((err) => {

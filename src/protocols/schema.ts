@@ -1,8 +1,8 @@
 /**
- * Agentic Dashboard Protocol (ADP) v1
+ * AgenticExplorer Protocol (ADP) v1
  *
  * Einheitliches JSON-Kommunikationsprotokoll fuer den Austausch zwischen
- * allen Services im Agentic Dashboard. Jede Nachricht folgt dem gleichen
+ * allen Services im AgenticExplorer. Jede Nachricht folgt dem gleichen
  * Envelope-Format, unabhaengig von Quelle oder Ziel.
  *
  * Design-Prinzipien:

@@ -38,9 +38,8 @@ try {
 }
 
 // --- 3. Copy new version ---
-// Cargo binary name is "agentic-dashboard" (from Cargo.toml [package].name),
-// not the Tauri productName "AgenticExplorer"
-const src = join("src-tauri", "target", "release", "agentic-dashboard.exe");
+// Cargo binary name is "agentic-explorer" (from Cargo.toml [package].name)
+const src = join("src-tauri", "target", "release", "agentic-explorer.exe");
 const dest = join(desktop, `${appName}-${version}.exe`);
 
 try {
