@@ -1,15 +1,16 @@
-import { useEffect, useState } from "react";
+import React from "react";
 import { X, Check, AlertTriangle, LayoutGrid, FolderOpen, Terminal } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import type { ClaudeSession } from "../../store/sessionStore";
 import { getActivityLevel, type ActivityLevel } from "./activityLevel";
+import { useNowTick } from "../../hooks/useNowTick";
 
 interface SessionCardProps {
   session: ClaudeSession;
   isActive: boolean;
   isInGrid?: boolean;
-  onClick: () => void;
-  onClose: () => void;
+  onClick: (sessionId: string) => void;
+  onClose: (sessionId: string) => void;
 }
 
 function formatDuration(ms: number): string {
@@ -104,22 +105,15 @@ function shortenPath(path: string): string {
   return "~/" + parts.slice(-2).join("/");
 }
 
-export function SessionCard({ session, isActive, isInGrid, onClick, onClose }: SessionCardProps) {
-  const [now, setNow] = useState(Date.now());
-
-  useEffect(() => {
-    if (session.status === "running" || session.status === "starting") {
-      const interval = setInterval(() => setNow(Date.now()), 1000);
-      return () => clearInterval(interval);
-    }
-  }, [session.status]);
+const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: SessionCardProps) => {
+  const now = useNowTick();
 
   const isRunning = session.status === "running" || session.status === "starting";
   const activityLevel = isRunning ? getActivityLevel(session.lastOutputAt, now) : null;
 
   return (
     <div
-      onClick={onClick}
+      onClick={() => onClick(session.id)}
       className={`
         relative group px-3 py-2.5 cursor-pointer transition-all duration-150
         border-l-2
@@ -156,7 +150,7 @@ export function SessionCard({ session, isActive, isInGrid, onClick, onClose }: S
         <button
           onClick={(e) => {
             e.stopPropagation();
-            onClose();
+            onClose(session.id);
           }}
           className="p-0.5 text-neutral-600 hover:text-neutral-300"
           aria-label="Session schliessen"
@@ -187,4 +181,6 @@ export function SessionCard({ session, isActive, isInGrid, onClick, onClose }: S
       </div>
     </div>
   );
-}
+};
+
+export const SessionCard = React.memo(SessionCardInner);

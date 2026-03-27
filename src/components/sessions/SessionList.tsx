@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { Plus } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useSessionStore } from "../../store/sessionStore";
@@ -26,17 +27,34 @@ function sortSessions(sessions: ClaudeSession[]): ClaudeSession[] {
 export function SessionList({ onNewSession, onQuickStart }: SessionListProps) {
   const sessions = useSessionStore((s) => s.sessions);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
-  const setActiveSession = useSessionStore((s) => s.setActiveSession);
-  const removeSession = useSessionStore((s) => s.removeSession);
   const layoutMode = useSessionStore((s) => s.layoutMode);
   const gridSessionIds = useSessionStore((s) => s.gridSessionIds);
-  const addToGrid = useSessionStore((s) => s.addToGrid);
   const focusedGridSessionId = useSessionStore((s) => s.focusedGridSessionId);
-  const setFocusedGridSession = useSessionStore((s) => s.setFocusedGridSession);
-  const maximizeGridSession = useSessionStore((s) => s.maximizeGridSession);
   const favorites = useSettingsStore((s) => s.favorites);
 
   const sorted = sortSessions(sessions);
+
+  const handleClick = useCallback((sessionId: string) => {
+    const store = useSessionStore.getState();
+    if (store.layoutMode === "grid") {
+      if (store.gridSessionIds.includes(sessionId)) {
+        store.setFocusedGridSession(sessionId);
+      } else if (store.gridSessionIds.length < 4) {
+        store.addToGrid(sessionId);
+      } else {
+        store.maximizeGridSession(sessionId);
+      }
+    } else {
+      store.setActiveSession(sessionId);
+    }
+  }, []);
+
+  const handleClose = useCallback((sessionId: string) => {
+    invoke("close_session", { id: sessionId }).catch((err) =>
+      console.error("[SessionList] close_session failed:", err)
+    );
+    useSessionStore.getState().removeSession(sessionId);
+  }, []);
 
   return (
     <div className="flex flex-col h-full bg-surface-base">
@@ -76,25 +94,8 @@ export function SessionList({ onNewSession, onQuickStart }: SessionListProps) {
                   : session.id === activeSessionId
               }
               isInGrid={isInGrid}
-              onClick={() => {
-                if (layoutMode === "grid") {
-                  if (isInGrid) {
-                    setFocusedGridSession(session.id);
-                  } else if (gridSessionIds.length < 4) {
-                    addToGrid(session.id);
-                  } else {
-                    maximizeGridSession(session.id);
-                  }
-                } else {
-                  setActiveSession(session.id);
-                }
-              }}
-              onClose={() => {
-                invoke("close_session", { id: session.id }).catch((err) =>
-                  console.error("[SessionList] close_session failed:", err)
-                );
-                removeSession(session.id);
-              }}
+              onClick={handleClick}
+              onClose={handleClose}
             />
           );
         })}
