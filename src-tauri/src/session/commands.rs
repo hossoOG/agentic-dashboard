@@ -5,6 +5,7 @@ use std::sync::Arc;
 use tauri::{AppHandle, State};
 
 // Alle Commands im mod-Block wegen rustc 1.94 E0255 Workaround (siehe CLAUDE.md)
+#[allow(clippy::module_inception)]
 pub mod commands {
     use super::*;
 

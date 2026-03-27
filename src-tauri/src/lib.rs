@@ -88,14 +88,9 @@ pub struct LogEvent {
     pub worktree_id: Option<String>,
 }
 
+#[derive(Default)]
 pub struct PipelineState {
     pub child_pid: Option<u32>,
-}
-
-impl Default for PipelineState {
-    fn default() -> Self {
-        Self { child_pid: None }
-    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

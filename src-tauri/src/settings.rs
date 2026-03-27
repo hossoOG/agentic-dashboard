@@ -34,6 +34,7 @@ fn sanitize_note_filename(folder_key: &str) -> String {
         .to_string()
 }
 
+#[allow(clippy::module_inception)]
 pub mod commands {
     use super::*;
 

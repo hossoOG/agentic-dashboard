@@ -47,11 +47,15 @@ export function useAutoUpdate() {
         setState((s) => ({ ...s, status: "upToDate" }));
       }
     } catch (err) {
-      setState((s) => ({
-        ...s,
-        status: "error",
-        error: err instanceof Error ? err.message : String(err),
-      }));
+      // Network errors / 404 (no release yet) → treat as up-to-date, not error
+      const msg = err instanceof Error ? err.message : String(err);
+      const isNetworkOrNotFound =
+        /network|fetch|404|not found|could not determine/i.test(msg);
+      if (isNetworkOrNotFound) {
+        setState((s) => ({ ...s, status: "upToDate" }));
+      } else {
+        setState((s) => ({ ...s, status: "error", error: msg }));
+      }
     }
   }, []);
 

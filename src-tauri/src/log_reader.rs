@@ -11,6 +11,7 @@ fn log_file_path() -> PathBuf {
         .join("agentic-explorer.log")
 }
 
+#[allow(clippy::module_inception)]
 pub mod commands {
     use super::*;
 
@@ -26,7 +27,7 @@ pub mod commands {
         let reader = BufReader::new(file);
         let all_lines: Vec<String> = reader
             .lines()
-            .filter_map(|l| l.ok())
+            .map_while(Result::ok)
             .collect();
 
         let start = all_lines.len().saturating_sub(max);

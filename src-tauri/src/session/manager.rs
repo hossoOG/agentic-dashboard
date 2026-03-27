@@ -389,7 +389,7 @@ impl SessionManager {
     fn detect_status(snippet: &str) -> String {
         let clean = Self::strip_ansi(snippet);
         // Only trim newlines/CR — keep trailing spaces for prompt detection
-        let trimmed = clean.trim_end_matches(|c: char| c == '\n' || c == '\r');
+        let trimmed = clean.trim_end_matches(['\n', '\r']);
 
         if trimmed.ends_with("> ")
             || trimmed.ends_with("? ")

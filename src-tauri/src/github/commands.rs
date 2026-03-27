@@ -35,6 +35,7 @@ pub struct GithubIssue {
 
 /// Creates a Command with hidden console window on Windows.
 fn silent_command(program: &str) -> Command {
+    #[allow(unused_mut)]
     let mut cmd = Command::new(program);
     #[cfg(target_os = "windows")]
     {
@@ -70,6 +71,7 @@ fn is_command_available(cmd: &str) -> bool {
 }
 
 // Commands im mod-Block wegen rustc 1.94 E0255 Workaround (siehe CLAUDE.md)
+#[allow(clippy::module_inception)]
 pub mod commands {
     use super::*;
 

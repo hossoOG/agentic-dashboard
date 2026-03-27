@@ -5,7 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 // ── Types ──────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(rename_all = "kebab-case")]
 pub enum LibraryItemType {
     Skill,
@@ -13,13 +13,8 @@ pub enum LibraryItemType {
     Hook,
     Template,
     Prompt,
+    #[default]
     Other,
-}
-
-impl Default for LibraryItemType {
-    fn default() -> Self {
-        Self::Other
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -241,6 +236,7 @@ fn build_index_from_disk() -> Result<LibraryIndex, String> {
 
 // ── Tauri Commands ─────────────────────────────────────────────────────
 
+#[allow(clippy::module_inception)]
 pub mod commands {
     use super::*;
 

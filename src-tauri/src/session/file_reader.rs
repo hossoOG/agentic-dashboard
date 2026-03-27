@@ -71,6 +71,7 @@ pub struct SkillDirEntry {
 }
 
 // Commands im mod-Block wegen rustc 1.94 E0255 Workaround (siehe CLAUDE.md)
+#[allow(clippy::module_inception)]
 pub mod commands {
     use super::*;
 
@@ -98,11 +99,9 @@ pub mod commands {
         let read_dir = std::fs::read_dir(&path)
             .map_err(|e| format!("Failed to read directory '{}': {}", relative_path, e))?;
 
-        for entry in read_dir {
-            if let Ok(entry) = entry {
-                if let Some(name) = entry.file_name().to_str() {
-                    entries.push(name.to_string());
-                }
+        for entry in read_dir.flatten() {
+            if let Some(name) = entry.file_name().to_str() {
+                entries.push(name.to_string());
             }
         }
 

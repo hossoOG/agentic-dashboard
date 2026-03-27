@@ -3,6 +3,7 @@
 use std::process::Command;
 
 // Commands im mod-Block wegen rustc 1.94 E0255 Workaround (siehe CLAUDE.md)
+#[allow(clippy::module_inception)]
 pub mod commands {
     use super::*;
 

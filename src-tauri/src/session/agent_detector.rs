@@ -288,7 +288,7 @@ pub fn scan_worktrees_in_folder(folder: &str) -> Result<Vec<WorktreeInfo>, Strin
     let mut is_bare = false;
 
     for line in stdout.lines() {
-        if line.starts_with("worktree ") {
+        if let Some(rest) = line.strip_prefix("worktree ") {
             // Save previous entry
             if let Some(path) = current_path.take() {
                 if !is_bare {
@@ -299,11 +299,11 @@ pub fn scan_worktrees_in_folder(folder: &str) -> Result<Vec<WorktreeInfo>, Strin
                     });
                 }
             }
-            current_path = Some(line[9..].to_string());
+            current_path = Some(rest.to_string());
             current_branch = None;
             is_bare = false;
-        } else if line.starts_with("branch ") {
-            let branch = line[7..].to_string();
+        } else if let Some(rest) = line.strip_prefix("branch ") {
+            let branch = rest.to_string();
             current_branch = Some(branch.replace("refs/heads/", ""));
         } else if line == "bare" {
             is_bare = true;
