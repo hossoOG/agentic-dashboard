@@ -19,6 +19,16 @@ export interface LogEntry {
 const MAX_BUFFER_SIZE = 100;
 const logBuffer: LogEntry[] = [];
 
+type LogSubscriber = (entry: LogEntry) => void;
+let subscriber: LogSubscriber | null = null;
+
+export function subscribeToLogs(cb: LogSubscriber): () => void {
+  subscriber = cb;
+  return () => {
+    if (subscriber === cb) subscriber = null;
+  };
+}
+
 function formatEntry(entry: LogEntry): string {
   return `[${entry.timestamp}] [${entry.severity.toUpperCase()}] [${entry.source}] ${entry.message}`;
 }
@@ -28,6 +38,9 @@ function addEntry(entry: LogEntry): void {
   if (logBuffer.length > MAX_BUFFER_SIZE) {
     logBuffer.shift();
   }
+
+  // Notify subscriber
+  subscriber?.(entry);
 
   // Mirror to console
   const formatted = formatEntry(entry);

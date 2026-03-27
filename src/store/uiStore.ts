@@ -1,6 +1,8 @@
 import { create } from "zustand";
 
-export type ActiveTab = "sessions" | "pipeline" | "settings";
+export type ActiveTab = "sessions" | "pipeline" | "settings" | "logs";
+
+export type ConfigSubTab = "claude-md" | "skills" | "hooks" | "github" | "library";
 
 export type ToastType = "achievement" | "error" | "info";
 
@@ -22,6 +24,9 @@ interface UIState {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
 
+  configSubTab: ConfigSubTab;
+  setConfigSubTab: (tab: ConfigSubTab) => void;
+
   detailPanel: DetailPanel;
   openDetailPanel: (type: string, targetId: string) => void;
   closeDetailPanel: () => void;
@@ -36,6 +41,9 @@ let toastCounter = 0;
 export const useUIStore = create<UIState>((set) => ({
   activeTab: "sessions",
   setActiveTab: (tab) => set({ activeTab: tab }),
+
+  configSubTab: "claude-md",
+  setConfigSubTab: (tab) => set({ configSubTab: tab }),
 
   detailPanel: { isOpen: false, type: null, targetId: null },
   openDetailPanel: (type, targetId) =>

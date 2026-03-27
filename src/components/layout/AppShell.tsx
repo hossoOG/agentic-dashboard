@@ -9,6 +9,9 @@ import { useUIStore } from "../../store/uiStore";
 const SettingsPlaceholder = React.lazy(() =>
   import("./placeholders").then((m) => ({ default: m.SettingsPlaceholder }))
 );
+const LogViewer = React.lazy(() =>
+  import("../logs/LogViewer").then((m) => ({ default: m.LogViewer }))
+);
 
 function NeonSpinner() {
   return (
@@ -27,6 +30,12 @@ export function AppShell() {
         return <SessionManagerView />;
       case "pipeline":
         return <DashboardMap />;
+      case "logs":
+        return (
+          <Suspense fallback={<NeonSpinner />}>
+            <LogViewer />
+          </Suspense>
+        );
       case "settings":
         return (
           <Suspense fallback={<NeonSpinner />}>

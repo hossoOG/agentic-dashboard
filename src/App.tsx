@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { AppShell } from "./components/layout/AppShell";
 import { parseLogLine, applyParsedEvents } from "./store/logParser";
 import { logError } from "./utils/errorLogger";
+import { useLogViewerStore } from "./store/logViewerStore";
 import { installGlobalErrorHandlers } from "./utils/globalErrorHandler";
 import { useThemeEffect } from "./hooks/useThemeEffect";
 
@@ -31,6 +32,14 @@ function App() {
         }
         const parsed = parseLogLine(line, undefined);
         applyParsedEvents(parsed);
+
+        // Forward to log viewer store
+        useLogViewerStore.getState().addEntries([{
+          timestamp: new Date().toISOString(),
+          severity: "info",
+          source: "pipeline",
+          message: line,
+        }]);
       } catch (err) {
         logError("App", err);
       }

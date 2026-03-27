@@ -3,6 +3,8 @@ use std::sync::{Arc, Mutex};
 pub mod adp;
 pub mod error;
 pub mod github;
+pub mod library;
+pub mod log_reader;
 pub mod pipeline;
 pub mod session;
 
@@ -127,10 +129,25 @@ pub fn run() {
             // File reader (Agent Config Viewer)
             session::file_reader::commands::read_project_file,
             session::file_reader::commands::list_project_dir,
+            session::file_reader::commands::read_user_claude_file,
+            session::file_reader::commands::list_skill_dirs,
+            // Worktree scanning
+            session::commands::commands::scan_worktrees,
             // GitHub integration
             github::commands::commands::get_git_info,
             github::commands::commands::get_github_prs,
             github::commands::commands::get_github_issues,
+            // Library
+            library::commands::commands::list_library_items,
+            library::commands::commands::read_library_item,
+            library::commands::commands::save_library_item,
+            library::commands::commands::delete_library_item,
+            library::commands::commands::rebuild_library_index,
+            library::commands::commands::attach_library_item,
+            library::commands::commands::detach_library_item,
+            library::commands::commands::get_library_item_path,
+            // Log reader
+            log_reader::commands::read_backend_log,
         ])
         .on_window_event(move |_window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {
