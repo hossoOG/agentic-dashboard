@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   Loader2,
 } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
 import {
   useAgentStore,
   selectAgentsForSession,
@@ -21,8 +22,8 @@ interface AgentBottomPanelProps {
 }
 
 export function AgentBottomPanel({ sessionId }: AgentBottomPanelProps) {
-  const agents = useAgentStore(selectAgentsForSession(sessionId));
-  const worktrees = useAgentStore(selectWorktreesForSession(sessionId));
+  const agents = useAgentStore(useShallow(selectAgentsForSession(sessionId)));
+  const worktrees = useAgentStore(useShallow(selectWorktreesForSession(sessionId)));
   const collapsed = useAgentStore((s) => s.bottomPanelCollapsed);
   const setCollapsed = useAgentStore((s) => s.setBottomPanelCollapsed);
   const selectedAgentId = useAgentStore((s) => s.selectedAgentId);
