@@ -16,6 +16,17 @@ export default defineConfig(async () => ({
     __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 16)),
     __GIT_HASH__: JSON.stringify(getGitHash()),
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-xterm': ['@xterm/xterm', '@xterm/addon-fit', '@xterm/addon-web-links'],
+          'vendor-motion': ['framer-motion'],
+          'vendor-react': ['react', 'react-dom'],
+        },
+      },
+    },
+  },
   clearScreen: false,
   server: {
     port: 5173,
