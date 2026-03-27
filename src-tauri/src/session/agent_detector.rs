@@ -5,6 +5,7 @@
 
 use regex::Regex;
 use std::collections::HashMap;
+use std::sync::OnceLock;
 
 /// Maximum buffer size for rolling output window (in chars).
 const MAX_BUFFER: usize = 4000;
@@ -73,35 +74,36 @@ struct AgentPatterns {
     worktree_path: Regex,
 }
 
-impl AgentPatterns {
-    fn new() -> Self {
-        Self {
-            // Matches patterns like "Agent launched", "Starting agent", "⏳ Starting agent"
-            agent_launch: Regex::new(
-                r"(?i)(?:agent\s+launched|starting\s+agent|spawning.*agent|tool.*:\s*agent)"
-            ).unwrap(),
-            // Try to extract agent name/task from surrounding text
-            agent_name_task: Regex::new(
-                r#"(?i)(?:agent|name)[:\s]+["']?([^"'\n]{3,60})["']?"#
-            ).unwrap(),
-            // Matches agent completion patterns
-            agent_complete: Regex::new(
-                r"(?i)(?:agent\s+completed|agent\s+finished|agent.*done|completed\s+successfully)"
-            ).unwrap(),
-            // Matches agent error patterns
-            agent_error: Regex::new(
-                r"(?i)(?:agent\s+(?:failed|error|crashed)|agent.*error)"
-            ).unwrap(),
-            // Matches worktree creation
-            worktree_create: Regex::new(
-                r"(?i)(?:git\s+worktree\s+add|created?\s+worktree|worktree\s+created)"
-            ).unwrap(),
-            // Extract worktree path
-            worktree_path: Regex::new(
-                r#"(?:worktree[s]?[/\\]|worktree\s+add\s+)([^\s\n"']+)"#
-            ).unwrap(),
-        }
-    }
+/// Process-global singleton — patterns are compiled once on first access.
+static PATTERNS: OnceLock<AgentPatterns> = OnceLock::new();
+
+fn get_patterns() -> &'static AgentPatterns {
+    PATTERNS.get_or_init(|| AgentPatterns {
+        // Matches patterns like "Agent launched", "Starting agent", "⏳ Starting agent"
+        agent_launch: Regex::new(
+            r"(?i)(?:agent\s+launched|starting\s+agent|spawning.*agent|tool.*:\s*agent)"
+        ).expect("agent_launch regex invalid"),
+        // Try to extract agent name/task from surrounding text
+        agent_name_task: Regex::new(
+            r#"(?i)(?:agent|name)[:\s]+["']?([^"'\n]{3,60})["']?"#
+        ).expect("agent_name_task regex invalid"),
+        // Matches agent completion patterns
+        agent_complete: Regex::new(
+            r"(?i)(?:agent\s+completed|agent\s+finished|agent.*done|completed\s+successfully)"
+        ).expect("agent_complete regex invalid"),
+        // Matches agent error patterns
+        agent_error: Regex::new(
+            r"(?i)(?:agent\s+(?:failed|error|crashed)|agent.*error)"
+        ).expect("agent_error regex invalid"),
+        // Matches worktree creation
+        worktree_create: Regex::new(
+            r"(?i)(?:git\s+worktree\s+add|created?\s+worktree|worktree\s+created)"
+        ).expect("worktree_create regex invalid"),
+        // Extract worktree path
+        worktree_path: Regex::new(
+            r#"(?:worktree[s]?[/\\]|worktree\s+add\s+)([^\s\n"']+)"#
+        ).expect("worktree_path regex invalid"),
+    })
 }
 
 pub struct AgentDetector {
@@ -109,7 +111,6 @@ pub struct AgentDetector {
     buffer: String,
     known_agents: HashMap<String, AgentInfo>,
     agent_counter: u32,
-    patterns: AgentPatterns,
     /// Track what we've already processed to avoid duplicate events
     last_processed_len: usize,
 }
@@ -121,7 +122,6 @@ impl AgentDetector {
             buffer: String::with_capacity(MAX_BUFFER),
             known_agents: HashMap::new(),
             agent_counter: 0,
-            patterns: AgentPatterns::new(),
             last_processed_len: 0,
         }
     }
@@ -153,14 +153,16 @@ impl AgentDetector {
             return events;
         }
 
+        let p = get_patterns();
+
         // Check for agent launches
-        if self.patterns.agent_launch.is_match(scan_text) {
+        if p.agent_launch.is_match(scan_text) {
             self.agent_counter += 1;
             let agent_id = format!("{}-agent-{}", self.session_id, self.agent_counter);
             let now = chrono::Utc::now().timestamp_millis();
 
             // Try to extract name/task from context
-            let name = self.patterns.agent_name_task
+            let name = p.agent_name_task
                 .captures(scan_text)
                 .and_then(|c| c.get(1))
                 .map(|m| m.as_str().trim().to_string());
@@ -187,7 +189,7 @@ impl AgentDetector {
         }
 
         // Check for agent completions
-        if self.patterns.agent_complete.is_match(scan_text) {
+        if p.agent_complete.is_match(scan_text) {
             if let Some(agent_id) = self.find_running_agent() {
                 let now = chrono::Utc::now().timestamp_millis();
                 if let Some(info) = self.known_agents.get_mut(&agent_id) {
@@ -204,7 +206,7 @@ impl AgentDetector {
         }
 
         // Check for agent errors
-        if self.patterns.agent_error.is_match(scan_text) {
+        if p.agent_error.is_match(scan_text) {
             if let Some(agent_id) = self.find_running_agent() {
                 let now = chrono::Utc::now().timestamp_millis();
                 if let Some(info) = self.known_agents.get_mut(&agent_id) {
@@ -221,8 +223,8 @@ impl AgentDetector {
         }
 
         // Check for worktree creation
-        if self.patterns.worktree_create.is_match(scan_text) {
-            let path = self.patterns.worktree_path
+        if p.worktree_create.is_match(scan_text) {
+            let path = p.worktree_path
                 .captures(scan_text)
                 .and_then(|c| c.get(1))
                 .map(|m| m.as_str().trim().to_string())
