@@ -22,12 +22,12 @@ pub mod commands {
         // Validate that folder exists and is a directory
         let folder_path = std::path::Path::new(&folder);
         if !folder_path.exists() {
-            let msg = format!("Folder does not exist: {}", folder);
+            let msg = format!("Failed to create session: folder does not exist: {}", folder);
             log::error!("{}", msg);
             return Err(msg);
         }
         if !folder_path.is_dir() {
-            let msg = format!("Path is not a directory: {}", folder);
+            let msg = format!("Failed to create session: path is not a directory: {}", folder);
             log::error!("{}", msg);
             return Err(msg);
         }
