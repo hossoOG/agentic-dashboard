@@ -1,5 +1,6 @@
 use serde::Serialize;
-use std::process::Command;
+
+use super::{is_command_available, run_command};
 
 #[derive(Serialize, Clone)]
 pub struct GitCommitInfo {
@@ -31,42 +32,6 @@ pub struct GithubIssue {
     pub labels: Vec<String>,
     pub assignee: String,
     pub url: String,
-}
-
-/// Creates a Command with hidden console window on Windows.
-fn silent_command(program: &str) -> Command {
-    let mut cmd = Command::new(program);
-    #[cfg(target_os = "windows")]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
-    cmd
-}
-
-fn run_command(folder: &str, program: &str, args: &[&str]) -> Result<String, String> {
-    let output = silent_command(program)
-        .args(args)
-        .current_dir(folder)
-        .output()
-        .map_err(|e| format!("Failed to run {}: {}", program, e))?;
-
-    if output.status.success() {
-        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
-    } else {
-        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        Err(format!("{} failed: {}", program, stderr))
-    }
-}
-
-fn is_command_available(cmd: &str) -> bool {
-    #[cfg(target_os = "windows")]
-    let check = silent_command("where").arg(cmd).output();
-    #[cfg(not(target_os = "windows"))]
-    let check = silent_command("which").arg(cmd).output();
-
-    check.map(|o| o.status.success()).unwrap_or(false)
 }
 
 // Commands im mod-Block wegen rustc 1.94 E0255 Workaround (siehe CLAUDE.md)

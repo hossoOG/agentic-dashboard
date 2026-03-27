@@ -137,6 +137,11 @@ pub fn run() {
             github::commands::commands::get_git_info,
             github::commands::commands::get_github_prs,
             github::commands::commands::get_github_issues,
+            // GitHub Projects / Kanban
+            github::kanban::commands::get_github_projects,
+            github::kanban::commands::get_project_columns,
+            github::kanban::commands::get_project_items,
+            github::kanban::commands::update_item_status,
             // Library
             library::commands::commands::list_library_items,
             library::commands::commands::read_library_item,

@@ -22,6 +22,7 @@ const SkillsViewer = lazy(() => import("./SkillsViewer").then(m => ({ default: m
 const HooksViewer = lazy(() => import("./HooksViewer").then(m => ({ default: m.HooksViewer })));
 const GitHubViewer = lazy(() => import("./GitHubViewer").then(m => ({ default: m.GitHubViewer })));
 const LibraryViewer = lazy(() => import("./LibraryViewer").then(m => ({ default: m.LibraryViewer })));
+const KanbanBoard = lazy(() => import("./KanbanBoard").then(m => ({ default: m.KanbanBoard })));
 
 export function SessionManagerView() {
   const [showNewDialog, setShowNewDialog] = useState(false);
@@ -215,6 +216,7 @@ export function SessionManagerView() {
 
   // Determine what content to show
   const showConfig = primaryTab === "config";
+  const showKanban = primaryTab === "kanban";
 
   return (
     <div className="flex flex-col h-full">
@@ -262,6 +264,10 @@ export function SessionManagerView() {
                     ) : configSubTab === "library" ? (
                       <LibraryViewer folder={activeSession?.folder ?? ""} />
                     ) : null}
+                  </Suspense>
+                ) : showKanban ? (
+                  <Suspense fallback={<div className="flex-1 flex items-center justify-center text-neutral-500">Laden...</div>}>
+                    <KanbanBoard folder={activeSession?.folder ?? ""} />
                   </Suspense>
                 ) : (
                   <div className="flex flex-col h-full">

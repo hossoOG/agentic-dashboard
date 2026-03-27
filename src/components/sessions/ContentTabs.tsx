@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { Terminal, FileText, Puzzle, Webhook, Github, ChevronDown, Settings2, BookOpen } from "lucide-react";
+import { Terminal, FileText, Puzzle, Webhook, Github, ChevronDown, Settings2, BookOpen, Layout } from "lucide-react";
 
-export type PrimaryTab = "terminal" | "config";
+export type PrimaryTab = "terminal" | "config" | "kanban";
 export type ConfigSubTab = "claude-md" | "skills" | "hooks" | "github" | "library";
 
 // Combined type for backwards compatibility with SessionManagerView
@@ -117,6 +117,19 @@ export function ContentTabs({ activeTab, configSubTab, onTabChange }: ContentTab
           </div>
         )}
       </div>
+
+      {/* Kanban tab */}
+      <button
+        onClick={() => onTabChange("kanban")}
+        className={`flex items-center gap-1.5 px-3 h-full text-xs font-medium transition-colors duration-150 border-b-2 ${
+          activeTab === "kanban"
+            ? "text-accent border-accent bg-accent-a05"
+            : "text-neutral-400 border-transparent hover:text-neutral-200 hover:bg-hover-overlay"
+        }`}
+      >
+        <Layout className="w-3.5 h-3.5" />
+        Kanban
+      </button>
     </div>
   );
 }
