@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { SessionList } from "./SessionList";
@@ -9,18 +9,19 @@ import { NewSessionDialog } from "./NewSessionDialog";
 import { SessionStatusBar } from "./SessionStatusBar";
 import { EmptyState } from "./EmptyState";
 import { ContentTabs, type PrimaryTab, type ConfigSubTab } from "./ContentTabs";
-import { ClaudeMdViewer } from "./ClaudeMdViewer";
-import { SkillsViewer } from "./SkillsViewer";
-import { HooksViewer } from "./HooksViewer";
-import { GitHubViewer } from "./GitHubViewer";
 import { AgentBottomPanel } from "./AgentBottomPanel";
-import { LibraryViewer } from "./LibraryViewer";
 import { useSessionStore, selectActiveSession } from "../../store/sessionStore";
 import { useSettingsStore } from "../../store/settingsStore";
 import { useUIStore } from "../../store/uiStore";
 import { useAgentStore } from "../../store/agentStore";
 import type { FavoriteFolder } from "../../store/settingsStore";
 import type { SessionShell } from "../../store/sessionStore";
+
+const ClaudeMdViewer = lazy(() => import("./ClaudeMdViewer").then(m => ({ default: m.ClaudeMdViewer })));
+const SkillsViewer = lazy(() => import("./SkillsViewer").then(m => ({ default: m.SkillsViewer })));
+const HooksViewer = lazy(() => import("./HooksViewer").then(m => ({ default: m.HooksViewer })));
+const GitHubViewer = lazy(() => import("./GitHubViewer").then(m => ({ default: m.GitHubViewer })));
+const LibraryViewer = lazy(() => import("./LibraryViewer").then(m => ({ default: m.LibraryViewer })));
 
 export function SessionManagerView() {
   const [showNewDialog, setShowNewDialog] = useState(false);
@@ -249,17 +250,19 @@ export function SessionManagerView() {
             {layoutMode === "single" ? (
               activeSessionId ? (
                 showConfig ? (
-                  configSubTab === "claude-md" ? (
-                    <ClaudeMdViewer folder={activeSession?.folder ?? ""} />
-                  ) : configSubTab === "skills" ? (
-                    <SkillsViewer folder={activeSession?.folder ?? ""} />
-                  ) : configSubTab === "hooks" ? (
-                    <HooksViewer folder={activeSession?.folder ?? ""} />
-                  ) : configSubTab === "github" ? (
-                    <GitHubViewer folder={activeSession?.folder ?? ""} />
-                  ) : configSubTab === "library" ? (
-                    <LibraryViewer folder={activeSession?.folder ?? ""} />
-                  ) : null
+                  <Suspense fallback={<div className="flex-1 flex items-center justify-center text-neutral-500">Laden...</div>}>
+                    {configSubTab === "claude-md" ? (
+                      <ClaudeMdViewer folder={activeSession?.folder ?? ""} />
+                    ) : configSubTab === "skills" ? (
+                      <SkillsViewer folder={activeSession?.folder ?? ""} />
+                    ) : configSubTab === "hooks" ? (
+                      <HooksViewer folder={activeSession?.folder ?? ""} />
+                    ) : configSubTab === "github" ? (
+                      <GitHubViewer folder={activeSession?.folder ?? ""} />
+                    ) : configSubTab === "library" ? (
+                      <LibraryViewer folder={activeSession?.folder ?? ""} />
+                    ) : null}
+                  </Suspense>
                 ) : (
                   <div className="flex flex-col h-full">
                     <div className="flex-1 min-h-0">
