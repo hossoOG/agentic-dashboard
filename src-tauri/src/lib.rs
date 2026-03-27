@@ -7,6 +7,7 @@ pub mod library;
 pub mod log_reader;
 pub mod pipeline;
 pub mod session;
+pub mod settings;
 
 fn init_logging() {
     use env_logger::Builder;
@@ -148,6 +149,9 @@ pub fn run() {
             library::commands::commands::get_library_item_path,
             // Log reader
             log_reader::commands::read_backend_log,
+            // User settings (Documents/AgenticExplorer/)
+            settings::commands::load_user_settings,
+            settings::commands::save_user_settings,
         ])
         .on_window_event(move |_window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {

@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { tauriStorage } from "./tauriStorage";
 
 // ============================================================================
 // Types
@@ -248,6 +249,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: "agentic-dashboard-settings",
+      storage: createJSONStorage(() => tauriStorage),
     }
   )
 );

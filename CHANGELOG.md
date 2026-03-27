@@ -4,6 +4,38 @@ Alle relevanten Änderungen an AgenticExplorer werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+
+
+## [1.2.2] — 2026-03-27
+
+### Features
+- versioned deploy with running-app check
+- add Log Viewer as dedicated SideNav tab
+- add agent detection, library system, and enhanced content tabs
+- allow browsing project notes without active session
+- add theming system, changelog dialog, notes panel, and UI polish
+
+### Sonstiges
+- chore(config): rename app to AgenticExplorer
+- chore(config): migrate sprint backlog to GitHub Projects
+- chore(config): add version bump script to deploy pipeline
+- chore(config): consolidation sprint — remove dead code, update process docs
+
+## [1.2.1] — 2026-03-27
+
+### Features
+- versioned deploy with running-app check
+- add Log Viewer as dedicated SideNav tab
+- add agent detection, library system, and enhanced content tabs
+- allow browsing project notes without active session
+- add theming system, changelog dialog, notes panel, and UI polish
+
+### Sonstiges
+- chore(config): rename app to AgenticExplorer
+- chore(config): migrate sprint backlog to GitHub Projects
+- chore(config): add version bump script to deploy pipeline
+- chore(config): consolidation sprint — remove dead code, update process docs
+
 ## [1.2.0] — 2026-03-17
 
 GitHub-Integration: Git- und GitHub-Status direkt im Session-View.

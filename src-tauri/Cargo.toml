@@ -1,6 +1,6 @@
 [package]
 name = "agentic-dashboard"
-version = "1.2.0"
+version = "1.2.2"
 description = "AgenticExplorer - Manage and monitor Claude CLI sessions"
 authors = []
 edition = "2021"
