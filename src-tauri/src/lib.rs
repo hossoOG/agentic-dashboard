@@ -110,6 +110,8 @@ pub fn run() {
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(pipeline_state)
         .manage(session_manager)
         .invoke_handler(tauri::generate_handler![
@@ -151,8 +153,10 @@ pub fn run() {
             // User settings (Documents/AgenticExplorer/)
             settings::commands::load_user_settings,
             settings::commands::save_user_settings,
-            settings::commands::save_note_file,
+            settings::commands::load_favorites_file,
             settings::commands::save_favorites_file,
+            settings::commands::load_notes,
+            settings::commands::save_note_file,
         ])
         .on_window_event(move |_window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {

@@ -13,6 +13,10 @@ const isTauri = "__TAURI_INTERNALS__" in window;
 // In-memory cache for synchronous getItem calls (Zustand requires sync API)
 const cache = new Map<string, string>();
 
+// Loaded favorites and notes from their dedicated files (available after init)
+let loadedFavorites: unknown[] | null = null;
+let loadedNotes: { global: string; project: Record<string, string> } | null = null;
+
 // Eagerly load settings from Tauri on startup
 let initPromise: Promise<void> | null = null;
 
@@ -20,10 +24,40 @@ export function initTauriStorage(): Promise<void> {
   if (!isTauri) return Promise.resolve();
   if (initPromise) return initPromise;
 
-  initPromise = invoke<string>("load_user_settings")
-    .then((data) => {
-      if (data) {
-        cache.set("agentic-dashboard-settings", data);
+  initPromise = Promise.all([
+    invoke<string>("load_user_settings"),
+    invoke<string>("load_favorites_file"),
+    invoke<string>("load_notes"),
+  ])
+    .then(([settingsData, favoritesData, notesData]) => {
+      if (settingsData) {
+        cache.set("agentic-dashboard-settings", settingsData);
+      }
+
+      // Parse favorites from dedicated file
+      if (favoritesData) {
+        try {
+          loadedFavorites = JSON.parse(favoritesData);
+        } catch {
+          console.warn("[tauriStorage] Failed to parse favorites.json");
+        }
+      }
+
+      // Parse notes from dedicated files
+      if (notesData) {
+        try {
+          const raw = JSON.parse(notesData) as Record<string, string>;
+          const globalNotes = raw["global"] ?? "";
+          const projectNotes: Record<string, string> = {};
+          for (const [key, value] of Object.entries(raw)) {
+            if (key !== "global") {
+              projectNotes[key] = value;
+            }
+          }
+          loadedNotes = { global: globalNotes, project: projectNotes };
+        } catch {
+          console.warn("[tauriStorage] Failed to parse notes");
+        }
       }
     })
     .catch((err) => {
@@ -31,6 +65,16 @@ export function initTauriStorage(): Promise<void> {
     });
 
   return initPromise;
+}
+
+/** Returns favorites loaded from favorites.json (available after initTauriStorage resolves) */
+export function getLoadedFavorites(): unknown[] | null {
+  return loadedFavorites;
+}
+
+/** Returns notes loaded from notes/ directory (available after initTauriStorage resolves) */
+export function getLoadedNotes(): { global: string; project: Record<string, string> } | null {
+  return loadedNotes;
 }
 
 export const tauriStorage: StateStorage = {

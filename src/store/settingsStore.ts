@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { tauriStorage } from "./tauriStorage";
+import { tauriStorage, getLoadedFavorites, getLoadedNotes } from "./tauriStorage";
 
 // ============================================================================
 // Types
@@ -283,6 +283,33 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: "agentic-dashboard-settings",
       storage: createJSONStorage(() => tauriStorage),
+      onRehydrateStorage: () => (_state, error) => {
+        if (error) {
+          console.error("[settingsStore] Hydration error:", error);
+          return;
+        }
+        // Merge favorites and notes from their dedicated files.
+        // These are the source of truth — settings.json may be stale.
+        const fileFavorites = getLoadedFavorites();
+        const fileNotes = getLoadedNotes();
+        const patches: Partial<SettingsState> = {};
+
+        if (Array.isArray(fileFavorites) && fileFavorites.length > 0) {
+          patches.favorites = fileFavorites as FavoriteFolder[];
+        }
+        if (fileNotes) {
+          if (fileNotes.global) {
+            patches.globalNotes = fileNotes.global;
+          }
+          if (Object.keys(fileNotes.project).length > 0) {
+            patches.projectNotes = fileNotes.project;
+          }
+        }
+
+        if (Object.keys(patches).length > 0) {
+          useSettingsStore.setState(patches);
+        }
+      },
     }
   )
 );

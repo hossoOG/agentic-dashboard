@@ -57,12 +57,51 @@ pub mod commands {
             .map_err(|e| format!("Failed to write settings: {}", e))
     }
 
+    /// Load favorites JSON from Documents/AgenticExplorer/favorites.json
+    /// Returns empty string if file doesn't exist yet.
+    #[tauri::command]
+    pub async fn load_favorites_file() -> Result<String, String> {
+        let path = settings_dir()?.join("favorites.json");
+        if !path.exists() {
+            return Ok(String::new());
+        }
+        std::fs::read_to_string(&path)
+            .map_err(|e| format!("Failed to read favorites file: {}", e))
+    }
+
     /// Save favorites list as JSON to Documents/AgenticExplorer/favorites.json
     #[tauri::command]
     pub async fn save_favorites_file(data: String) -> Result<(), String> {
         let path = settings_dir()?.join("favorites.json");
         std::fs::write(&path, data)
             .map_err(|e| format!("Failed to write favorites file: {}", e))
+    }
+
+    /// Load all notes from Documents/AgenticExplorer/notes/
+    /// Returns a JSON object: { "global": "...", "c_/projects/foo": "...", ... }
+    #[tauri::command]
+    pub async fn load_notes() -> Result<String, String> {
+        let dir = notes_dir()?;
+        let mut notes = serde_json::Map::new();
+
+        let entries = std::fs::read_dir(&dir)
+            .map_err(|e| format!("Failed to read notes directory: {}", e))?;
+
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) == Some("md") {
+                let stem = path.file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or_default()
+                    .to_string();
+                let content = std::fs::read_to_string(&path)
+                    .map_err(|e| format!("Failed to read note {}: {}", stem, e))?;
+                notes.insert(stem, serde_json::Value::String(content));
+            }
+        }
+
+        serde_json::to_string(&notes)
+            .map_err(|e| format!("Failed to serialize notes: {}", e))
     }
 
     /// Save a note as a .md file in Documents/AgenticExplorer/notes/
