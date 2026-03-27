@@ -7,6 +7,22 @@ Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
 
 
+
+## [1.2.4] — 2026-03-27
+
+### Fixes
+- standardize error handling in session manager (#8)
+
+### Sonstiges
+- Merge branch 'master' of https://github.com/hossoOG/agentic-dashboard
+- perf(tauri): compile agent detector regex patterns once via OnceLock (#10)
+- perf(store): use useShallow for agent/worktree selector stability (#7)
+- perf(ui): lazy-load config viewers and stabilize tab change handler (#5)
+- Merge branch 'master' of https://github.com/hossoOG/agentic-dashboard
+- chore(config): remove unused tauri-plugin-notification dependency (#9)
+- perf(ui): shared timer hook + SessionCard memoization (#6)
+- perf(config): add Vite manual chunks to split vendor bundles (#4)
+
 ## [1.2.3] — 2026-03-27
 
 ### Features
