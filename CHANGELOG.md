@@ -6,6 +6,24 @@ Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
 
 
+
+## [1.2.3] — 2026-03-27
+
+### Features
+- persist notes and favorites as separate files in Documents/AgenticExplorer/
+- persist settings via Tauri to Documents/AgenticExplorer/
+- versioned deploy with running-app check
+- add Log Viewer as dedicated SideNav tab
+- add agent detection, library system, and enhanced content tabs
+- allow browsing project notes without active session
+- add theming system, changelog dialog, notes panel, and UI polish
+
+### Sonstiges
+- chore(config): rename app to AgenticExplorer
+- chore(config): migrate sprint backlog to GitHub Projects
+- chore(config): add version bump script to deploy pipeline
+- chore(config): consolidation sprint — remove dead code, update process docs
+
 ## [1.2.2] — 2026-03-27
 
 ### Features
