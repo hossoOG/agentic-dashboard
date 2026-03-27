@@ -6,7 +6,7 @@ use std::path::PathBuf;
 fn safe_resolve(folder: &str, relative_path: &str) -> Result<PathBuf, String> {
     let base = PathBuf::from(folder);
     if !base.is_dir() {
-        return Err(format!("Folder does not exist: {}", folder));
+        return Err(format!("Failed to resolve path: folder does not exist: {}", folder));
     }
 
     let target = base.join(relative_path);
@@ -14,13 +14,13 @@ fn safe_resolve(folder: &str, relative_path: &str) -> Result<PathBuf, String> {
     // Canonicalize base; target may not exist yet so we canonicalize its parent
     let canon_base = base
         .canonicalize()
-        .map_err(|e| format!("Cannot resolve base folder: {}", e))?;
+        .map_err(|e| format!("Failed to resolve base folder '{}': {}", folder, e))?;
 
     // For the target, check if it exists first
     if target.exists() {
         let canon_target = target
             .canonicalize()
-            .map_err(|e| format!("Cannot resolve target path: {}", e))?;
+            .map_err(|e| format!("Failed to resolve target path '{}': {}", relative_path, e))?;
 
         if !canon_target.starts_with(&canon_base) {
             return Err("Path traversal detected: target is outside project folder".to_string());
@@ -45,7 +45,7 @@ pub mod commands {
         }
 
         std::fs::read_to_string(&path)
-            .map_err(|e| format!("Failed to read file: {}", e))
+            .map_err(|e| format!("Failed to read file '{}': {}", relative_path, e))
     }
 
     #[tauri::command]
@@ -58,7 +58,7 @@ pub mod commands {
 
         let mut entries = Vec::new();
         let read_dir = std::fs::read_dir(&path)
-            .map_err(|e| format!("Failed to read directory: {}", e))?;
+            .map_err(|e| format!("Failed to read directory '{}': {}", relative_path, e))?;
 
         for entry in read_dir {
             if let Ok(entry) = entry {

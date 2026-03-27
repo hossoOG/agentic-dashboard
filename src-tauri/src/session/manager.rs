@@ -139,7 +139,9 @@ impl SessionManager {
         };
 
         {
-            let mut sessions = self.sessions.lock().map_err(|e| e.to_string())?;
+            let mut sessions = self.sessions.lock().map_err(|e| {
+                format!("Failed to lock session manager for create_session: {e}")
+            })?;
             sessions.insert(
                 id.clone(),
                 SessionHandle {
@@ -248,24 +250,29 @@ impl SessionManager {
 
     /// Sendet Daten (User-Input) an eine laufende Session.
     pub fn write_to_session(&self, id: &str, data: &str) -> Result<(), String> {
-        let mut sessions = self.sessions.lock().map_err(|e| e.to_string())?;
+        let mut sessions = self.sessions.lock().map_err(|e| {
+            format!("Failed to lock session manager for write_to_session: {e}")
+        })?;
         let session = sessions
             .get_mut(id)
             .ok_or_else(|| format!("Session {id} nicht gefunden"))?;
         session
             .writer
             .write_all(data.as_bytes())
-            .map_err(|e| format!("Write failed: {e}"))?;
+            .map_err(|e| format!("Failed to write to session {id}: {e}"))?;
         session
             .writer
             .flush()
-            .map_err(|e| format!("Flush failed: {e}"))?;
+            .map_err(|e| format!("Failed to flush session {id}: {e}"))?;
         Ok(())
     }
 
     /// Aendert die Terminal-Groesse einer Session.
     pub fn resize_session(&self, id: &str, cols: u16, rows: u16) -> Result<(), String> {
-        let sessions = self.sessions.lock().map_err(|e| e.to_string())?;
+        let sessions = self.sessions.lock().unwrap_or_else(|e| {
+            log::warn!("SessionManager mutex was poisoned during resize_session, recovering");
+            e.into_inner()
+        });
         let session = sessions
             .get(id)
             .ok_or_else(|| format!("Session {id} nicht gefunden"))?;
@@ -277,12 +284,14 @@ impl SessionManager {
                 pixel_width: 0,
                 pixel_height: 0,
             })
-            .map_err(|e| format!("Resize failed: {e}"))
+            .map_err(|e| format!("Failed to resize session {id}: {e}"))
     }
 
     /// Schliesst eine Session (killt den Prozess).
     pub fn close_session(&self, id: &str) -> Result<(), String> {
-        let mut sessions = self.sessions.lock().map_err(|e| e.to_string())?;
+        let mut sessions = self.sessions.lock().map_err(|e| {
+            format!("Failed to lock session manager for close_session: {e}")
+        })?;
         // Drop entfernt den MasterPty, was den Child-Prozess signalisiert
         sessions
             .remove(id)
@@ -408,6 +417,6 @@ fn which_executable(name: &str) -> Option<std::path::PathBuf> {
         .and_then(|o| {
             String::from_utf8(o.stdout)
                 .ok()
-                .map(|s| std::path::PathBuf::from(s.lines().next().unwrap_or("").trim()))
+                .map(|s| std::path::PathBuf::from(s.lines().next().unwrap_or_default().trim()))
         })
 }
