@@ -1,4 +1,4 @@
-import { LayoutList, LayoutGrid } from "lucide-react";
+import { LayoutList, LayoutGrid, PanelRightOpen, PanelRightClose } from "lucide-react";
 import type { LayoutMode } from "../../store/sessionStore";
 
 interface TerminalToolbarProps {
@@ -6,6 +6,8 @@ interface TerminalToolbarProps {
   onLayoutChange: (mode: LayoutMode) => void;
   activeSessionTitle?: string;
   gridCount: number;
+  configPanelOpen?: boolean;
+  onToggleConfigPanel?: () => void;
 }
 
 export function TerminalToolbar({
@@ -13,6 +15,8 @@ export function TerminalToolbar({
   onLayoutChange,
   activeSessionTitle,
   gridCount,
+  configPanelOpen,
+  onToggleConfigPanel,
 }: TerminalToolbarProps) {
   return (
     <div className="flex items-center justify-between h-9 px-3 bg-surface-raised border-b border-neutral-700 shrink-0">
@@ -25,6 +29,28 @@ export function TerminalToolbar({
 
       {/* Right: layout toggle buttons */}
       <div className="flex items-center gap-1">
+        {/* Config panel toggle — only in single mode */}
+        {layoutMode === "single" && onToggleConfigPanel && (
+          <button
+            onClick={onToggleConfigPanel}
+            className={`p-1 rounded transition-colors ${
+              configPanelOpen
+                ? "text-accent"
+                : "text-neutral-500 hover:text-neutral-300"
+            }`}
+            aria-label={configPanelOpen ? "Konfig-Panel schliessen" : "Konfig-Panel oeffnen"}
+            title={configPanelOpen ? "Konfig-Panel schliessen" : "Konfig-Panel oeffnen"}
+          >
+            {configPanelOpen ? (
+              <PanelRightClose className="w-4 h-4" />
+            ) : (
+              <PanelRightOpen className="w-4 h-4" />
+            )}
+          </button>
+        )}
+
+        <div className="w-px h-4 bg-neutral-700 mx-0.5" />
+
         <button
           onClick={() => onLayoutChange("single")}
           className={`p-1 rounded transition-colors ${

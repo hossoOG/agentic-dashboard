@@ -27,6 +27,10 @@ interface UIState {
   configSubTab: ConfigSubTab;
   setConfigSubTab: (tab: ConfigSubTab) => void;
 
+  configPanelOpen: boolean;
+  toggleConfigPanel: () => void;
+  setConfigPanelOpen: (open: boolean) => void;
+
   detailPanel: DetailPanel;
   openDetailPanel: (type: string, targetId: string) => void;
   closeDetailPanel: () => void;
@@ -44,6 +48,10 @@ export const useUIStore = create<UIState>((set) => ({
 
   configSubTab: "claude-md",
   setConfigSubTab: (tab) => set({ configSubTab: tab }),
+
+  configPanelOpen: false,
+  toggleConfigPanel: () => set((state) => ({ configPanelOpen: !state.configPanelOpen })),
+  setConfigPanelOpen: (open) => set({ configPanelOpen: open }),
 
   detailPanel: { isOpen: false, type: null, targetId: null },
   openDetailPanel: (type, targetId) =>

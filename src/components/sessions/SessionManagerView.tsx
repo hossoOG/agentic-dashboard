@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { SessionList } from "./SessionList";
@@ -8,7 +8,7 @@ import { TerminalToolbar } from "./TerminalToolbar";
 import { NewSessionDialog } from "./NewSessionDialog";
 import { SessionStatusBar } from "./SessionStatusBar";
 import { EmptyState } from "./EmptyState";
-import { ContentTabs, type PrimaryTab, type ConfigSubTab } from "./ContentTabs";
+import { ConfigPanel } from "./ConfigPanel";
 import { AgentBottomPanel } from "./AgentBottomPanel";
 import { useSessionStore, selectActiveSession } from "../../store/sessionStore";
 import { useSettingsStore } from "../../store/settingsStore";
@@ -17,17 +17,10 @@ import { useAgentStore } from "../../store/agentStore";
 import type { FavoriteFolder } from "../../store/settingsStore";
 import type { SessionShell } from "../../store/sessionStore";
 
-const ClaudeMdViewer = lazy(() => import("./ClaudeMdViewer").then(m => ({ default: m.ClaudeMdViewer })));
-const SkillsViewer = lazy(() => import("./SkillsViewer").then(m => ({ default: m.SkillsViewer })));
-const HooksViewer = lazy(() => import("./HooksViewer").then(m => ({ default: m.HooksViewer })));
-const GitHubViewer = lazy(() => import("./GitHubViewer").then(m => ({ default: m.GitHubViewer })));
-const WorktreeViewer = lazy(() => import("./WorktreeViewer").then(m => ({ default: m.WorktreeViewer })));
-
 export function SessionManagerView() {
   const [showNewDialog, setShowNewDialog] = useState(false);
-  const [primaryTab, setPrimaryTab] = useState<PrimaryTab>("terminal");
-  const configSubTab = useUIStore((s) => s.configSubTab);
-  const setConfigSubTab = useUIStore((s) => s.setConfigSubTab);
+  const configPanelOpen = useUIStore((s) => s.configPanelOpen);
+  const toggleConfigPanel = useUIStore((s) => s.toggleConfigPanel);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const activeSession = useSessionStore(selectActiveSession);
   const layoutMode = useSessionStore((s) => s.layoutMode);
@@ -37,18 +30,6 @@ export function SessionManagerView() {
   const setFocusedGridSession = useSessionStore((s) => s.setFocusedGridSession);
   const maximizeGridSession = useSessionStore((s) => s.maximizeGridSession);
   const removeFromGrid = useSessionStore((s) => s.removeFromGrid);
-
-  const handleTabChange = (primary: PrimaryTab, configSub?: ConfigSubTab) => {
-    setPrimaryTab(primary);
-    if (configSub) {
-      setConfigSubTab(configSub);
-    }
-  };
-
-  // Reset to terminal tab when switching sessions
-  useEffect(() => {
-    setPrimaryTab("terminal");
-  }, [activeSessionId]);
 
   // Register Tauri event listeners for session lifecycle
   useEffect(() => {
@@ -213,9 +194,6 @@ export function SessionManagerView() {
     }
   }
 
-  // Determine what content to show
-  const showConfig = primaryTab === "config";
-
   return (
     <div className="flex flex-col h-full">
       <div className="flex flex-1 min-h-0">
@@ -224,7 +202,7 @@ export function SessionManagerView() {
           <SessionList onNewSession={() => setShowNewDialog(true)} onQuickStart={handleQuickStart} />
         </div>
 
-        {/* Right column: Terminal or Empty State */}
+        {/* Right column: Terminal + optional Config panel */}
         <div className="flex-1 min-w-0 flex flex-col">
           {/* Terminal Toolbar — only shown when a session exists */}
           {(activeSessionId || gridSessionIds.length > 0) && (
@@ -233,15 +211,8 @@ export function SessionManagerView() {
               onLayoutChange={setLayoutMode}
               activeSessionTitle={activeSession?.title}
               gridCount={gridSessionIds.length}
-            />
-          )}
-
-          {/* Content tabs — only in single mode with active session */}
-          {layoutMode === "single" && activeSessionId && (
-            <ContentTabs
-              activeTab={primaryTab}
-              configSubTab={configSubTab}
-              onTabChange={handleTabChange}
+              configPanelOpen={configPanelOpen}
+              onToggleConfigPanel={activeSessionId ? toggleConfigPanel : undefined}
             />
           )}
 
@@ -249,28 +220,20 @@ export function SessionManagerView() {
           <div className="flex-1 min-h-0">
             {layoutMode === "single" ? (
               activeSessionId ? (
-                showConfig ? (
-                  <Suspense fallback={<div className="flex-1 flex items-center justify-center text-neutral-500">Laden...</div>}>
-                    {configSubTab === "claude-md" ? (
-                      <ClaudeMdViewer folder={activeSession?.folder ?? ""} />
-                    ) : configSubTab === "skills" ? (
-                      <SkillsViewer folder={activeSession?.folder ?? ""} />
-                    ) : configSubTab === "hooks" ? (
-                      <HooksViewer folder={activeSession?.folder ?? ""} />
-                    ) : configSubTab === "github" ? (
-                      <GitHubViewer folder={activeSession?.folder ?? ""} />
-                    ) : configSubTab === "worktrees" ? (
-                      <WorktreeViewer folder={activeSession?.folder ?? ""} />
-                    ) : null}
-                  </Suspense>
-                ) : (
-                  <div className="flex flex-col h-full">
+                <div className="flex flex-row h-full">
+                  {/* Terminal — always rendered, flex-1 */}
+                  <div className="flex-1 min-w-0 flex flex-col">
                     <div className="flex-1 min-h-0">
                       <SessionTerminal sessionId={activeSessionId} />
                     </div>
                     <AgentBottomPanel sessionId={activeSessionId} />
                   </div>
-                )
+
+                  {/* Config panel — conditionally shown */}
+                  {configPanelOpen && (
+                    <ConfigPanel folder={activeSession?.folder ?? ""} />
+                  )}
+                </div>
               ) : (
                 <EmptyState onNewSession={() => setShowNewDialog(true)} />
               )
