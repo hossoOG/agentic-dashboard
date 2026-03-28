@@ -8,6 +8,25 @@ Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
 
 
+## [1.2.5] — 2026-03-28
+
+### Features
+- Library: Config-Erkennung aus Favoriten-Projekten + globale Settings (#35)
+- Worktree-Übersicht als neuer Config-Tab (#22)
+- Pipeline-View mit Adapter, Workflow-Erkennung und Metriken (#12, #13)
+- Library als eigener SideNav-Tab (#11)
+- Auto-Update Notification verbessert
+
+### Fixes
+- Session-Liste Scroll-Bug behoben — min-h-0 auf Flex-Container (#25)
+
+### Verbesserungen
+- Rebranding auf AgenticExplorer abgeschlossen (#27)
+- Pipeline-View: Empty State und Idle-Anzeige poliert (#12)
+- README.md hinzugefügt
+- CI-Pipeline verschlankt (ESLint/Prettier/cargo check/build-check entfernt)
+- Rust-Formatierung vereinheitlicht (cargo fmt)
+
 ## [1.2.4] — 2026-03-27
 
 ### Fixes
