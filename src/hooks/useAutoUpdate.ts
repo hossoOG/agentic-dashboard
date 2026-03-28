@@ -1,6 +1,7 @@
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { useState, useEffect, useCallback } from "react";
+import { getVersion } from "@tauri-apps/api/app";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 const isTauri = "__TAURI_INTERNALS__" in window;
 
@@ -9,7 +10,7 @@ export type UpdateStatus =
   | "checking"
   | "available"
   | "downloading"
-  | "installing"
+  | "ready"
   | "upToDate"
   | "error";
 
@@ -18,50 +19,98 @@ export interface UpdateState {
   progress: number;
   error: string | null;
   newVersion: string | null;
+  lastChecked: Date | null;
 }
 
-const CHECK_INTERVAL_MS = 30 * 60 * 1000; // 30 min
+export interface UseAutoUpdateReturn extends UpdateState {
+  checkForUpdate: () => Promise<void>;
+  downloadAndInstall: () => Promise<void>;
+  confirmRelaunch: () => Promise<void>;
+  dismiss: () => void;
+}
 
-export function useAutoUpdate() {
+const CHECK_INTERVAL_MS = 30 * 60 * 1000;
+const INITIAL_DELAY_MS = 15 * 1000;
+
+export function useAutoUpdate(): UseAutoUpdateReturn {
   const [state, setState] = useState<UpdateState>({
     status: "idle",
     progress: 0,
     error: null,
     newVersion: null,
+    lastChecked: null,
   });
   const [update, setUpdate] = useState<Update | null>(null);
 
-  const checkForUpdate = useCallback(async () => {
-    if (!isTauri) return;
-    setState((s) => ({ ...s, status: "checking", error: null }));
+  const isMountedRef = useRef(true);
+  const isCheckingRef = useRef(false);
+  const dismissedVersionRef = useRef<string | null>(null);
+  const checkFnRef = useRef<() => Promise<void>>();
+
+  const safeSetState = useCallback(
+    (updater: (prev: UpdateState) => UpdateState) => {
+      if (isMountedRef.current) setState(updater);
+    },
+    []
+  );
+
+  checkFnRef.current = async () => {
+    if (!isTauri || isCheckingRef.current) return;
+    isCheckingRef.current = true;
+    safeSetState((s) => ({ ...s, status: "checking", error: null }));
+
     try {
-      const result = await check();
-      if (result) {
-        setUpdate(result);
-        setState((s) => ({
-          ...s,
-          status: "available",
-          newVersion: result.version,
-        }));
+      const [result, currentVersion] = await Promise.all([
+        check(),
+        getVersion(),
+      ]);
+
+      if (result && result.version !== currentVersion) {
+        if (dismissedVersionRef.current === result.version) {
+          safeSetState((s) => ({
+            ...s,
+            status: "idle",
+            lastChecked: new Date(),
+          }));
+        } else {
+          setUpdate(result);
+          safeSetState((s) => ({
+            ...s,
+            status: "available",
+            newVersion: result.version,
+            lastChecked: new Date(),
+          }));
+        }
       } else {
-        setState((s) => ({ ...s, status: "upToDate" }));
+        safeSetState((s) => ({
+          ...s,
+          status: "upToDate",
+          lastChecked: new Date(),
+        }));
       }
     } catch (err) {
-      // Network errors / 404 (no release yet) → treat as up-to-date, not error
       const msg = err instanceof Error ? err.message : String(err);
-      const isNetworkOrNotFound =
-        /network|fetch|404|not found|could not determine/i.test(msg);
-      if (isNetworkOrNotFound) {
-        setState((s) => ({ ...s, status: "upToDate" }));
+      const isBenign =
+        /network|fetch|404|not found|could not determine|dns|timeout|econnrefused/i.test(
+          msg
+        );
+      if (isBenign) {
+        safeSetState((s) => ({ ...s, status: "idle" }));
       } else {
-        setState((s) => ({ ...s, status: "error", error: msg }));
+        safeSetState((s) => ({ ...s, status: "error", error: msg }));
       }
+    } finally {
+      isCheckingRef.current = false;
     }
+  };
+
+  const checkForUpdate = useCallback(async () => {
+    await checkFnRef.current?.();
   }, []);
 
   const downloadAndInstall = useCallback(async () => {
     if (!update) return;
-    setState((s) => ({ ...s, status: "downloading", progress: 0 }));
+    safeSetState((s) => ({ ...s, status: "downloading", progress: 0 }));
     try {
       let totalBytes = 0;
       let downloadedBytes = 0;
@@ -74,33 +123,57 @@ export function useAutoUpdate() {
             totalBytes > 0
               ? Math.round((downloadedBytes / totalBytes) * 100)
               : 0;
-          setState((s) => ({ ...s, progress: pct }));
+          safeSetState((s) => ({ ...s, progress: pct }));
         } else if (event.event === "Finished") {
-          setState((s) => ({ ...s, status: "installing", progress: 100 }));
+          safeSetState((s) => ({ ...s, status: "ready", progress: 100 }));
         }
       });
-      await relaunch();
     } catch (err) {
-      setState((s) => ({
+      safeSetState((s) => ({
         ...s,
         status: "error",
         error: err instanceof Error ? err.message : String(err),
       }));
     }
-  }, [update]);
+  }, [update, safeSetState]);
 
-  const dismiss = useCallback(() => {
-    setState((s) => ({ ...s, status: "idle" }));
-    setUpdate(null);
+  const confirmRelaunch = useCallback(async () => {
+    if (!isTauri) return;
+    await relaunch();
   }, []);
 
-  // Auto-check on mount, then every 30 min
-  useEffect(() => {
-    if (!isTauri) return;
-    checkForUpdate();
-    const interval = setInterval(checkForUpdate, CHECK_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, [checkForUpdate]);
+  const dismiss = useCallback(() => {
+    if (state.newVersion) {
+      dismissedVersionRef.current = state.newVersion;
+    }
+    safeSetState((s) => ({ ...s, status: "idle" }));
+    setUpdate(null);
+  }, [state.newVersion, safeSetState]);
 
-  return { ...state, checkForUpdate, downloadAndInstall, dismiss };
+  useEffect(() => {
+    isMountedRef.current = true;
+    if (!isTauri) return;
+
+    const initialTimeout = setTimeout(() => {
+      checkFnRef.current?.();
+    }, INITIAL_DELAY_MS);
+
+    const interval = setInterval(() => {
+      checkFnRef.current?.();
+    }, CHECK_INTERVAL_MS);
+
+    return () => {
+      isMountedRef.current = false;
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+    };
+  }, []);
+
+  return {
+    ...state,
+    checkForUpdate,
+    downloadAndInstall,
+    confirmRelaunch,
+    dismiss,
+  };
 }
