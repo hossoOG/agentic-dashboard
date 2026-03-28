@@ -105,7 +105,15 @@ pub fn run() {
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin({
+            let mut updater = tauri_plugin_updater::Builder::new();
+            if let Some(token) = option_env!("UPDATER_GITHUB_TOKEN") {
+                updater = updater
+                    .header("Authorization", format!("token {}", token))
+                    .expect("invalid Authorization header");
+            }
+            updater.build()
+        })
         .plugin(tauri_plugin_process::init())
         .manage(pipeline_state)
         .manage(session_manager)
