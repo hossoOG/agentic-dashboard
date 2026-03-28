@@ -1,6 +1,5 @@
 import { motion } from "framer-motion";
-import { usePipelineStore } from "../store/pipelineStore";
-import type { QACheckStatus } from "../store/pipelineStore";
+import type { QAGate, QACheckStatus } from "../store/pipelineStore";
 import {
   QA_CHECK_LABELS,
   QA_STATUS_ICONS,
@@ -15,8 +14,11 @@ const GLOW_MAP: Record<string, string> = {
   fail: "glow-error",
 };
 
-export function QAGateNode() {
-  const { qaGate } = usePipelineStore();
+interface Props {
+  qaGate: QAGate;
+}
+
+export function QAGateNode({ qaGate }: Props) {
   const { overallStatus, ...checks } = qaGate;
 
   const ShieldIcon = getQAShieldIcon(overallStatus);

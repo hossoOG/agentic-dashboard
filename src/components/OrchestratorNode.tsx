@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { usePipelineStore } from "../store/pipelineStore";
+import type { OrchestratorStatus } from "../store/pipelineStore";
 import { ORCHESTRATOR_CONFIG, getStatusStyle, PULSE_STATUSES } from "../utils/statusConfig";
 import { DURATION, EASE, VARIANTS } from "../utils/motion";
 
@@ -8,8 +8,18 @@ const GLOW_MAP: Record<string, string> = {
   generated_manifest: "glow-success",
 };
 
-export function OrchestratorNode() {
-  const { orchestratorStatus, orchestratorLog } = usePipelineStore();
+interface Props {
+  orchestratorStatus: OrchestratorStatus;
+  orchestratorLog: string[];
+  summary?: {
+    total: number;
+    running: number;
+    completed: number;
+    error: number;
+  };
+}
+
+export function OrchestratorNode({ orchestratorStatus, orchestratorLog, summary }: Props) {
   const config = ORCHESTRATOR_CONFIG[orchestratorStatus];
   const style = getStatusStyle(orchestratorStatus);
   const Icon = config.icon;
@@ -46,6 +56,30 @@ export function OrchestratorNode() {
         </div>
       </div>
 
+      {/* Agent summary bar (when using adapted data) */}
+      {summary && summary.total > 0 && (
+        <div className="px-4 py-2 border-b border-neutral-700 flex items-center gap-3 text-xs">
+          <span className="text-neutral-400">
+            <span className="text-neutral-200 font-bold">{summary.total}</span> Agent(en)
+          </span>
+          {summary.running > 0 && (
+            <span className="text-accent">
+              {summary.running} aktiv
+            </span>
+          )}
+          {summary.completed > 0 && (
+            <span className="text-success">
+              {summary.completed} fertig
+            </span>
+          )}
+          {summary.error > 0 && (
+            <span className="text-error">
+              {summary.error} Fehler
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Terminal log */}
       <div className="retro-terminal p-3 h-28 overflow-y-auto">
         <AnimatePresence>
@@ -57,7 +91,7 @@ export function OrchestratorNode() {
               transition={{ duration: DURATION.fast, ease: EASE.out as unknown as string }}
               className="text-xs text-neutral-300 py-0.5"
             >
-              <span className="text-success mr-1">›</span>
+              <span className="text-success mr-1">{"›"}</span>
               {log}
             </motion.div>
           ))}

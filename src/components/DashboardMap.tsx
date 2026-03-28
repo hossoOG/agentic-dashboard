@@ -4,11 +4,40 @@ import { OrchestratorNode } from "./OrchestratorNode";
 import { WorktreeNode } from "./WorktreeNode";
 import { QAGateNode } from "./QAGateNode";
 import { ConnectionLines } from "./ConnectionLines";
-import { usePipelineStore } from "../store/pipelineStore";
+import { useAdaptedPipelineData } from "../store/pipelineAdapter";
 import { DURATION } from "../utils/motion";
+import { Search } from "lucide-react";
+
+function EmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center h-full text-center px-8">
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="flex flex-col items-center gap-4"
+      >
+        <div className="w-16 h-16 rounded-full border-2 border-neutral-700 flex items-center justify-center">
+          <Search className="w-7 h-7 text-neutral-500" />
+        </div>
+        <h2 className="text-lg font-display font-bold text-neutral-300 tracking-wider">
+          Keine Agenten erkannt
+        </h2>
+        <p className="text-sm text-neutral-500 max-w-md leading-relaxed">
+          Starte eine Claude-Session mit parallelen Agenten oder Worktrees,
+          um sie hier in Echtzeit zu verfolgen.
+        </p>
+        <p className="text-xs text-neutral-600 mt-2">
+          Erkannte Agenten und Worktrees werden automatisch in der Pipeline-View angezeigt.
+        </p>
+      </motion.div>
+    </div>
+  );
+}
 
 export function DashboardMap() {
-  const { worktrees, orchestratorStatus, qaGate } = usePipelineStore();
+  const adapted = useAdaptedPipelineData();
+  const { hasAgents, worktrees, orchestratorStatus, orchestratorLog, qaGate } = adapted;
   const [dimensions, setDimensions] = useState({ width: 1200, height: 800 });
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -26,6 +55,15 @@ export function DashboardMap() {
     return () => window.removeEventListener("resize", update);
   }, []);
 
+  // Empty state when no agents detected
+  if (!hasAgents) {
+    return (
+      <div ref={containerRef} className="perspective-container bg-surface-base">
+        <EmptyState />
+      </div>
+    );
+  }
+
   return (
     <div ref={containerRef} className="perspective-container bg-surface-base">
       {/* SVG connection lines layer (outside the isometric board to stay flat) */}
@@ -40,7 +78,11 @@ export function DashboardMap() {
       <div className="isometric-board">
         {/* Orchestrator - Top Center */}
         <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10 isometric-node">
-          <OrchestratorNode />
+          <OrchestratorNode
+            orchestratorStatus={orchestratorStatus}
+            orchestratorLog={orchestratorLog}
+            summary={adapted.summary}
+          />
         </div>
 
         {/* Worktrees - Middle */}
@@ -57,17 +99,12 @@ export function DashboardMap() {
                 <WorktreeNode worktree={wt} />
               </motion.div>
             ))}
-            {worktrees.length === 0 && (
-              <div className="text-neutral-400 text-sm italic">
-                Waiting for worktrees to spawn...
-              </div>
-            )}
           </div>
         </div>
 
         {/* QA Gate - Bottom Center */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 isometric-node">
-          <QAGateNode />
+          <QAGateNode qaGate={qaGate} />
         </div>
 
         {/* Ambient scan line effect */}
