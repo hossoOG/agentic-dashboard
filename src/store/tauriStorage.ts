@@ -31,7 +31,7 @@ export function initTauriStorage(): Promise<void> {
   ])
     .then(([settingsData, favoritesData, notesData]) => {
       if (settingsData) {
-        cache.set("agentic-dashboard-settings", settingsData);
+        cache.set("agenticexplorer-settings", settingsData);
       }
 
       // Parse favorites from dedicated file
@@ -80,9 +80,19 @@ export function getLoadedNotes(): { global: string; project: Record<string, stri
 export const tauriStorage: StateStorage = {
   getItem(name: string): string | null {
     if (!isTauri) {
-      return localStorage.getItem(name);
+      const value = localStorage.getItem(name);
+      // Migration: fall back to old persist key if new key has no data
+      if (value === null && name === "agenticexplorer-settings") {
+        return localStorage.getItem("agentic-dashboard-settings");
+      }
+      return value;
     }
-    return cache.get(name) ?? null;
+    const cached = cache.get(name);
+    // Migration: fall back to old persist key if new key has no data
+    if (cached === undefined && name === "agenticexplorer-settings") {
+      return cache.get("agentic-dashboard-settings") ?? null;
+    }
+    return cached ?? null;
   },
 
   setItem(name: string, value: string): void {
