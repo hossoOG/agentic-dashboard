@@ -13,6 +13,8 @@ const isTauri = "__TAURI_INTERNALS__" in window;
 // In-memory cache for synchronous getItem calls (Zustand requires sync API)
 const cache = new Map<string, string>();
 
+let initialized = false;
+
 // Loaded favorites and notes from their dedicated files (available after init)
 let loadedFavorites: unknown[] | null = null;
 let loadedNotes: { global: string; project: Record<string, string> } | null = null;
@@ -60,8 +62,12 @@ export function initTauriStorage(): Promise<void> {
         }
       }
     })
+    .then(() => {
+      initialized = true;
+    })
     .catch((err) => {
       console.warn("[tauriStorage] Failed to load settings from disk:", err);
+      initialized = true;
     });
 
   return initPromise;
@@ -87,6 +93,9 @@ export const tauriStorage: StateStorage = {
       }
       return value;
     }
+    if (!initialized) {
+      console.warn("[tauriStorage] getItem called before init completed for:", name);
+    }
     const cached = cache.get(name);
     // Migration: fall back to old persist key if new key has no data
     if (cached === undefined && name === "agenticexplorer-settings") {
@@ -101,9 +110,13 @@ export const tauriStorage: StateStorage = {
       return;
     }
     cache.set(name, value);
-    // Fire-and-forget save to disk
     invoke("save_user_settings", { data: value }).catch((err) => {
-      console.error("[tauriStorage] Failed to save settings:", err);
+      console.error("[tauriStorage] Save failed, retrying:", err);
+      setTimeout(() => {
+        invoke("save_user_settings", { data: value }).catch((err2) => {
+          console.error("[tauriStorage] Retry also failed:", err2);
+        });
+      }, 1000);
     });
   },
 

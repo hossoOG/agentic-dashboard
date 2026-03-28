@@ -283,6 +283,10 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: "agenticexplorer-settings",
       storage: createJSONStorage(() => tauriStorage),
+      version: 1,
+      migrate: (persisted: unknown, _version: number) => {
+        return persisted as SettingsState;
+      },
       onRehydrateStorage: () => (_state, error) => {
         if (error) {
           console.error("[settingsStore] Hydration error:", error);
