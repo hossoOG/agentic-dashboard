@@ -179,7 +179,7 @@ impl SessionManager {
                                 data: data.clone(),
                             },
                         ) {
-                            log::error!("Session {} failed to emit session-output: {}", read_id, e);
+                            log::debug!("Session {} failed to emit session-output: {}", read_id, e);
                         }
 
                         // Status-Heuristik: letzte Zeile pruefen
@@ -205,7 +205,7 @@ impl SessionManager {
                                 snippet: snippet.clone(),
                             },
                         ) {
-                            log::error!("Session {} failed to emit session-status: {}", read_id, e);
+                            log::debug!("Session {} failed to emit session-status: {}", read_id, e);
                         }
 
                         // Agent detection: feed stripped output to detector
@@ -255,14 +255,21 @@ impl SessionManager {
             let result = match child.wait() {
                 Ok(status) => {
                     let code = status.exit_code() as i32;
-                    if code != 0 {
-                        log::warn!(
-                            "Session {} child process exited with non-zero code: {}",
+                    let is_normal = code == 0
+                        || (cfg!(windows) && (code == -1073741510 || code == -1073741509));
+
+                    if is_normal {
+                        log::debug!(
+                            "Session {} child process exited normally (code {})",
                             wait_id,
                             code
                         );
                     } else {
-                        log::info!("Session {} child process exited with code 0", wait_id);
+                        log::warn!(
+                            "Session {} child process exited with unexpected code: {}",
+                            wait_id,
+                            code
+                        );
                     }
                     code
                 }
@@ -283,7 +290,7 @@ impl SessionManager {
                     exit_code: result,
                 },
             ) {
-                log::error!("Session {} failed to emit session-exit: {}", wait_id, e);
+                log::debug!("Session {} failed to emit session-exit: {}", wait_id, e);
             }
         });
 

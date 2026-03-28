@@ -128,7 +128,7 @@ pub async fn start_pipeline(
                     }
                 }
                 Err(e) => {
-                    log::warn!("Pipeline stdout reader ended: {}", e);
+                    log::debug!("Pipeline stdout reader ended: {}", e);
                     break;
                 }
             }
@@ -166,7 +166,7 @@ pub async fn start_pipeline(
                     }
                 }
                 Err(e) => {
-                    log::warn!("Pipeline stderr reader ended: {}", e);
+                    log::debug!("Pipeline stderr reader ended: {}", e);
                     break;
                 }
             }

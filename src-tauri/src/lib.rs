@@ -132,10 +132,16 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin({
             let mut updater = tauri_plugin_updater::Builder::new();
-            if let Some(token) = option_env!("UPDATER_GITHUB_TOKEN") {
-                updater = updater
-                    .header("Authorization", format!("token {}", token))
-                    .expect("invalid Authorization header");
+            match option_env!("UPDATER_GITHUB_TOKEN") {
+                Some(token) if !token.is_empty() => {
+                    updater = updater
+                        .header("Authorization", format!("token {}", token))
+                        .expect("invalid Authorization header");
+                    log::info!("Auto-updater initialized with auth token");
+                }
+                _ => {
+                    log::info!("Auto-updater initialized without auth token (public repo mode)");
+                }
             }
             updater.build()
         })
