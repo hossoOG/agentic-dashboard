@@ -46,16 +46,14 @@ pub mod commands {
         if !path.exists() {
             return Ok(String::new());
         }
-        std::fs::read_to_string(&path)
-            .map_err(|e| format!("Failed to read settings: {}", e))
+        std::fs::read_to_string(&path).map_err(|e| format!("Failed to read settings: {}", e))
     }
 
     /// Save settings JSON to Documents/AgenticExplorer/settings.json
     #[tauri::command]
     pub async fn save_user_settings(data: String) -> Result<(), String> {
         let path = settings_path()?;
-        std::fs::write(&path, data)
-            .map_err(|e| format!("Failed to write settings: {}", e))
+        std::fs::write(&path, data).map_err(|e| format!("Failed to write settings: {}", e))
     }
 
     /// Load favorites JSON from Documents/AgenticExplorer/favorites.json
@@ -66,16 +64,14 @@ pub mod commands {
         if !path.exists() {
             return Ok(String::new());
         }
-        std::fs::read_to_string(&path)
-            .map_err(|e| format!("Failed to read favorites file: {}", e))
+        std::fs::read_to_string(&path).map_err(|e| format!("Failed to read favorites file: {}", e))
     }
 
     /// Save favorites list as JSON to Documents/AgenticExplorer/favorites.json
     #[tauri::command]
     pub async fn save_favorites_file(data: String) -> Result<(), String> {
         let path = settings_dir()?.join("favorites.json");
-        std::fs::write(&path, data)
-            .map_err(|e| format!("Failed to write favorites file: {}", e))
+        std::fs::write(&path, data).map_err(|e| format!("Failed to write favorites file: {}", e))
     }
 
     /// Load all notes from Documents/AgenticExplorer/notes/
@@ -91,7 +87,8 @@ pub mod commands {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.extension().and_then(|e| e.to_str()) == Some("md") {
-                let stem = path.file_stem()
+                let stem = path
+                    .file_stem()
                     .and_then(|s| s.to_str())
                     .unwrap_or_default()
                     .to_string();
@@ -101,8 +98,7 @@ pub mod commands {
             }
         }
 
-        serde_json::to_string(&notes)
-            .map_err(|e| format!("Failed to serialize notes: {}", e))
+        serde_json::to_string(&notes).map_err(|e| format!("Failed to serialize notes: {}", e))
     }
 
     /// Save a note as a .md file in Documents/AgenticExplorer/notes/
@@ -126,7 +122,6 @@ pub mod commands {
             return Ok(());
         }
 
-        std::fs::write(&path, &content)
-            .map_err(|e| format!("Failed to write note file: {}", e))
+        std::fs::write(&path, &content).map_err(|e| format!("Failed to write note file: {}", e))
     }
 }

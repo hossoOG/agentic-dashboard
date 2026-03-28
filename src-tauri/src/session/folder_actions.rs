@@ -53,7 +53,14 @@ pub mod commands {
         #[cfg(target_os = "windows")]
         {
             Command::new("cmd")
-                .args(["/C", "start", "", "cmd", "/K", &format!("cd /d \"{}\"", path)])
+                .args([
+                    "/C",
+                    "start",
+                    "",
+                    "cmd",
+                    "/K",
+                    &format!("cd /d \"{}\"", path),
+                ])
                 .current_dir(&path)
                 .spawn()
                 .map_err(|e| format!("Failed to open terminal: {}", e))?;

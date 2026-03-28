@@ -20,15 +20,11 @@ pub mod commands {
         let path = log_file_path();
         let max = max_lines.unwrap_or(500);
 
-        let file = std::fs::File::open(&path).map_err(|e| {
-            format!("Failed to open log file '{}': {}", path.display(), e)
-        })?;
+        let file = std::fs::File::open(&path)
+            .map_err(|e| format!("Failed to open log file '{}': {}", path.display(), e))?;
 
         let reader = BufReader::new(file);
-        let all_lines: Vec<String> = reader
-            .lines()
-            .map_while(Result::ok)
-            .collect();
+        let all_lines: Vec<String> = reader.lines().map_while(Result::ok).collect();
 
         let start = all_lines.len().saturating_sub(max);
         Ok(all_lines[start..].to_vec())

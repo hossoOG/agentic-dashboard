@@ -46,7 +46,10 @@ pub async fn start_pipeline(
         }
         Ok(output) => {
             let stderr_msg = String::from_utf8_lossy(&output.stderr);
-            log::warn!("Claude CLI found but version check returned non-zero: {}", stderr_msg);
+            log::warn!(
+                "Claude CLI found but version check returned non-zero: {}",
+                stderr_msg
+            );
             // Continue anyway — `claude m` may still work
         }
         Err(e) => {
@@ -118,7 +121,9 @@ pub async fn start_pipeline(
                         "level": "info",
                         "message": l
                     });
-                    if let Err(e) = emitter.emit_from_backend(ADPEventType::OrchestratorLog, &payload) {
+                    if let Err(e) =
+                        emitter.emit_from_backend(ADPEventType::OrchestratorLog, &payload)
+                    {
                         log::error!("Failed to emit ADP orchestrator.log (stdout): {}", e);
                     }
                 }
@@ -154,7 +159,9 @@ pub async fn start_pipeline(
                         "level": "error",
                         "message": l
                     });
-                    if let Err(e) = emitter.emit_from_backend(ADPEventType::OrchestratorLog, &payload) {
+                    if let Err(e) =
+                        emitter.emit_from_backend(ADPEventType::OrchestratorLog, &payload)
+                    {
                         log::error!("Failed to emit ADP orchestrator.log (stderr): {}", e);
                     }
                 }
@@ -168,11 +175,9 @@ pub async fn start_pipeline(
     });
 
     // Wait for child process in background
-    thread::spawn(move || {
-        match child.wait() {
-            Ok(status) => log::info!("Pipeline child process exited with status: {}", status),
-            Err(e) => log::error!("Failed to wait for pipeline child process: {}", e),
-        }
+    thread::spawn(move || match child.wait() {
+        Ok(status) => log::info!("Pipeline child process exited with status: {}", status),
+        Err(e) => log::error!("Failed to wait for pipeline child process: {}", e),
     });
 
     Ok(())

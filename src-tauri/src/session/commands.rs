@@ -18,17 +18,28 @@ pub mod commands {
         title: Option<String>,
         shell: Option<String>,
     ) -> Result<super::super::manager::SessionInfo, String> {
-        log::debug!("create_session called: id={}, folder={}, shell={:?}", id, folder, shell);
+        log::debug!(
+            "create_session called: id={}, folder={}, shell={:?}",
+            id,
+            folder,
+            shell
+        );
 
         // Validate that folder exists and is a directory
         let folder_path = std::path::Path::new(&folder);
         if !folder_path.exists() {
-            let msg = format!("Failed to create session: folder does not exist: {}", folder);
+            let msg = format!(
+                "Failed to create session: folder does not exist: {}",
+                folder
+            );
             log::error!("{}", msg);
             return Err(msg);
         }
         if !folder_path.is_dir() {
-            let msg = format!("Failed to create session: path is not a directory: {}", folder);
+            let msg = format!(
+                "Failed to create session: path is not a directory: {}",
+                folder
+            );
             log::error!("{}", msg);
             return Err(msg);
         }
@@ -61,7 +72,12 @@ pub mod commands {
         cols: u16,
         rows: u16,
     ) -> Result<(), String> {
-        log::debug!("resize_session called: id={}, cols={}, rows={}", id, cols, rows);
+        log::debug!(
+            "resize_session called: id={}, cols={}, rows={}",
+            id,
+            cols,
+            rows
+        );
         manager.resize_session(&id, cols, rows)
     }
 

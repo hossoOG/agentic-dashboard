@@ -69,7 +69,9 @@ impl SessionManager {
     ) -> Result<SessionInfo, String> {
         log::info!(
             "Creating session id={}, shell={}, folder={}",
-            id, shell, folder
+            id,
+            shell,
+            folder
         );
 
         // Validate the shell executable exists
@@ -103,31 +105,31 @@ impl SessionManager {
         }
         cmd.cwd(&folder);
 
-        let child = pty_pair
-            .slave
-            .spawn_command(cmd)
-            .map_err(|e| {
-                log::error!("Failed to spawn shell '{}' for session {}: {}", shell_exe, id, e);
-                format!("Spawn failed: {e}")
-            })?;
+        let child = pty_pair.slave.spawn_command(cmd).map_err(|e| {
+            log::error!(
+                "Failed to spawn shell '{}' for session {}: {}",
+                shell_exe,
+                id,
+                e
+            );
+            format!("Spawn failed: {e}")
+        })?;
 
-        log::info!("Session {} spawned successfully with shell '{}'", id, shell_exe);
+        log::info!(
+            "Session {} spawned successfully with shell '{}'",
+            id,
+            shell_exe
+        );
 
-        let writer = pty_pair
-            .master
-            .take_writer()
-            .map_err(|e| {
-                log::error!("Failed to acquire PTY writer for session {}: {}", id, e);
-                format!("Writer failed: {e}")
-            })?;
+        let writer = pty_pair.master.take_writer().map_err(|e| {
+            log::error!("Failed to acquire PTY writer for session {}: {}", id, e);
+            format!("Writer failed: {e}")
+        })?;
 
-        let mut reader = pty_pair
-            .master
-            .try_clone_reader()
-            .map_err(|e| {
-                log::error!("Failed to acquire PTY reader for session {}: {}", id, e);
-                format!("Reader failed: {e}")
-            })?;
+        let mut reader = pty_pair.master.try_clone_reader().map_err(|e| {
+            log::error!("Failed to acquire PTY reader for session {}: {}", id, e);
+            format!("Reader failed: {e}")
+        })?;
 
         let info = SessionInfo {
             id: id.clone(),
@@ -139,9 +141,10 @@ impl SessionManager {
         };
 
         {
-            let mut sessions = self.sessions.lock().map_err(|e| {
-                format!("Failed to lock session manager for create_session: {e}")
-            })?;
+            let mut sessions = self
+                .sessions
+                .lock()
+                .map_err(|e| format!("Failed to lock session manager for create_session: {e}"))?;
             sessions.insert(
                 id.clone(),
                 SessionHandle {
@@ -182,7 +185,8 @@ impl SessionManager {
                         // Status-Heuristik: letzte Zeile pruefen
                         let snippet = if data.len() > 200 {
                             // Find a valid char boundary to avoid panic on multi-byte UTF-8
-                            let start = data.char_indices()
+                            let start = data
+                                .char_indices()
                                 .rev()
                                 .nth(199)
                                 .map(|(i, _)| i)
@@ -210,11 +214,20 @@ impl SessionManager {
                         for event in agent_events {
                             match event {
                                 super::agent_detector::AgentEvent::Detected(e) => {
-                                    log::info!("Session {} agent detected: {}", read_id, e.agent_id);
+                                    log::info!(
+                                        "Session {} agent detected: {}",
+                                        read_id,
+                                        e.agent_id
+                                    );
                                     let _ = read_app.emit("agent-detected", e);
                                 }
                                 super::agent_detector::AgentEvent::Completed(e) => {
-                                    log::info!("Session {} agent completed: {} ({})", read_id, e.agent_id, e.status);
+                                    log::info!(
+                                        "Session {} agent completed: {} ({})",
+                                        read_id,
+                                        e.agent_id,
+                                        e.status
+                                    );
                                     let _ = read_app.emit("agent-completed", e);
                                 }
                                 super::agent_detector::AgentEvent::Worktree(e) => {
@@ -243,14 +256,22 @@ impl SessionManager {
                 Ok(status) => {
                     let code = status.exit_code() as i32;
                     if code != 0 {
-                        log::warn!("Session {} child process exited with non-zero code: {}", wait_id, code);
+                        log::warn!(
+                            "Session {} child process exited with non-zero code: {}",
+                            wait_id,
+                            code
+                        );
                     } else {
                         log::info!("Session {} child process exited with code 0", wait_id);
                     }
                     code
                 }
                 Err(e) => {
-                    log::error!("Session {} failed to wait for child process: {}", wait_id, e);
+                    log::error!(
+                        "Session {} failed to wait for child process: {}",
+                        wait_id,
+                        e
+                    );
                     -1
                 }
             };
@@ -271,9 +292,10 @@ impl SessionManager {
 
     /// Sendet Daten (User-Input) an eine laufende Session.
     pub fn write_to_session(&self, id: &str, data: &str) -> Result<(), String> {
-        let mut sessions = self.sessions.lock().map_err(|e| {
-            format!("Failed to lock session manager for write_to_session: {e}")
-        })?;
+        let mut sessions = self
+            .sessions
+            .lock()
+            .map_err(|e| format!("Failed to lock session manager for write_to_session: {e}"))?;
         let session = sessions
             .get_mut(id)
             .ok_or_else(|| format!("Session {id} nicht gefunden"))?;
@@ -310,9 +332,10 @@ impl SessionManager {
 
     /// Schliesst eine Session (killt den Prozess).
     pub fn close_session(&self, id: &str) -> Result<(), String> {
-        let mut sessions = self.sessions.lock().map_err(|e| {
-            format!("Failed to lock session manager for close_session: {e}")
-        })?;
+        let mut sessions = self
+            .sessions
+            .lock()
+            .map_err(|e| format!("Failed to lock session manager for close_session: {e}"))?;
         // Drop entfernt den MasterPty, was den Child-Prozess signalisiert
         sessions
             .remove(id)
@@ -417,11 +440,16 @@ impl Drop for SessionManager {
         if let Ok(mut sessions) = self.sessions.lock() {
             let count = sessions.len();
             if count > 0 {
-                log::info!("SessionManager: closing {} active sessions on shutdown", count);
+                log::info!(
+                    "SessionManager: closing {} active sessions on shutdown",
+                    count
+                );
             }
             sessions.clear(); // Drop aller SessionHandles → PTY Master wird geschlossen → Child-Prozesse beendet
         } else {
-            log::error!("SessionManager: mutex poisoned during drop, sessions may not be cleaned up");
+            log::error!(
+                "SessionManager: mutex poisoned during drop, sessions may not be cleaned up"
+            );
         }
     }
 }

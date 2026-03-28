@@ -27,8 +27,7 @@ impl ADPEmitter {
         source: ADPSource,
         payload: &T,
     ) -> Result<String, String> {
-        let envelope =
-            ADPEnvelope::new(event_type, source, payload).map_err(|e| e.to_string())?;
+        let envelope = ADPEnvelope::new(event_type, source, payload).map_err(|e| e.to_string())?;
 
         let id = envelope.id.clone();
         self.app

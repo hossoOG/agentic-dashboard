@@ -69,18 +69,16 @@ fn read_index() -> Result<LibraryIndex, String> {
     if !path.exists() {
         return Ok(LibraryIndex::default());
     }
-    let data = std::fs::read_to_string(&path)
-        .map_err(|e| format!("Failed to read index: {}", e))?;
-    serde_json::from_str(&data)
-        .map_err(|e| format!("Failed to parse index: {}", e))
+    let data =
+        std::fs::read_to_string(&path).map_err(|e| format!("Failed to read index: {}", e))?;
+    serde_json::from_str(&data).map_err(|e| format!("Failed to parse index: {}", e))
 }
 
 fn write_index(index: &LibraryIndex) -> Result<(), String> {
     let path = index_path()?;
     let data = serde_json::to_string_pretty(index)
         .map_err(|e| format!("Failed to serialize index: {}", e))?;
-    std::fs::write(&path, data)
-        .map_err(|e| format!("Failed to write index: {}", e))
+    std::fs::write(&path, data).map_err(|e| format!("Failed to write index: {}", e))
 }
 
 fn now_epoch() -> u64 {
@@ -150,9 +148,7 @@ fn parse_frontmatter(content: &str, file_name: &str) -> LibraryItemMeta {
             "created" => meta.created = value.to_string(),
             "tags" => {
                 // Parse [tag1, tag2, tag3] format
-                let inner = value
-                    .trim_start_matches('[')
-                    .trim_end_matches(']');
+                let inner = value.trim_start_matches('[').trim_end_matches(']');
                 meta.tags = inner
                     .split(',')
                     .map(|t| t.trim().to_string())
@@ -200,8 +196,8 @@ fn build_index_from_disk() -> Result<LibraryIndex, String> {
     let mut items = Vec::new();
 
     if dir.exists() && dir.is_dir() {
-        let entries = std::fs::read_dir(&dir)
-            .map_err(|e| format!("Failed to read library dir: {}", e))?;
+        let entries =
+            std::fs::read_dir(&dir).map_err(|e| format!("Failed to read library dir: {}", e))?;
 
         for entry in entries {
             let entry = match entry {
@@ -264,8 +260,8 @@ pub mod commands {
             return Err(format!("Library item not found: {}", id));
         }
 
-        let content = std::fs::read_to_string(&path)
-            .map_err(|e| format!("Failed to read item: {}", e))?;
+        let content =
+            std::fs::read_to_string(&path).map_err(|e| format!("Failed to read item: {}", e))?;
 
         let meta = parse_frontmatter(&content, &file_name);
         let body = extract_body(&content);
@@ -283,8 +279,7 @@ pub mod commands {
         let file_name = format!("{}.md", id);
         let path = dir.join(&file_name);
 
-        std::fs::write(&path, &content)
-            .map_err(|e| format!("Failed to write item: {}", e))?;
+        std::fs::write(&path, &content).map_err(|e| format!("Failed to write item: {}", e))?;
 
         let meta = parse_frontmatter(&content, &file_name);
 
@@ -294,7 +289,8 @@ pub mod commands {
             *existing = meta.clone();
         } else {
             index.items.push(meta.clone());
-            index.items
+            index
+                .items
                 .sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
         }
         index.built_at = now_epoch();
@@ -309,8 +305,7 @@ pub mod commands {
         let path = dir.join(format!("{}.md", id));
 
         if path.exists() {
-            std::fs::remove_file(&path)
-                .map_err(|e| format!("Failed to delete item: {}", e))?;
+            std::fs::remove_file(&path).map_err(|e| format!("Failed to delete item: {}", e))?;
         }
 
         let mut index = read_index()?;

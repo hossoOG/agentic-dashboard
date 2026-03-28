@@ -81,28 +81,28 @@ fn get_patterns() -> &'static AgentPatterns {
     PATTERNS.get_or_init(|| AgentPatterns {
         // Matches patterns like "Agent launched", "Starting agent", "⏳ Starting agent"
         agent_launch: Regex::new(
-            r"(?i)(?:agent\s+launched|starting\s+agent|spawning.*agent|tool.*:\s*agent)"
-        ).expect("agent_launch regex invalid"),
+            r"(?i)(?:agent\s+launched|starting\s+agent|spawning.*agent|tool.*:\s*agent)",
+        )
+        .expect("agent_launch regex invalid"),
         // Try to extract agent name/task from surrounding text
-        agent_name_task: Regex::new(
-            r#"(?i)(?:agent|name)[:\s]+["']?([^"'\n]{3,60})["']?"#
-        ).expect("agent_name_task regex invalid"),
+        agent_name_task: Regex::new(r#"(?i)(?:agent|name)[:\s]+["']?([^"'\n]{3,60})["']?"#)
+            .expect("agent_name_task regex invalid"),
         // Matches agent completion patterns
         agent_complete: Regex::new(
-            r"(?i)(?:agent\s+completed|agent\s+finished|agent.*done|completed\s+successfully)"
-        ).expect("agent_complete regex invalid"),
+            r"(?i)(?:agent\s+completed|agent\s+finished|agent.*done|completed\s+successfully)",
+        )
+        .expect("agent_complete regex invalid"),
         // Matches agent error patterns
-        agent_error: Regex::new(
-            r"(?i)(?:agent\s+(?:failed|error|crashed)|agent.*error)"
-        ).expect("agent_error regex invalid"),
+        agent_error: Regex::new(r"(?i)(?:agent\s+(?:failed|error|crashed)|agent.*error)")
+            .expect("agent_error regex invalid"),
         // Matches worktree creation
         worktree_create: Regex::new(
-            r"(?i)(?:git\s+worktree\s+add|created?\s+worktree|worktree\s+created)"
-        ).expect("worktree_create regex invalid"),
+            r"(?i)(?:git\s+worktree\s+add|created?\s+worktree|worktree\s+created)",
+        )
+        .expect("worktree_create regex invalid"),
         // Extract worktree path
-        worktree_path: Regex::new(
-            r#"(?:worktree[s]?[/\\]|worktree\s+add\s+)([^\s\n"']+)"#
-        ).expect("worktree_path regex invalid"),
+        worktree_path: Regex::new(r#"(?:worktree[s]?[/\\]|worktree\s+add\s+)([^\s\n"']+)"#)
+            .expect("worktree_path regex invalid"),
     })
 }
 
@@ -162,7 +162,8 @@ impl AgentDetector {
             let now = chrono::Utc::now().timestamp_millis();
 
             // Try to extract name/task from context
-            let name = p.agent_name_task
+            let name = p
+                .agent_name_task
                 .captures(scan_text)
                 .and_then(|c| c.get(1))
                 .map(|m| m.as_str().trim().to_string());
@@ -224,7 +225,8 @@ impl AgentDetector {
 
         // Check for worktree creation
         if p.worktree_create.is_match(scan_text) {
-            let path = p.worktree_path
+            let path = p
+                .worktree_path
                 .captures(scan_text)
                 .and_then(|c| c.get(1))
                 .map(|m| m.as_str().trim().to_string())

@@ -6,7 +6,10 @@ use std::path::PathBuf;
 fn safe_resolve(folder: &str, relative_path: &str) -> Result<PathBuf, String> {
     let base = PathBuf::from(folder);
     if !base.is_dir() {
-        return Err(format!("Failed to resolve path: folder does not exist: {}", folder));
+        return Err(format!(
+            "Failed to resolve path: folder does not exist: {}",
+            folder
+        ));
     }
 
     let target = base.join(relative_path);
@@ -34,8 +37,7 @@ fn safe_resolve(folder: &str, relative_path: &str) -> Result<PathBuf, String> {
 
 /// Resolve a path inside ~/.claude/ with traversal protection.
 fn safe_resolve_user_claude(relative_path: &str) -> Result<PathBuf, String> {
-    let home = dirs::home_dir()
-        .ok_or_else(|| "Cannot determine home directory".to_string())?;
+    let home = dirs::home_dir().ok_or_else(|| "Cannot determine home directory".to_string())?;
     let claude_dir = home.join(".claude");
 
     if !claude_dir.is_dir() {
@@ -76,7 +78,10 @@ pub mod commands {
     use super::*;
 
     #[tauri::command]
-    pub async fn read_project_file(folder: String, relative_path: String) -> Result<String, String> {
+    pub async fn read_project_file(
+        folder: String,
+        relative_path: String,
+    ) -> Result<String, String> {
         let path = safe_resolve(&folder, &relative_path)?;
 
         if !path.exists() || !path.is_file() {
@@ -88,7 +93,10 @@ pub mod commands {
     }
 
     #[tauri::command]
-    pub async fn list_project_dir(folder: String, relative_path: String) -> Result<Vec<String>, String> {
+    pub async fn list_project_dir(
+        folder: String,
+        relative_path: String,
+    ) -> Result<Vec<String>, String> {
         let path = safe_resolve(&folder, &relative_path)?;
 
         if !path.exists() || !path.is_dir() {
@@ -118,8 +126,7 @@ pub mod commands {
             return Ok(String::new());
         }
 
-        std::fs::read_to_string(&path)
-            .map_err(|e| format!("Failed to read file: {}", e))
+        std::fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {}", e))
     }
 
     /// List all skill directories under .claude/skills/, returning each skill's

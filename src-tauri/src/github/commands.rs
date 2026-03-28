@@ -82,30 +82,26 @@ pub mod commands {
             return Err("Not a git repository".to_string());
         }
 
-        let branch = run_command(&folder, "git", &["rev-parse", "--abbrev-ref", "HEAD"])
-            .unwrap_or_default();
+        let branch =
+            run_command(&folder, "git", &["rev-parse", "--abbrev-ref", "HEAD"]).unwrap_or_default();
 
-        let last_commit = run_command(
-            &folder,
-            "git",
-            &["log", "-1", "--format=%H%n%s%n%ci"],
-        )
-        .ok()
-        .and_then(|output| {
-            let lines: Vec<&str> = output.lines().collect();
-            if lines.len() >= 3 {
-                Some(GitCommitInfo {
-                    hash: lines[0][..7.min(lines[0].len())].to_string(),
-                    message: lines[1].to_string(),
-                    date: lines[2].to_string(),
-                })
-            } else {
-                None
-            }
-        });
+        let last_commit = run_command(&folder, "git", &["log", "-1", "--format=%H%n%s%n%ci"])
+            .ok()
+            .and_then(|output| {
+                let lines: Vec<&str> = output.lines().collect();
+                if lines.len() >= 3 {
+                    Some(GitCommitInfo {
+                        hash: lines[0][..7.min(lines[0].len())].to_string(),
+                        message: lines[1].to_string(),
+                        date: lines[2].to_string(),
+                    })
+                } else {
+                    None
+                }
+            });
 
-        let remote_url = run_command(&folder, "git", &["remote", "get-url", "origin"])
-            .unwrap_or_default();
+        let remote_url =
+            run_command(&folder, "git", &["remote", "get-url", "origin"]).unwrap_or_default();
 
         Ok(GitInfo {
             branch,
@@ -124,10 +120,14 @@ pub mod commands {
             &folder,
             "gh",
             &[
-                "pr", "list",
-                "--state", "open",
-                "--json", "number,title,author,reviewDecision,url",
-                "--limit", "20",
+                "pr",
+                "list",
+                "--state",
+                "open",
+                "--json",
+                "number,title,author,reviewDecision,url",
+                "--limit",
+                "20",
             ],
         )?;
 
@@ -144,7 +144,10 @@ pub mod commands {
                 number: pr["number"].as_u64().unwrap_or(0),
                 title: pr["title"].as_str().unwrap_or("").to_string(),
                 author: pr["author"]["login"].as_str().unwrap_or("").to_string(),
-                status: pr["reviewDecision"].as_str().unwrap_or("PENDING").to_string(),
+                status: pr["reviewDecision"]
+                    .as_str()
+                    .unwrap_or("PENDING")
+                    .to_string(),
                 url: pr["url"].as_str().unwrap_or("").to_string(),
             })
             .collect();
@@ -162,10 +165,14 @@ pub mod commands {
             &folder,
             "gh",
             &[
-                "issue", "list",
-                "--state", "open",
-                "--json", "number,title,labels,assignees,url",
-                "--limit", "20",
+                "issue",
+                "list",
+                "--state",
+                "open",
+                "--json",
+                "number,title,labels,assignees,url",
+                "--limit",
+                "20",
             ],
         )?;
 
