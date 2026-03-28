@@ -114,7 +114,8 @@ export function useAutoUpdate(): UseAutoUpdateReturn {
     try {
       let totalBytes = 0;
       let downloadedBytes = 0;
-      await update.downloadAndInstall((event) => {
+      // Download only — do NOT install yet. Install happens on explicit user confirmation.
+      await update.download((event) => {
         if (event.event === "Started" && event.data.contentLength) {
           totalBytes = event.data.contentLength;
         } else if (event.event === "Progress") {
@@ -128,6 +129,8 @@ export function useAutoUpdate(): UseAutoUpdateReturn {
           safeSetState((s) => ({ ...s, status: "ready", progress: 100 }));
         }
       });
+      // Mark as ready — user must click "Jetzt neu starten" to install + relaunch
+      safeSetState((s) => ({ ...s, status: "ready", progress: 100 }));
     } catch (err) {
       safeSetState((s) => ({
         ...s,
@@ -139,8 +142,12 @@ export function useAutoUpdate(): UseAutoUpdateReturn {
 
   const confirmRelaunch = useCallback(async () => {
     if (!isTauri) return;
+    // Install the previously downloaded update, then relaunch
+    if (update) {
+      await update.install();
+    }
     await relaunch();
-  }, []);
+  }, [update]);
 
   const dismiss = useCallback(() => {
     if (state.newVersion) {
