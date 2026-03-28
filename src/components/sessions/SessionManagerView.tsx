@@ -21,6 +21,7 @@ const ClaudeMdViewer = lazy(() => import("./ClaudeMdViewer").then(m => ({ defaul
 const SkillsViewer = lazy(() => import("./SkillsViewer").then(m => ({ default: m.SkillsViewer })));
 const HooksViewer = lazy(() => import("./HooksViewer").then(m => ({ default: m.HooksViewer })));
 const GitHubViewer = lazy(() => import("./GitHubViewer").then(m => ({ default: m.GitHubViewer })));
+const WorktreeViewer = lazy(() => import("./WorktreeViewer").then(m => ({ default: m.WorktreeViewer })));
 
 export function SessionManagerView() {
   const [showNewDialog, setShowNewDialog] = useState(false);
@@ -258,6 +259,8 @@ export function SessionManagerView() {
                       <HooksViewer folder={activeSession?.folder ?? ""} />
                     ) : configSubTab === "github" ? (
                       <GitHubViewer folder={activeSession?.folder ?? ""} />
+                    ) : configSubTab === "worktrees" ? (
+                      <WorktreeViewer folder={activeSession?.folder ?? ""} />
                     ) : null}
                   </Suspense>
                 ) : (

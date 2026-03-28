@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 export type ActiveTab = "sessions" | "pipeline" | "logs" | "library" | "settings";
 
-export type ConfigSubTab = "claude-md" | "skills" | "hooks" | "github";
+export type ConfigSubTab = "claude-md" | "skills" | "hooks" | "github" | "worktrees";
 
 export type ToastType = "achievement" | "error" | "info";
 
