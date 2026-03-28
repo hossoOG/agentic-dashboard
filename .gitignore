@@ -11,3 +11,11 @@ Thumbs.db
 .env.*
 coverage/
 .eslintcache
+
+# Internal docs (kept locally, not in public repo)
+.claude/
+Softwareprozess/
+tasks/
+AI_ARCHITECT_SYNC.md
+Projekt.txt
+CLAUDE.md

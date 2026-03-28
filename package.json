@@ -1,8 +1,29 @@
 {
   "name": "agenticexplorer",
-  "private": true,
+  "private": false,
   "version": "1.2.51",
   "type": "module",
+  "description": "Desktop app for managing and monitoring multiple Claude CLI sessions",
+  "author": "hossoOG",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hossoOG/agentic-dashboard.git"
+  },
+  "homepage": "https://github.com/hossoOG/agentic-dashboard",
+  "bugs": {
+    "url": "https://github.com/hossoOG/agentic-dashboard/issues"
+  },
+  "keywords": [
+    "claude",
+    "cli",
+    "session-manager",
+    "tauri",
+    "desktop-app",
+    "terminal",
+    "ai",
+    "agent"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

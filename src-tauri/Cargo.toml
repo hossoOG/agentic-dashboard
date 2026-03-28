@@ -2,7 +2,9 @@
 name = "agenticexplorer"
 version = "1.2.51"
 description = "AgenticExplorer - Manage and monitor Claude CLI sessions"
-authors = []
+authors = ["hossoOG"]
+license = "MIT"
+repository = "https://github.com/hossoOG/agentic-dashboard"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
