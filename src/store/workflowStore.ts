@@ -36,10 +36,12 @@ export interface WorkflowState {
   workflows: Record<string, DetectedWorkflow[]>;
   loading: boolean;
   error: string | null;
+  launchError: string | null;
 
   // Actions
   detectWorkflows: (folder: string) => Promise<void>;
   clearWorkflows: (folder: string) => void;
+  setLaunchError: (error: string | null) => void;
 }
 
 // ============================================================================
@@ -49,9 +51,11 @@ export interface WorkflowState {
 async function detectSkillWorkflows(folder: string): Promise<DetectedWorkflow[]> {
   const workflows: DetectedWorkflow[] = [];
 
+  let dirSkillsFound = false;
   try {
     const dirs = await invoke<SkillDirEntry[]>("list_skill_dirs", { folder });
     for (const dir of dirs) {
+      dirSkillsFound = true;
       const parsed = parseSkillFrontmatter(dir.content);
       const name = parsed.metadata.name !== "Unknown"
         ? parsed.metadata.name
@@ -69,7 +73,12 @@ async function detectSkillWorkflows(folder: string): Promise<DetectedWorkflow[]>
       });
     }
   } catch {
-    // list_skill_dirs not available or failed — try legacy
+    // list_skill_dirs not available or failed — fall through to legacy
+  }
+
+  // Also check for flat .md files in .claude/skills/ (legacy layout or mixed)
+  // Only if no directory-based skills were found, to avoid duplicates
+  if (!dirSkillsFound) {
     try {
       const files = await invoke<string[]>("list_project_dir", {
         folder,
@@ -164,9 +173,14 @@ function deriveCompositeWorkflows(
   const hasImplementSkill = skills.some(
     (s) => s.trigger === "/implement" || s.name.toLowerCase().includes("implement")
   );
-  const hasPreCommitHook = hooks.some(
-    (h) => h.trigger?.toLowerCase().includes("precommit") || h.trigger?.toLowerCase().includes("pre_commit")
+  // Claude hook events: PreToolUse, PostToolUse, Notification, Stop, SubagentStop
+  const hasPreToolUseHook = hooks.some(
+    (h) => h.trigger === "PreToolUse"
   );
+  const hasPostToolUseHook = hooks.some(
+    (h) => h.trigger === "PostToolUse"
+  );
+  const hasValidationHooks = hasPreToolUseHook || hasPostToolUseHook;
   const hasBugfixSkill = skills.some(
     (s) => s.trigger === "/bugfix" || s.name.toLowerCase().includes("bugfix")
   );
@@ -174,29 +188,35 @@ function deriveCompositeWorkflows(
     (s) => s.trigger === "/review-pr" || s.name.toLowerCase().includes("review")
   );
 
-  if (hasImplementSkill && hasPreCommitHook) {
+  if (hasImplementSkill && hasValidationHooks) {
+    const validationHooks = hooks.filter(
+      (h) => h.trigger === "PreToolUse" || h.trigger === "PostToolUse"
+    );
     composites.push({
       id: "composite-auto-implement",
       name: "Automatisierte Implementierung",
-      description: "Implement-Skill mit automatischer Pre-Commit-Validierung",
+      description: "Implement-Skill mit Tool-Use-Validierung",
       type: "composite",
       source: [
         ...skills.filter((s) => s.trigger === "/implement").flatMap((s) => s.source),
-        ...hooks.filter((h) => h.trigger?.toLowerCase().includes("precommit") || h.trigger?.toLowerCase().includes("pre_commit")).flatMap((h) => h.source),
+        ...validationHooks.flatMap((h) => h.source),
       ],
       trigger: "/implement",
     });
   }
 
-  if (hasBugfixSkill && hasPreCommitHook) {
+  if (hasBugfixSkill && hasValidationHooks) {
+    const validationHooks = hooks.filter(
+      (h) => h.trigger === "PreToolUse" || h.trigger === "PostToolUse"
+    );
     composites.push({
       id: "composite-auto-bugfix",
       name: "Automatisierter Bugfix",
-      description: "Bugfix-Skill mit automatischer Pre-Commit-Validierung",
+      description: "Bugfix-Skill mit Tool-Use-Validierung",
       type: "composite",
       source: [
         ...skills.filter((s) => s.trigger === "/bugfix").flatMap((s) => s.source),
-        ...hooks.filter((h) => h.trigger?.toLowerCase().includes("precommit") || h.trigger?.toLowerCase().includes("pre_commit")).flatMap((h) => h.source),
+        ...validationHooks.flatMap((h) => h.source),
       ],
       trigger: "/bugfix",
     });
@@ -238,11 +258,14 @@ export const useWorkflowStore = create<WorkflowState>((set) => ({
   workflows: {},
   loading: false,
   error: null,
+  launchError: null,
+
+  setLaunchError: (error: string | null) => set({ launchError: error }),
 
   detectWorkflows: async (folder: string) => {
     if (!folder) return;
 
-    set({ loading: true, error: null });
+    set({ loading: true, error: null, launchError: null });
 
     try {
       const [skills, hooks] = await Promise.all([

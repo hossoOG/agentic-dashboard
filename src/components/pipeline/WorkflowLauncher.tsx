@@ -119,7 +119,9 @@ export function WorkflowLauncher() {
   const workflows = useWorkflowStore(selectWorkflowsForFolder(folder));
   const loading = useWorkflowStore((s) => s.loading);
   const error = useWorkflowStore((s) => s.error);
+  const launchError = useWorkflowStore((s) => s.launchError);
   const detectWorkflows = useWorkflowStore((s) => s.detectWorkflows);
+  const setLaunchError = useWorkflowStore((s) => s.setLaunchError);
   const setActiveTab = useUIStore((s) => s.setActiveTab);
 
   // Detect workflows when folder changes
@@ -164,25 +166,34 @@ export function WorkflowLauncher() {
           shell: (result?.shell ?? shell) as SessionShell,
         });
 
-        // Write the trigger command to the session after a short delay
-        // to allow PTY to initialize
+        // Write the trigger command to the session with retry to handle PTY init timing
         if (workflow.trigger) {
           const prompt = `${workflow.trigger}\n`;
+          const writeWithRetry = async (retriesLeft: number, delayMs: number) => {
+            try {
+              await invoke("write_session", { id: sessionId, data: prompt });
+            } catch (err) {
+              if (retriesLeft > 0) {
+                await new Promise((r) => setTimeout(r, delayMs));
+                await writeWithRetry(retriesLeft - 1, delayMs * 1.5);
+              } else {
+                console.error("[WorkflowLauncher] write_session failed after retries:", err);
+              }
+            }
+          };
+          // Initial delay for PTY setup, then retry with backoff
           setTimeout(() => {
-            invoke("write_session", { id: sessionId, data: prompt }).catch(
-              (err) =>
-                console.error(
-                  "[WorkflowLauncher] write_session failed:",
-                  err
-                )
-            );
-          }, 1500);
+            writeWithRetry(3, 500);
+          }, 800);
         }
 
         // Switch to sessions tab
         setActiveTab("sessions");
       } catch (err) {
-        console.error("[WorkflowLauncher] Launch failed:", err);
+        const message = err instanceof Error ? err.message : String(err ?? "Unbekannter Fehler");
+        useWorkflowStore.getState().setLaunchError(
+          `Workflow "${workflow.name}" konnte nicht gestartet werden: ${message}`
+        );
       }
     },
     [folder, setActiveTab]
@@ -239,11 +250,25 @@ export function WorkflowLauncher() {
           </div>
         )}
 
-        {/* Error */}
+        {/* Detection error */}
         {error && (
           <div className="flex items-center gap-2 text-red-400 text-xs py-2">
             <AlertCircle className="w-3.5 h-3.5" />
             {error}
+          </div>
+        )}
+
+        {/* Launch error */}
+        {launchError && (
+          <div className="flex items-center gap-2 text-red-400 text-xs py-2">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+            <span className="flex-1">{launchError}</span>
+            <button
+              onClick={() => setLaunchError(null)}
+              className="text-red-400 hover:text-red-300 text-xs underline shrink-0"
+            >
+              Schliessen
+            </button>
           </div>
         )}
 
