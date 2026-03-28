@@ -27,7 +27,7 @@ fn init_logging() {
             writeln!(
                 buf,
                 "[{}] [{}] [{}] {}",
-                chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f"),
+                chrono::Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
                 record.level(),
                 record.module_path().unwrap_or("unknown"),
                 record.args()
@@ -48,7 +48,7 @@ fn init_logging() {
         builder.format(move |buf, record| {
             let msg = format!(
                 "[{}] [{}] [{}] {}",
-                chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f"),
+                chrono::Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
                 record.level(),
                 record.module_path().unwrap_or("unknown"),
                 record.args()
@@ -93,6 +93,31 @@ pub struct PipelineState {
     pub child_pid: Option<u32>,
 }
 
+mod commands {
+    #[tauri::command]
+    pub async fn open_log_window(app: tauri::AppHandle) -> Result<(), String> {
+        use tauri::{Manager, WebviewWindowBuilder};
+
+        if let Some(win) = app.get_webview_window("log-viewer") {
+            let _ = win.set_focus();
+            return Ok(());
+        }
+
+        WebviewWindowBuilder::new(
+            &app,
+            "log-viewer",
+            tauri::WebviewUrl::App("index.html?view=logs".into()),
+        )
+        .title("AgenticExplorer — Logs")
+        .inner_size(900.0, 600.0)
+        .resizable(true)
+        .build()
+        .map_err(|e| format!("Failed to create log window: {}", e))?;
+
+        Ok(())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     init_logging();
@@ -118,6 +143,7 @@ pub fn run() {
         .manage(pipeline_state)
         .manage(session_manager)
         .invoke_handler(tauri::generate_handler![
+            commands::open_log_window,
             // Bestehend
             pipeline::commands::start_pipeline,
             pipeline::commands::stop_pipeline,
