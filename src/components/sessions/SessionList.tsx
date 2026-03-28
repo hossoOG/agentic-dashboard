@@ -70,7 +70,7 @@ export function SessionList({ onNewSession, onQuickStart }: SessionListProps) {
       </div>
 
       {/* Scrollable content: Favorites + Sessions */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0">
         {/* Favorites section */}
         <FavoritesList onQuickStart={onQuickStart} />
 
