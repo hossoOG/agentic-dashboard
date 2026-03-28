@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { X, FileText, Puzzle, Webhook, Github, GitBranch, Columns3 } from "lucide-react";
+import { X, FileText, Puzzle, Webhook, Github, GitBranch, Columns3, Clock } from "lucide-react";
 import { useUIStore, type ConfigSubTab } from "../../store/uiStore";
 
 const ClaudeMdViewer = lazy(() => import("./ClaudeMdViewer").then(m => ({ default: m.ClaudeMdViewer })));
@@ -8,6 +8,7 @@ const HooksViewer = lazy(() => import("./HooksViewer").then(m => ({ default: m.H
 const GitHubViewer = lazy(() => import("./GitHubViewer").then(m => ({ default: m.GitHubViewer })));
 const WorktreeViewer = lazy(() => import("./WorktreeViewer").then(m => ({ default: m.WorktreeViewer })));
 const KanbanBoard = lazy(() => import("../kanban/KanbanBoard").then(m => ({ default: m.KanbanBoard })));
+const SessionHistoryViewer = lazy(() => import("./SessionHistoryViewer"));
 
 const configTabs: { id: ConfigSubTab; label: string; icon: typeof FileText }[] = [
   { id: "claude-md", label: "CLAUDE.md", icon: FileText },
@@ -16,6 +17,7 @@ const configTabs: { id: ConfigSubTab; label: string; icon: typeof FileText }[] =
   { id: "github", label: "GitHub", icon: Github },
   { id: "worktrees", label: "Worktrees", icon: GitBranch },
   { id: "kanban", label: "Kanban", icon: Columns3 },
+  { id: "history", label: "History", icon: Clock },
 ];
 
 interface ConfigPanelProps {
@@ -83,6 +85,8 @@ export function ConfigPanel({ folder }: ConfigPanelProps) {
             <WorktreeViewer folder={folder} />
           ) : configSubTab === "kanban" ? (
             <KanbanBoard folder={folder} />
+          ) : configSubTab === "history" ? (
+            <SessionHistoryViewer folder={folder} />
           ) : null}
         </Suspense>
       </div>

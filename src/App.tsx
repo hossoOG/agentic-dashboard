@@ -6,6 +6,7 @@ import { logError } from "./utils/errorLogger";
 import { useLogViewerStore } from "./store/logViewerStore";
 import { installGlobalErrorHandlers } from "./utils/globalErrorHandler";
 import { useThemeEffect } from "./hooks/useThemeEffect";
+import { initSessionHistoryListener } from "./store/sessionHistoryStore";
 
 function App() {
   useThemeEffect();
@@ -20,6 +21,9 @@ function App() {
 
     // Install global error handlers once
     installGlobalErrorHandlers();
+
+    // Start session history listener (records completed sessions)
+    const unsubscribeHistory = initSessionHistoryListener();
 
     let unlisten: (() => void) | undefined;
 
@@ -51,6 +55,7 @@ function App() {
 
     return () => {
       unlisten?.();
+      unsubscribeHistory();
       listenerActive.current = false;
     };
   }, []);
