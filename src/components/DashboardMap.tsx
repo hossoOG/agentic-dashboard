@@ -24,11 +24,7 @@ function EmptyState() {
           Keine Agenten erkannt
         </h2>
         <p className="text-sm text-neutral-500 max-w-md leading-relaxed">
-          Starte eine Claude-Session mit parallelen Agenten oder Worktrees,
-          um sie hier in Echtzeit zu verfolgen.
-        </p>
-        <p className="text-xs text-neutral-600 mt-2">
-          Erkannte Agenten und Worktrees werden automatisch in der Pipeline-View angezeigt.
+          Starte eine Session mit Claude CLI
         </p>
       </motion.div>
     </div>

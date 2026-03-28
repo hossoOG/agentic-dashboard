@@ -46,27 +46,33 @@ export function QAGateNode({ qaGate }: Props) {
 
       {/* Checks table */}
       <div className="px-4 py-3 space-y-2">
-        {(Object.entries(checks) as [keyof typeof checks, QACheckStatus][]).map(([key, status]) => {
-          const Icon = QA_STATUS_ICONS[status];
-          const label = QA_CHECK_LABELS[key];
-          const checkStyle = getStatusStyle(status);
-          return (
-            <div key={key} className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <motion.div
-                  animate={{ rotate: status === "running" ? 360 : 0 }}
-                  transition={{ duration: DURATION.base * 3, repeat: status === "running" ? Infinity : 0, ease: "linear" }}
-                >
-                  <Icon className={`w-4 h-4 ${checkStyle.text}`} />
-                </motion.div>
-                <span className="text-sm text-neutral-300">{label}</span>
+        {overallStatus === "idle" ? (
+          <div className="text-center text-neutral-600 text-xs italic py-2">
+            Keine aktiven Checks
+          </div>
+        ) : (
+          (Object.entries(checks) as [keyof typeof checks, QACheckStatus][]).map(([key, status]) => {
+            const Icon = QA_STATUS_ICONS[status];
+            const label = QA_CHECK_LABELS[key];
+            const checkStyle = getStatusStyle(status);
+            return (
+              <div key={key} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <motion.div
+                    animate={{ rotate: status === "running" ? 360 : 0 }}
+                    transition={{ duration: DURATION.base * 3, repeat: status === "running" ? Infinity : 0, ease: "linear" }}
+                  >
+                    <Icon className={`w-4 h-4 ${checkStyle.text}`} />
+                  </motion.div>
+                  <span className="text-sm text-neutral-300">{label}</span>
+                </div>
+                <div className={`text-xs font-mono px-2 py-0.5 rounded-none border ${checkStyle.border} ${checkStyle.text} ${checkStyle.bg}/10`}>
+                  {status.toUpperCase()}
+                </div>
               </div>
-              <div className={`text-xs font-mono px-2 py-0.5 rounded-none border ${checkStyle.border} ${checkStyle.text} ${checkStyle.bg}/10`}>
-                {status.toUpperCase()}
-              </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
 
       {/* Status bar */}

@@ -96,7 +96,7 @@ export function OrchestratorNode({ orchestratorStatus, orchestratorLog, summary 
             </motion.div>
           ))}
           {orchestratorLog.length === 0 && (
-            <div className="text-neutral-600 text-xs italic">Waiting to start...</div>
+            <div className="text-neutral-600 text-xs italic">Warte auf Start...</div>
           )}
         </AnimatePresence>
       </div>
