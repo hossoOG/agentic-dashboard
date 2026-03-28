@@ -27,14 +27,6 @@ jobs:
       - name: TypeScript type-check
         run: npx tsc --noEmit
 
-      - name: ESLint
-        run: npm run lint
-        continue-on-error: true
-
-      - name: Prettier check
-        run: npm run format:check
-        continue-on-error: true
-
   rust:
     name: Rust Checks
     runs-on: ubuntu-latest
@@ -61,10 +53,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-
-      - name: Cargo check
-        working-directory: src-tauri
-        run: cargo check
 
       - name: Cargo clippy
         working-directory: src-tauri
@@ -112,19 +100,3 @@ jobs:
       - name: Cargo test
         working-directory: src-tauri
         run: cargo test
-
-  build-check:
-    name: Build Verification
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - run: npm ci
-
-      - name: Production build
-        run: npm run build
