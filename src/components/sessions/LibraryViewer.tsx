@@ -19,7 +19,7 @@ import {
 import { useUIStore } from "../../store/uiStore";
 
 interface LibraryViewerProps {
-  folder: string;
+  folder?: string;
 }
 
 const TYPE_LABELS: Record<LibraryItemType, string> = {
@@ -42,7 +42,7 @@ const TYPE_COLORS: Record<LibraryItemType, string> = {
 
 type TypeFilter = "alle" | LibraryItemType;
 
-export function LibraryViewer({ folder }: LibraryViewerProps) {
+export function LibraryViewer({ folder = "" }: LibraryViewerProps) {
   const items = useLibraryStore((s) => s.items);
   const selectedItemId = useLibraryStore((s) => s.selectedItemId);
   const usage = useLibraryStore((s) => s.usage);

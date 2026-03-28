@@ -14,6 +14,21 @@ function shortenPath(path: string): string {
   return parts.slice(-2).join("/");
 }
 
+function getStatusDot(status: string): { dotClass: string; title: string } {
+  switch (status) {
+    case "upToDate":
+      return { dotClass: "bg-emerald-400", title: "Aktuell" };
+    case "available":
+    case "downloading":
+    case "ready":
+      return { dotClass: "bg-accent status-pulse-animation", title: "Update verfuegbar" };
+    case "error":
+      return { dotClass: "bg-red-400", title: "Update-Fehler" };
+    default:
+      return { dotClass: "hidden", title: "" };
+  }
+}
+
 function ThemeToggle() {
   const mode = useSettingsStore((s) => s.theme.mode);
   const setTheme = useSettingsStore((s) => s.setTheme);
@@ -33,7 +48,12 @@ function ThemeToggle() {
 export function Header() {
   const activeSession = useSessionStore(selectActiveSession);
   const [showChangelog, setShowChangelog] = useState(false);
-  const { status, progress, error, newVersion, downloadAndInstall, dismiss } = useAutoUpdate();
+  const { status, progress, error, newVersion, lastChecked, checkForUpdate, downloadAndInstall, confirmRelaunch, dismiss } = useAutoUpdate();
+
+  const { dotClass } = getStatusDot(status);
+  const statusTitle = lastChecked
+    ? `Version ${version} — Zuletzt geprüft: ${lastChecked.toLocaleTimeString("de-DE")}`
+    : `Version ${version}`;
 
   return (
     <header className="flex items-center justify-between px-6 py-3 border-b-2 border-neutral-700 bg-surface-raised retro-terminal">
@@ -44,10 +64,11 @@ export function Header() {
         </span>
         <button
           onClick={() => setShowChangelog(true)}
-          className="text-xs text-neutral-400 border border-neutral-700 px-2 py-0.5 rounded-none hover:text-accent hover:border-accent transition-colors cursor-pointer"
-          title="Changelog anzeigen"
+          className="relative text-xs text-neutral-400 border border-neutral-700 px-2 py-0.5 rounded-none hover:text-accent hover:border-accent transition-colors cursor-pointer"
+          title={statusTitle}
         >
           v{version}
+          <span className={`absolute -top-1 -right-1 w-2 h-2 rounded-full ${dotClass}`} />
         </button>
         {showChangelog && <ChangelogDialog onClose={() => setShowChangelog(false)} />}
         <UpdateNotification
@@ -55,7 +76,10 @@ export function Header() {
           progress={progress}
           error={error}
           newVersion={newVersion}
+          lastChecked={lastChecked}
           onUpdate={downloadAndInstall}
+          onRelaunch={confirmRelaunch}
+          onRetry={checkForUpdate}
           onDismiss={dismiss}
         />
       </div>

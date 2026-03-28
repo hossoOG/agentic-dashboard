@@ -1,7 +1,7 @@
 import React, { Suspense } from "react";
 import { Header } from "../Header";
 import { SideNav } from "./SideNav";
-import { DashboardMap } from "../DashboardMap";
+import { PipelineView } from "../pipeline/PipelineView";
 import { SessionManagerView } from "../sessions/SessionManagerView";
 import { useUIStore } from "../../store/uiStore";
 
@@ -11,6 +11,9 @@ const SettingsPlaceholder = React.lazy(() =>
 );
 const LogViewer = React.lazy(() =>
   import("../logs/LogViewer").then((m) => ({ default: m.LogViewer }))
+);
+const LibraryView = React.lazy(() =>
+  import("../library/LibraryView").then((m) => ({ default: m.LibraryView }))
 );
 
 function NeonSpinner() {
@@ -29,11 +32,17 @@ export function AppShell() {
       case "sessions":
         return <SessionManagerView />;
       case "pipeline":
-        return <DashboardMap />;
+        return <PipelineView />;
       case "logs":
         return (
           <Suspense fallback={<NeonSpinner />}>
             <LogViewer />
+          </Suspense>
+        );
+      case "library":
+        return (
+          <Suspense fallback={<NeonSpinner />}>
+            <LibraryView />
           </Suspense>
         );
       case "settings":

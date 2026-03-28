@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { Terminal, FileText, Puzzle, Webhook, Github, ChevronDown, Settings2, BookOpen } from "lucide-react";
+import { Terminal, FileText, Puzzle, Webhook, Github, ChevronDown, Settings2 } from "lucide-react";
 
 export type PrimaryTab = "terminal" | "config";
-export type ConfigSubTab = "claude-md" | "skills" | "hooks" | "github" | "library";
+export type ConfigSubTab = "claude-md" | "skills" | "hooks" | "github";
 
 // Combined type for backwards compatibility with SessionManagerView
 export type ContentTab = "terminal" | ConfigSubTab;
@@ -18,7 +18,6 @@ const configItems: { id: ConfigSubTab; label: string; icon: typeof FileText }[] 
   { id: "skills", label: "Skills", icon: Puzzle },
   { id: "hooks", label: "Hooks", icon: Webhook },
   { id: "github", label: "GitHub", icon: Github },
-  { id: "library", label: "Library", icon: BookOpen },
 ];
 
 export function ContentTabs({ activeTab, configSubTab, onTabChange }: ContentTabsProps) {
