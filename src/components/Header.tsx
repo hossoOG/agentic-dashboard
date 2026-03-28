@@ -60,7 +60,7 @@ export function Header() {
       <div className="flex items-center gap-3">
         <Cpu className="w-6 h-6 text-accent" />
         <span className="text-accent font-bold text-lg tracking-wider font-display">
-          AGENTIC DASHBOARD
+          AGENTICEXPLORER
         </span>
         <button
           onClick={() => setShowChangelog(true)}
