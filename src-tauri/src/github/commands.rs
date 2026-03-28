@@ -33,6 +33,22 @@ pub struct GithubIssue {
     pub url: String,
 }
 
+#[derive(Serialize, Clone)]
+pub struct KanbanLabel {
+    pub name: String,
+    pub color: String,
+}
+
+#[derive(Serialize, Clone)]
+pub struct KanbanIssue {
+    pub number: u64,
+    pub title: String,
+    pub state: String,
+    pub labels: Vec<KanbanLabel>,
+    pub assignee: String,
+    pub url: String,
+}
+
 /// Creates a Command with hidden console window on Windows.
 fn silent_command(program: &str) -> Command {
     #[allow(unused_mut)]
@@ -205,6 +221,71 @@ pub mod commands {
                 GithubIssue {
                     number: issue["number"].as_u64().unwrap_or(0),
                     title: issue["title"].as_str().unwrap_or("").to_string(),
+                    labels,
+                    assignee,
+                    url: issue["url"].as_str().unwrap_or("").to_string(),
+                }
+            })
+            .collect();
+
+        Ok(issues)
+    }
+
+    #[tauri::command]
+    pub async fn get_kanban_issues(folder: String) -> Result<Vec<KanbanIssue>, String> {
+        if !is_command_available("gh") {
+            return Err("gh CLI not found. Install from https://cli.github.com".to_string());
+        }
+
+        // Fetch open and closed issues in parallel
+        let open_output = run_command(
+            &folder,
+            "gh",
+            &[
+                "issue",
+                "list",
+                "--state",
+                "all",
+                "--json",
+                "number,title,state,labels,assignees,url",
+                "--limit",
+                "50",
+            ],
+        )?;
+
+        if open_output.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let parsed: Vec<serde_json::Value> = serde_json::from_str(&open_output)
+            .map_err(|e| format!("Failed to parse gh output: {}", e))?;
+
+        let issues = parsed
+            .iter()
+            .map(|issue| {
+                let labels = issue["labels"]
+                    .as_array()
+                    .map(|arr| {
+                        arr.iter()
+                            .map(|l| KanbanLabel {
+                                name: l["name"].as_str().unwrap_or("").to_string(),
+                                color: l["color"].as_str().unwrap_or("333333").to_string(),
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+
+                let assignee = issue["assignees"]
+                    .as_array()
+                    .and_then(|arr| arr.first())
+                    .and_then(|a| a["login"].as_str())
+                    .unwrap_or("")
+                    .to_string();
+
+                KanbanIssue {
+                    number: issue["number"].as_u64().unwrap_or(0),
+                    title: issue["title"].as_str().unwrap_or("").to_string(),
+                    state: issue["state"].as_str().unwrap_or("OPEN").to_string(),
                     labels,
                     assignee,
                     url: issue["url"].as_str().unwrap_or("").to_string(),

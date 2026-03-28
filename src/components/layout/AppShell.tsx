@@ -9,6 +9,9 @@ import { useUIStore } from "../../store/uiStore";
 const SettingsPlaceholder = React.lazy(() =>
   import("./placeholders").then((m) => ({ default: m.SettingsPlaceholder }))
 );
+const KanbanDashboardView = React.lazy(() =>
+  import("../kanban/KanbanDashboardView").then((m) => ({ default: m.KanbanDashboardView }))
+);
 const LogViewer = React.lazy(() =>
   import("../logs/LogViewer").then((m) => ({ default: m.LogViewer }))
 );
@@ -33,6 +36,12 @@ export function AppShell() {
         return <SessionManagerView />;
       case "pipeline":
         return <PipelineView />;
+      case "kanban":
+        return (
+          <Suspense fallback={<NeonSpinner />}>
+            <KanbanDashboardView />
+          </Suspense>
+        );
       case "logs":
         return (
           <Suspense fallback={<NeonSpinner />}>

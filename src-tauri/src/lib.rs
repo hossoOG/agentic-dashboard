@@ -174,6 +174,7 @@ pub fn run() {
             github::commands::commands::get_git_info,
             github::commands::commands::get_github_prs,
             github::commands::commands::get_github_issues,
+            github::commands::commands::get_kanban_issues,
             // Library
             library::commands::commands::list_library_items,
             library::commands::commands::read_library_item,

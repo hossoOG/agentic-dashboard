@@ -1,8 +1,8 @@
 import { create } from "zustand";
 
-export type ActiveTab = "sessions" | "pipeline" | "logs" | "library" | "settings";
+export type ActiveTab = "sessions" | "pipeline" | "kanban" | "logs" | "library" | "settings";
 
-export type ConfigSubTab = "claude-md" | "skills" | "hooks" | "github" | "worktrees";
+export type ConfigSubTab = "claude-md" | "skills" | "hooks" | "github" | "worktrees" | "kanban";
 
 export type ToastType = "achievement" | "error" | "info";
 
