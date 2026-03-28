@@ -26,14 +26,18 @@
 ## Aktueller Sprint: Feature-Forward
 
 > Issues und Fortschritt auf dem [Kanban Board](https://github.com/users/hossoOG/projects/3)
+> User Stories: `tasks/user-stories-pipeline.md`
 
 - [ ] Library als eigenen SideNav-Tab (#11)
-- [ ] Pipeline-View mit echten agentStore-Daten (#12)
-- [ ] User Stories: Pipeline-Ueberwachung (#13)
-- [ ] Prozess: User Stories evaluieren (#16)
+- [x] Prozess: User Stories evaluieren (#16) — Ergebnis: `tasks/user-stories-pipeline.md`
+- [ ] **US-P1**: Pipeline-View mit echten agentStore-Daten (#12)
+- [ ] **US-P4**: Paralleles Agent-Tracking (Issue noch erstellen)
+- [ ] **US-P2**: Workflow-Erkennung aus Projekt-Konfiguration (#13)
 
-## Backlog
+## Backlog (Phase 2+)
 
+- [ ] **US-P3**: Session-Start nach erkanntem Workflow (abhaengig von US-P2)
+- [ ] **US-P5**: Agent-Hierarchie-Darstellung (abhaengig von US-P1)
 - [ ] Node/Graph-basierte Session-Visualisierung (#14)
 - [ ] Gamification-System (#15)
 

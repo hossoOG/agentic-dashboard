@@ -340,19 +340,68 @@ Ideen: Siehe tasks/ideas.md
 Lessons: Siehe tasks/lessons.md
 
 ================================================================================
+FEATURE-FORWARD SPRINT — Pipeline-Ueberwachung (ab 2026-03-28)
+================================================================================
+
+Ziel: Dashboard von reiner Session-Verwaltung zu aktiver Pipeline-Ueberwachung
+      erweitern. Erkannte Agenten und Worktrees visualisieren, Workflows aus
+      Projekt-Konfiguration ableiten.
+
+Grundlage: Bestehende Infrastruktur (agent_detector.rs, agentStore.ts,
+           pipelineStore.ts, DashboardMap.tsx) wird mit echten Daten verbunden.
+
+User Stories: Siehe tasks/user-stories-pipeline.md
+
+--- MVP (Phase 1) ---
+
+US-P1: [OFFEN] Pipeline-View mit echten Daten
+  Erkannte Agenten und Worktrees als Nodes in DashboardMap.tsx.
+  Abhaengigkeiten: agentStore, agent_detector (existieren)
+  Issue: #12
+
+US-P2: [OFFEN] Workflow-Erkennung aus Projekt-Konfiguration
+  Skills + Hooks analysieren → Workflow-Profil anzeigen.
+  Abhaengigkeiten: Tauri-Commands read_project_file, list_project_dir (existieren)
+  Issue: #13
+
+US-P4: [OFFEN] Paralleles Agent-Tracking
+  Alle aktiven Agenten ueber alle Sessions hinweg ueberwachen.
+  Abhaengigkeiten: agentStore (existiert)
+  Issue: Neu
+
+--- Phase 2 ---
+
+US-P3: [OFFEN] Session-Start nach erkanntem Workflow
+  Skill direkt aus Dashboard starten → neue Session mit vorausgefuelltem Befehl.
+  Abhaengigkeiten: US-P2
+  Issue: #13
+
+US-P5: [OFFEN] Agent-Hierarchie-Darstellung
+  Parent/Child-Beziehungen zwischen Agenten als Baumstruktur.
+  Abhaengigkeiten: US-P1, agent_detector.rs Erweiterung
+  Issue: Neu
+
+--- Architektur-Entscheidungen ---
+
+1. "Workflow" = benannte Sammlung erkannter Skills + Hooks eines Projekts
+2. MVP ist manuell (User klickt "Starten"), automatisches Triggern ist Future
+3. DashboardMap.tsx wird mit agentStore-Daten gespeist statt pipelineStore Mock
+4. Kein neues Visualisierungs-Framework — bestehende Isometrie wiederverwenden
+
+Details: tasks/user-stories-pipeline.md (Abschnitt "Architektur-Entscheidungen")
+
+================================================================================
 BACKLOG (unpriorisiert)
 ================================================================================
 
-US-C1: API-Kosten pro Key ueberwachen (serviceStore existiert, UI fehlt)
-US-C2: Andere AI-Projekte vom Dashboard starten
+US-C1: API-Kosten pro Key ueberwachen (niedrige Prio)
 US-C3: Schnittstellen zu externen Anbietern (Kalender, Midjourney)
 US-O1: OAuth Tokens speichern (Keychain-Integration)
-US-O2: Pipeline im Real-Modus (echte Claude CLI statt Mock)
-US-A4: Audit-View (Agent-Compliance pruefen)
+US-A4: Audit-View (Agent-Compliance pruefen, abhaengig von US-P2)
 ---:   Settings-UI (Store komplett, Placeholder als UI)
 ---:   Smoke-Tests einrichten (mindestens Stores + kritische Flows)
 ---:   CI/CD Pipeline (GitHub Actions)
 
 ================================================================================
-PHASE 4-7 — werden im Feature-Forward-Sprint geplant
+PHASE 4-7 — werden nach Feature-Forward-Sprint geplant
 ================================================================================

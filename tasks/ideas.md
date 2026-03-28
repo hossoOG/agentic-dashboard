@@ -28,12 +28,13 @@
 Links den Bereich mit Sessions. Das ist der Bereich, wo der User selbst so Sachen macht. Wir machen einen neuen Bereich, namens ich weiß nicht, Pipe and View oder so. Und die Idee darin ist, dass wir das Schaden und das Tracken der Sessions und der Terminals in Nodes umwandeln, also Graphentheorie. Ein Knoten. So können wir eventuell verschiedene Pipelines einfacher visualisieren und das auch später gamifieren. Genau nur so eine Idee muss noch weiter eruiert werden.
 
 - User Stories und Prozess evaluieren
+**Status:** Erledigt (2026-03-28) — Ergebnis: `tasks/user-stories-pipeline.md`, Issue #16
 
-
-- Major Feature: Projektspezifische Pipieline überwachun
--- Dazu gehört erkennung von claude agenten / skills und hooks.
--- Ziel ist es in der lage zu sein hier im dashboard sessions zu starten nach agenten workflows die erkannt wurden, sodass wir dann diese agenten parallel tracken können.
--- Hier ergeben sich viele fragen etc, das müssen wir sauber aufarbeiten user stories zu funktionen und verbesserungsvorschlägen
+- Major Feature: Projektspezifische Pipeline ueberwachen
+-- Dazu gehoert Erkennung von Claude Agenten / Skills und Hooks.
+-- Ziel: Sessions nach erkannten Workflows starten, parallele Agenten tracken.
+**Status:** Aufgearbeitet (2026-03-28) — User Stories US-P1 bis US-P5 in `tasks/user-stories-pipeline.md`
 
 - Neue icon links in der leiste names Library
--- Idee dahinter ist das ich sehen will unsere globale claude md schnell und einfach diese md datei sehen eventuell, aber auch agenten zu projekten zugeordnert minimal verständlich sichtbar
+-- Idee: Globale CLAUDE.md und Agenten pro Projekt sehen
+**Status:** In Arbeit (#11)
