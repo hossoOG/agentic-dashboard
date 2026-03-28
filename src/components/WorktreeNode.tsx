@@ -127,7 +127,7 @@ export function WorktreeNode({ worktree }: Props) {
           </div>
         ))}
         {logs.length === 0 && (
-          <div className="text-neutral-700 text-xs italic">No logs yet...</div>
+          <div className="text-neutral-700 text-xs italic">Warte auf Daten...</div>
         )}
       </div>
     </motion.div>

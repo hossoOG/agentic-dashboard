@@ -36,33 +36,42 @@ function mapAgentStatusToWorktreeStatus(agent: DetectedAgent): WorktreeStatus {
 function deriveCurrentStep(agent: DetectedAgent): WorktreeStep {
   if (agent.status === "completed") return "draft_pr";
   if (agent.status === "error") return "setup";
-  // Running agent with a worktree path is likely coding
-  if (agent.worktreePath) return "code";
+
+  // Running agents: estimate step from elapsed time and worktree state
+  if (agent.status === "running") {
+    if (!agent.worktreePath) return "setup";
+
+    // Agent has a worktree — estimate step from elapsed time
+    const elapsedMs = Date.now() - agent.detectedAt;
+    const elapsedMin = elapsedMs / 60_000;
+
+    // Heuristic: typical agent progression over time
+    if (elapsedMin < 1) return "plan";
+    if (elapsedMin < 2) return "validate";
+    if (elapsedMin < 10) return "code";
+    if (elapsedMin < 15) return "review";
+    return "self_verify";
+  }
+
   return "setup";
 }
 
-function deriveCompletedSteps(agent: DetectedAgent): WorktreeStep[] {
-  if (agent.status === "completed") {
-    return ["setup", "plan", "validate", "code", "review", "self_verify", "draft_pr"];
-  }
-  if (agent.worktreePath) {
-    // Agent has a worktree — at least setup and plan are done
-    return ["setup", "plan", "validate"];
-  }
-  return [];
+const STEP_ORDER: WorktreeStep[] = [
+  "setup", "plan", "validate", "code", "review", "self_verify", "draft_pr",
+];
+
+function deriveCompletedSteps(currentStep: WorktreeStep): WorktreeStep[] {
+  const idx = STEP_ORDER.indexOf(currentStep);
+  if (idx <= 0) return [];
+  return STEP_ORDER.slice(0, idx);
 }
 
-function deriveProgress(agent: DetectedAgent): number {
-  switch (agent.status) {
-    case "completed":
-      return 100;
-    case "error":
-      return 0;
-    case "running":
-      return agent.worktreePath ? 50 : 15;
-    default:
-      return 0;
-  }
+function deriveProgress(currentStep: WorktreeStep, status: DetectedAgent["status"]): number {
+  if (status === "completed") return 100;
+  if (status === "error") return 0;
+  const idx = STEP_ORDER.indexOf(currentStep);
+  if (idx < 0) return 0;
+  return Math.round((idx / (STEP_ORDER.length - 1)) * 100);
 }
 
 // ============================================================================
@@ -136,8 +145,18 @@ export function useAdaptedPipelineData(): AdaptedPipelineData {
 
       const status = mapAgentStatusToWorktreeStatus(agent);
       const currentStep = deriveCurrentStep(agent);
-      const completedSteps = deriveCompletedSteps(agent);
-      const progress = deriveProgress(agent);
+      const completedSteps = deriveCompletedSteps(currentStep);
+      const progress = deriveProgress(currentStep, agent.status);
+
+      // Build contextual log lines from available agent data
+      const logs: string[] = [];
+      if (agent.task) logs.push(agent.task);
+      if (agent.worktreePath) logs.push(`Worktree: ${agent.worktreePath.split(/[\\/]/).pop()}`);
+      if (agent.status === "error") logs.push("Fehler aufgetreten");
+      if (agent.status === "completed" && agent.completedAt) {
+        const durationSec = Math.round((agent.completedAt - agent.detectedAt) / 1000);
+        logs.push(`Abgeschlossen nach ${durationSec}s`);
+      }
 
       return {
         id: agent.id,
@@ -146,10 +165,11 @@ export function useAdaptedPipelineData(): AdaptedPipelineData {
         currentStep,
         status,
         completedSteps,
-        logs: [],
+        logs,
         progress,
         spawnedAt: agent.detectedAt,
         stepTimings: [],
+        currentStepStartedAt: agent.status === "running" ? agent.detectedAt : undefined,
         tokenUsage: { ...DEFAULT_TOKEN_USAGE },
         retryCount: 0,
         priority: 0,
@@ -161,10 +181,17 @@ export function useAdaptedPipelineData(): AdaptedPipelineData {
     const completed = agentList.filter((a) => a.status === "completed").length;
     const errorCount = agentList.filter((a) => a.status === "error").length;
 
+    // Derive orchestrator status:
+    // - "planning" = agents are actively running (closest available status)
+    // - "generated_manifest" = all agents completed (pipeline done)
+    // - "idle" = no active work (but agents with errors exist)
     let orchestratorStatus: OrchestratorStatus = "idle";
     if (running > 0) {
       orchestratorStatus = "planning";
-    } else if (completed === agentList.length && agentList.length > 0) {
+    } else if (completed > 0 && errorCount === 0) {
+      orchestratorStatus = "generated_manifest";
+    } else if (completed > 0 && errorCount > 0) {
+      // Mixed results — still mark as done (errors visible in worktree nodes)
       orchestratorStatus = "generated_manifest";
     }
 

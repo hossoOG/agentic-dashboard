@@ -24,7 +24,8 @@ function EmptyState() {
           Keine Agenten erkannt
         </h2>
         <p className="text-sm text-neutral-500 max-w-md leading-relaxed">
-          Starte eine Session mit Claude CLI
+          Starte eine Session mit Claude CLI um Agenten in der Pipeline-Ansicht zu sehen.
+          Sub-Agents werden automatisch erkannt.
         </p>
       </motion.div>
     </div>
@@ -82,7 +83,7 @@ export function DashboardMap() {
         </div>
 
         {/* Worktrees - Middle */}
-        <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 z-10">
+        <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 z-10 max-h-[60%] overflow-y-auto">
           <div className="flex justify-center gap-6 px-8 flex-wrap">
             {worktrees.map((wt, index) => (
               <motion.div
