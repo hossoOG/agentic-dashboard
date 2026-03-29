@@ -8,6 +8,56 @@ use crate::adp::{ADPEmitter, ADPEventType};
 use crate::util::silent_command;
 use crate::{LogEvent, PipelineState};
 
+/// Spawn a thread that reads lines from a stream and emits both legacy
+/// `pipeline-log` events and ADP `orchestrator.log` envelopes.
+fn spawn_stream_reader(
+    app: AppHandle,
+    reader: impl std::io::Read + Send + 'static,
+    stream_type: &'static str,
+    adp_level: &'static str,
+) {
+    thread::spawn(move || {
+        let buf = BufReader::new(reader);
+        let emitter = ADPEmitter::new(app.clone());
+        for line in buf.lines() {
+            match line {
+                Ok(l) => {
+                    // Legacy event (backward compatibility)
+                    let event = LogEvent {
+                        line: l.clone(),
+                        stream: stream_type.to_string(),
+                        worktree_id: None,
+                    };
+                    if let Err(e) = app.emit("pipeline-log", event) {
+                        log::error!("Failed to emit pipeline-log ({}): {}", stream_type, e);
+                    }
+
+                    // ADP event
+                    let payload = serde_json::json!({
+                        "_type": "orchestrator.log",
+                        "level": adp_level,
+                        "message": l
+                    });
+                    if let Err(e) =
+                        emitter.emit_from_backend(ADPEventType::OrchestratorLog, &payload)
+                    {
+                        log::error!(
+                            "Failed to emit ADP orchestrator.log ({}): {}",
+                            stream_type,
+                            e
+                        );
+                    }
+                }
+                Err(e) => {
+                    log::warn!("Pipeline {} reader ended: {}", stream_type, e);
+                    break;
+                }
+            }
+        }
+        log::info!("Pipeline {} reader thread exiting", stream_type);
+    });
+}
+
 /// Start the Claude CLI pipeline for the given project path.
 ///
 /// Spawns `claude m` as a child process, streams stdout/stderr as both
@@ -96,84 +146,9 @@ pub async fn start_pipeline(
     let stdout = child.stdout.take().ok_or("Could not get stdout")?;
     let stderr = child.stderr.take().ok_or("Could not get stderr")?;
 
-    let app_stdout = app.clone();
-    let app_stderr = app.clone();
-
-    // stdout reader thread — dual-write: legacy + ADP
-    thread::spawn(move || {
-        let reader = BufReader::new(stdout);
-        let emitter = ADPEmitter::new(app_stdout.clone());
-        for line in reader.lines() {
-            match line {
-                Ok(l) => {
-                    // Legacy event (backward compatibility)
-                    let event = LogEvent {
-                        line: l.clone(),
-                        stream: "stdout".to_string(),
-                        worktree_id: None,
-                    };
-                    if let Err(e) = app_stdout.emit("pipeline-log", event) {
-                        log::error!("Failed to emit pipeline-log (stdout): {}", e);
-                    }
-
-                    // ADP event
-                    let payload = serde_json::json!({
-                        "_type": "orchestrator.log",
-                        "level": "info",
-                        "message": l
-                    });
-                    if let Err(e) =
-                        emitter.emit_from_backend(ADPEventType::OrchestratorLog, &payload)
-                    {
-                        log::error!("Failed to emit ADP orchestrator.log (stdout): {}", e);
-                    }
-                }
-                Err(e) => {
-                    log::debug!("Pipeline stdout reader ended: {}", e);
-                    break;
-                }
-            }
-        }
-        log::info!("Pipeline stdout reader thread exiting");
-    });
-
-    // stderr reader thread — dual-write: legacy + ADP
-    thread::spawn(move || {
-        let reader = BufReader::new(stderr);
-        let emitter = ADPEmitter::new(app_stderr.clone());
-        for line in reader.lines() {
-            match line {
-                Ok(l) => {
-                    // Legacy event (backward compatibility)
-                    let event = LogEvent {
-                        line: l.clone(),
-                        stream: "stderr".to_string(),
-                        worktree_id: None,
-                    };
-                    if let Err(e) = app_stderr.emit("pipeline-log", event) {
-                        log::error!("Failed to emit pipeline-log (stderr): {}", e);
-                    }
-
-                    // ADP event
-                    let payload = serde_json::json!({
-                        "_type": "orchestrator.log",
-                        "level": "error",
-                        "message": l
-                    });
-                    if let Err(e) =
-                        emitter.emit_from_backend(ADPEventType::OrchestratorLog, &payload)
-                    {
-                        log::error!("Failed to emit ADP orchestrator.log (stderr): {}", e);
-                    }
-                }
-                Err(e) => {
-                    log::debug!("Pipeline stderr reader ended: {}", e);
-                    break;
-                }
-            }
-        }
-        log::info!("Pipeline stderr reader thread exiting");
-    });
+    // Stream reader threads — dual-write: legacy + ADP
+    spawn_stream_reader(app.clone(), stdout, "stdout", "info");
+    spawn_stream_reader(app.clone(), stderr, "stderr", "error");
 
     // Wait for child process in background
     thread::spawn(move || match child.wait() {
