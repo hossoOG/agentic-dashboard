@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
+import { logError } from "../utils/errorLogger";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -83,7 +84,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         lastFetched: Date.now(),
       });
     } catch (err) {
-      console.error("[libraryStore] fetchItems failed:", err);
+      logError("libraryStore.fetchItems", err);
     } finally {
       set({ loading: false });
     }
@@ -102,7 +103,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       }));
       return item;
     } catch (err) {
-      console.error("[libraryStore] loadItemContent failed:", err);
+      logError("libraryStore.loadItemContent", err);
       return null;
     }
   },
@@ -125,7 +126,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       });
       return meta;
     } catch (err) {
-      console.error("[libraryStore] saveItem failed:", err);
+      logError("libraryStore.saveItem", err);
       return null;
     }
   },
@@ -145,7 +146,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         };
       });
     } catch (err) {
-      console.error("[libraryStore] deleteItem failed:", err);
+      logError("libraryStore.deleteItem", err);
     }
   },
 
@@ -160,7 +161,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         loadedContent: {}, // Invalidate all content caches
       });
     } catch (err) {
-      console.error("[libraryStore] rebuildIndex failed:", err);
+      logError("libraryStore.rebuildIndex", err);
     } finally {
       set({ loading: false });
     }
@@ -181,7 +182,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         };
       });
     } catch (err) {
-      console.error("[libraryStore] attachToProject failed:", err);
+      logError("libraryStore.attachToProject", err);
     }
   },
 
@@ -203,7 +204,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         return { usage: { ...state.usage, [itemId]: current } };
       });
     } catch (err) {
-      console.error("[libraryStore] detachFromProject failed:", err);
+      logError("libraryStore.detachFromProject", err);
     }
   },
 }));

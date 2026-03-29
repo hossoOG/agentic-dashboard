@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { StateStorage } from "zustand/middleware";
+import { logError, logWarn } from "../utils/errorLogger";
 
 /**
  * Custom Zustand storage adapter that persists to Documents/AgenticExplorer/settings.json
@@ -39,7 +40,7 @@ export function initTauriStorage(): Promise<void> {
         try {
           loadedFavorites = JSON.parse(favoritesData);
         } catch {
-          console.warn("[tauriStorage] Failed to parse favorites.json");
+          logWarn("tauriStorage.init", "Failed to parse favorites.json");
         }
       }
 
@@ -56,12 +57,12 @@ export function initTauriStorage(): Promise<void> {
           }
           loadedNotes = { global: globalNotes, project: projectNotes };
         } catch {
-          console.warn("[tauriStorage] Failed to parse notes");
+          logWarn("tauriStorage.init", "Failed to parse notes");
         }
       }
     })
     .catch((err) => {
-      console.warn("[tauriStorage] Failed to load settings from disk:", err);
+      logWarn("tauriStorage.init", `Failed to load settings from disk: ${err}`);
     });
 
   return initPromise;
@@ -103,7 +104,7 @@ export const tauriStorage: StateStorage = {
     cache.set(name, value);
     // Fire-and-forget save to disk
     invoke("save_user_settings", { data: value }).catch((err) => {
-      console.error("[tauriStorage] Failed to save settings:", err);
+      logError("tauriStorage.setItem", err);
     });
   },
 
@@ -114,7 +115,7 @@ export const tauriStorage: StateStorage = {
     }
     cache.delete(name);
     invoke("save_user_settings", { data: "{}" }).catch((err) => {
-      console.error("[tauriStorage] Failed to clear settings:", err);
+      logError("tauriStorage.removeItem", err);
     });
   },
 };

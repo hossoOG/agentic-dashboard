@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { tauriStorage, getLoadedFavorites, getLoadedNotes } from "./tauriStorage";
+import { logError } from "../utils/errorLogger";
 
 // ============================================================================
 // Types
@@ -133,14 +134,14 @@ const isTauri = "__TAURI_INTERNALS__" in window;
 function saveNoteFile(noteKey: string, content: string): void {
   if (!isTauri) return;
   invoke("save_note_file", { noteKey, content }).catch((err) => {
-    console.error("[settingsStore] Failed to save note file:", err);
+    logError("settingsStore.saveNoteFile", err);
   });
 }
 
 function saveFavoritesFile(favorites: FavoriteFolder[]): void {
   if (!isTauri) return;
   invoke("save_favorites_file", { data: JSON.stringify(favorites, null, 2) }).catch((err) => {
-    console.error("[settingsStore] Failed to save favorites file:", err);
+    logError("settingsStore.saveFavoritesFile", err);
   });
 }
 
@@ -285,7 +286,7 @@ export const useSettingsStore = create<SettingsState>()(
       storage: createJSONStorage(() => tauriStorage),
       onRehydrateStorage: () => (_state, error) => {
         if (error) {
-          console.error("[settingsStore] Hydration error:", error);
+          logError("settingsStore.onRehydrate", error);
           return;
         }
         // Merge favorites and notes from their dedicated files.
