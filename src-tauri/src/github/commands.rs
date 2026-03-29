@@ -70,6 +70,28 @@ fn is_command_available(cmd: &str) -> bool {
     check.map(|o| o.status.success()).unwrap_or(false)
 }
 
+/// Extract label names from a GitHub JSON value containing a "labels" array.
+fn parse_labels(value: &serde_json::Value) -> Vec<String> {
+    value["labels"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|l| l["name"].as_str().map(|s| s.to_string()))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Extract the first assignee login from a GitHub JSON value containing an "assignees" array.
+fn parse_assignee(value: &serde_json::Value) -> String {
+    value["assignees"]
+        .as_array()
+        .and_then(|arr| arr.first())
+        .and_then(|a| a["login"].as_str())
+        .unwrap_or("")
+        .to_string()
+}
+
 // Commands im mod-Block wegen rustc 1.94 E0255 Workaround (siehe CLAUDE.md)
 #[allow(clippy::module_inception)]
 pub mod commands {
@@ -185,30 +207,12 @@ pub mod commands {
 
         let issues = parsed
             .iter()
-            .map(|issue| {
-                let labels = issue["labels"]
-                    .as_array()
-                    .map(|arr| {
-                        arr.iter()
-                            .filter_map(|l| l["name"].as_str().map(|s| s.to_string()))
-                            .collect()
-                    })
-                    .unwrap_or_default();
-
-                let assignee = issue["assignees"]
-                    .as_array()
-                    .and_then(|arr| arr.first())
-                    .and_then(|a| a["login"].as_str())
-                    .unwrap_or("")
-                    .to_string();
-
-                GithubIssue {
-                    number: issue["number"].as_u64().unwrap_or(0),
-                    title: issue["title"].as_str().unwrap_or("").to_string(),
-                    labels,
-                    assignee,
-                    url: issue["url"].as_str().unwrap_or("").to_string(),
-                }
+            .map(|issue| GithubIssue {
+                number: issue["number"].as_u64().unwrap_or(0),
+                title: issue["title"].as_str().unwrap_or("").to_string(),
+                labels: parse_labels(issue),
+                assignee: parse_assignee(issue),
+                url: issue["url"].as_str().unwrap_or("").to_string(),
             })
             .collect();
 
