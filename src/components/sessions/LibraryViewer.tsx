@@ -10,6 +10,7 @@ import {
   Plus,
   FolderOpen,
 } from "lucide-react";
+import { logError } from "../../utils/errorLogger";
 import {
   useLibraryStore,
   type LibraryItemMeta,
@@ -314,7 +315,7 @@ function ItemDetail({
         message: path,
       });
     } catch (err) {
-      console.error("Failed to copy path:", err);
+      logError("LibraryViewer.copyPath", err);
     }
   };
 

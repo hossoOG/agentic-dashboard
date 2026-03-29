@@ -12,7 +12,7 @@ import {
   type LogSeverity,
   type LogSource,
 } from "../../store/logViewerStore";
-import { getRecentLogs, subscribeToLogs } from "../../utils/errorLogger";
+import { getRecentLogs, subscribeToLogs, logError } from "../../utils/errorLogger";
 import { LogEntryRow } from "./LogEntry";
 
 const SEVERITY_OPTIONS: { key: LogSeverity; label: string; color: string }[] = [
@@ -53,7 +53,7 @@ export function LogViewer() {
           .filter((e): e is NonNullable<typeof e> => e !== null);
         if (parsed.length > 0) addEntries(parsed);
       })
-      .catch((err) => console.error("[LogViewer] Failed to read backend log:", err));
+      .catch((err) => logError("LogViewer", err));
   }, [addEntries]);
 
   useEffect(() => {

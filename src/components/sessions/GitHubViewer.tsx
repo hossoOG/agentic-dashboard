@@ -10,6 +10,7 @@ import {
   ExternalLink,
   Github,
 } from "lucide-react";
+import { logWarn } from "../../utils/errorLogger";
 
 interface GitHubViewerProps {
   folder: string;
@@ -83,7 +84,7 @@ async function openUrl(url: string) {
     await open(url);
   } catch {
     // Fallback: try window.open (won't work in Tauri, but harmless)
-    console.warn("shell.open failed for:", url);
+    logWarn("GitHubViewer", `shell.open failed for: ${url}`);
   }
 }
 

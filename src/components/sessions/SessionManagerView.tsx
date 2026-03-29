@@ -16,6 +16,7 @@ import { useUIStore } from "../../store/uiStore";
 import { useAgentStore } from "../../store/agentStore";
 import type { FavoriteFolder } from "../../store/settingsStore";
 import type { SessionShell } from "../../store/sessionStore";
+import { logError } from "../../utils/errorLogger";
 
 const ClaudeMdViewer = lazy(() => import("./ClaudeMdViewer").then(m => ({ default: m.ClaudeMdViewer })));
 const SkillsViewer = lazy(() => import("./SkillsViewer").then(m => ({ default: m.SkillsViewer })));
@@ -64,7 +65,7 @@ export function SessionManagerView() {
           const snippet = data.slice(-200);
           useSessionStore.getState().updateLastOutput(id, snippet);
         } catch (err) {
-          console.error("[SessionManagerView] session-output handler error:", err);
+          logError("SessionManagerView.sessionOutput", err);
         }
       })
     );
@@ -78,7 +79,7 @@ export function SessionManagerView() {
           if (typeof id !== "string" || exitCode == null) return;
           useSessionStore.getState().setExitCode(id, exitCode);
         } catch (err) {
-          console.error("[SessionManagerView] session-exit handler error:", err);
+          logError("SessionManagerView.sessionExit", err);
         }
       })
     );
@@ -100,7 +101,7 @@ export function SessionManagerView() {
             useSessionStore.getState().updateStatus(id, status);
           }
         } catch (err) {
-          console.error("[SessionManagerView] session-status handler error:", err);
+          logError("SessionManagerView.sessionStatus", err);
         }
       })
     );
@@ -129,7 +130,7 @@ export function SessionManagerView() {
             worktreePath: null,
           });
         } catch (err) {
-          console.error("[SessionManagerView] agent-detected handler error:", err);
+          logError("SessionManagerView.agentDetected", err);
         }
       })
     );
@@ -152,7 +153,7 @@ export function SessionManagerView() {
             p.completed_at ?? Date.now()
           );
         } catch (err) {
-          console.error("[SessionManagerView] agent-completed handler error:", err);
+          logError("SessionManagerView.agentCompleted", err);
         }
       })
     );
@@ -176,13 +177,13 @@ export function SessionManagerView() {
             active: true,
           });
         } catch (err) {
-          console.error("[SessionManagerView] worktree-detected handler error:", err);
+          logError("SessionManagerView.worktreeDetected", err);
         }
       })
     );
 
     return () => {
-      unlisteners.forEach((p) => p.then((unlisten) => unlisten()).catch(console.error));
+      unlisteners.forEach((p) => p.then((unlisten) => unlisten()).catch((err) => logError("SessionManagerView.cleanup", err)));
     };
   }, []);
 
@@ -209,7 +210,7 @@ export function SessionManagerView() {
       });
       useSettingsStore.getState().updateFavoriteLastUsed(favorite.id);
     } catch (err) {
-      console.error("[SessionManagerView] Quick start failed:", err);
+      logError("SessionManagerView.quickStart", err);
     }
   }
 

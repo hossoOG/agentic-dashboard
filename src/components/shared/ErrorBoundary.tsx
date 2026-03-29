@@ -1,7 +1,7 @@
 import { Component } from "react";
 import type { ErrorInfo, ReactNode } from "react";
 import { AlertTriangle, RotateCcw } from "lucide-react";
-import { logError } from "../../utils/errorLogger";
+import { logError, logWarn } from "../../utils/errorLogger";
 import { useUIStore } from "../../store/uiStore";
 
 interface ErrorBoundaryProps {
@@ -26,7 +26,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     logError("ErrorBoundary", error);
-    console.error("[ErrorBoundary] Component stack:", errorInfo.componentStack);
+    logWarn("ErrorBoundary", `Component stack: ${errorInfo.componentStack ?? "unknown"}`);
     useUIStore.getState().addToast({
       type: "error",
       title: "Fehler",

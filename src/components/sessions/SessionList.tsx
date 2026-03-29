@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useSessionStore } from "../../store/sessionStore";
 import { useSettingsStore } from "../../store/settingsStore";
+import { logError } from "../../utils/errorLogger";
 import { SessionCard } from "./SessionCard";
 import { FavoritesList } from "./FavoritesList";
 import type { ClaudeSession } from "../../store/sessionStore";
@@ -51,7 +52,7 @@ export function SessionList({ onNewSession, onQuickStart }: SessionListProps) {
 
   const handleClose = useCallback((sessionId: string) => {
     invoke("close_session", { id: sessionId }).catch((err) =>
-      console.error("[SessionList] close_session failed:", err)
+      logError("SessionList.closeSession", err)
     );
     useSessionStore.getState().removeSession(sessionId);
   }, []);

@@ -5,6 +5,7 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
+import { logError } from "../../utils/errorLogger";
 
 interface SessionTerminalProps {
   sessionId: string;
@@ -40,7 +41,7 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
     // Input: User types -> send to backend
     term.onData((data: string) => {
       invoke("write_session", { id: sessionId, data }).catch((err) => {
-        console.error("[SessionTerminal] write_session failed:", err);
+        logError("SessionTerminal.writeSession", err);
       });
     });
 

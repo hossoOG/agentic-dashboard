@@ -16,6 +16,7 @@ import { useUIStore } from "../../store/uiStore";
 import type { DetectedWorkflow, WorkflowType } from "../../store/workflowStore";
 import type { SessionShell } from "../../store/sessionStore";
 import { DURATION, EASE, staggerDelay } from "../../utils/motion";
+import { logError } from "../../utils/errorLogger";
 
 // ============================================================================
 // Constants
@@ -171,10 +172,7 @@ export function WorkflowLauncher() {
           setTimeout(() => {
             invoke("write_session", { id: sessionId, data: prompt }).catch(
               (err) =>
-                console.error(
-                  "[WorkflowLauncher] write_session failed:",
-                  err
-                )
+                logError("WorkflowLauncher.write_session", err)
             );
           }, 1500);
         }
@@ -182,7 +180,7 @@ export function WorkflowLauncher() {
         // Switch to sessions tab
         setActiveTab("sessions");
       } catch (err) {
-        console.error("[WorkflowLauncher] Launch failed:", err);
+        logError("WorkflowLauncher.launch", err);
       }
     },
     [folder, setActiveTab]
