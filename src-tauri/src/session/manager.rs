@@ -79,8 +79,8 @@ impl SessionManager {
         let shell_exe = Self::shell_executable(&shell);
         if which_executable(shell_exe).is_none() {
             let msg = format!(
-                "Shell executable '{}' not found in PATH. Cannot create session.",
-                shell_exe
+                "Failed to create session {}: shell executable '{}' not found in PATH",
+                id, shell_exe
             );
             log::error!("{}", msg);
             return Err(msg);
@@ -96,8 +96,8 @@ impl SessionManager {
                 pixel_height: 0,
             })
             .map_err(|e| {
-                log::error!("PTY initialization failed for session {}: {}", id, e);
-                format!("PTY open failed: {e}")
+                log::error!("Failed to open PTY for session {}: {}", id, e);
+                format!("Failed to open PTY for session {id}: {e}")
             })?;
 
         let mut cmd = CommandBuilder::new(shell_exe);
@@ -113,7 +113,7 @@ impl SessionManager {
                 id,
                 e
             );
-            format!("Spawn failed: {e}")
+            format!("Failed to spawn shell for session {id}: {e}")
         })?;
 
         log::info!(
@@ -124,12 +124,12 @@ impl SessionManager {
 
         let writer = pty_pair.master.take_writer().map_err(|e| {
             log::error!("Failed to acquire PTY writer for session {}: {}", id, e);
-            format!("Writer failed: {e}")
+            format!("Failed to acquire PTY writer for session {id}: {e}")
         })?;
 
         let mut reader = pty_pair.master.try_clone_reader().map_err(|e| {
             log::error!("Failed to acquire PTY reader for session {}: {}", id, e);
-            format!("Reader failed: {e}")
+            format!("Failed to acquire PTY reader for session {id}: {e}")
         })?;
 
         let info = SessionInfo {
@@ -306,7 +306,7 @@ impl SessionManager {
             .map_err(|e| format!("Failed to lock session manager for write_to_session: {e}"))?;
         let session = sessions
             .get_mut(id)
-            .ok_or_else(|| format!("Session {id} nicht gefunden"))?;
+            .ok_or_else(|| format!("Failed to find session {id}: not found"))?;
         session
             .writer
             .write_all(data.as_bytes())
@@ -326,7 +326,7 @@ impl SessionManager {
         });
         let session = sessions
             .get(id)
-            .ok_or_else(|| format!("Session {id} nicht gefunden"))?;
+            .ok_or_else(|| format!("Failed to find session {id}: not found"))?;
         session
             .master
             .resize(PtySize {
@@ -347,7 +347,7 @@ impl SessionManager {
         // Drop entfernt den MasterPty, was den Child-Prozess signalisiert
         sessions
             .remove(id)
-            .ok_or_else(|| format!("Session {id} nicht gefunden"))?;
+            .ok_or_else(|| format!("Failed to find session {id}: not found"))?;
         Ok(())
     }
 

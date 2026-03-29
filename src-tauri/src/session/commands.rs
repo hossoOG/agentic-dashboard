@@ -31,16 +31,16 @@ pub mod commands {
         let folder_path = std::path::Path::new(&folder);
         if !folder_path.exists() {
             let msg = format!(
-                "Failed to create session: folder does not exist: {}",
-                folder
+                "Failed to create session {}: folder does not exist: {}",
+                id, folder
             );
             log::error!("{}", msg);
             return Err(msg);
         }
         if !folder_path.is_dir() {
             let msg = format!(
-                "Failed to create session: path is not a directory: {}",
-                folder
+                "Failed to create session {}: path is not a directory: {}",
+                id, folder
             );
             log::error!("{}", msg);
             return Err(msg);
