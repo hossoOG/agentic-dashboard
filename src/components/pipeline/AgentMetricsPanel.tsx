@@ -149,7 +149,7 @@ export function AgentMetricsPanel() {
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: DURATION.fast, ease: EASE.out as unknown as string }}
+      transition={{ duration: DURATION.fast, ease: EASE.out }}
       className="border-t border-neutral-700"
     >
       {/* Header */}
