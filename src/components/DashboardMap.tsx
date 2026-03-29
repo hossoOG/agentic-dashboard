@@ -38,6 +38,8 @@ export function DashboardMap() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
     const update = () => {
       if (containerRef.current) {
         setDimensions({
@@ -46,9 +48,18 @@ export function DashboardMap() {
         });
       }
     };
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
+
+    const debouncedUpdate = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(update, 150);
+    };
+
+    update(); // initial measurement
+    window.addEventListener("resize", debouncedUpdate);
+    return () => {
+      window.removeEventListener("resize", debouncedUpdate);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, []);
 
   // Empty state when no agents detected
