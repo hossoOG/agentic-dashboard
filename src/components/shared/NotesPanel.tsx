@@ -2,18 +2,13 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { StickyNote, ChevronDown, FolderOpen } from "lucide-react";
 import { useSettingsStore } from "../../store/settingsStore";
 import { useSessionStore, selectActiveSession } from "../../store/sessionStore";
+import { folderLabel } from "../../utils/pathUtils";
 
 type NotesTab = "project" | "global";
 
 /** Normalize folder path for consistent lookup */
 function normalizePath(p: string) {
   return p.replace(/\\/g, "/").toLowerCase();
-}
-
-/** Extract short label from a folder path */
-function folderLabel(p: string) {
-  const parts = p.replace(/\\/g, "/").split("/").filter(Boolean);
-  return parts[parts.length - 1] ?? p;
 }
 
 export function NotesPanel() {

@@ -2,17 +2,12 @@ import { Play, X, FolderOpen, Terminal } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { motion } from "framer-motion";
 import type { FavoriteFolder } from "../../store/settingsStore";
+import { shortenPath } from "../../utils/pathUtils";
 
 interface FavoriteCardProps {
   favorite: FavoriteFolder;
   onStart: () => void;
   onRemove: () => void;
-}
-
-function shortenPath(path: string): string {
-  const parts = path.replace(/\\/g, "/").split("/").filter(Boolean);
-  if (parts.length <= 3) return path;
-  return "~/" + parts.slice(-2).join("/");
 }
 
 export function FavoriteCard({ favorite, onStart, onRemove }: FavoriteCardProps) {
