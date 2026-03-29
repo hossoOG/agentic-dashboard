@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { RefreshCw, Columns3, AlertCircle } from "lucide-react";
 import { KanbanCard, type KanbanIssue } from "./KanbanCard";
+import { KanbanDetailModal } from "./KanbanDetailModal";
 
 interface KanbanBoardProps {
   folder: string;
@@ -56,6 +57,11 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
   const [issues, setIssues] = useState<KanbanIssue[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
+  const [selectedIssue, setSelectedIssue] = useState<number | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+  const [moving, setMoving] = useState<number | null>(null);
+  const [moveError, setMoveError] = useState<string | null>(null);
+  const draggedIssueNumberRef = useRef<number | null>(null);
   const mountedRef = useRef(true);
 
   const load = useCallback(
@@ -97,6 +103,42 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
       mountedRef.current = false;
     };
   }, [load]);
+
+  const handleDrop = useCallback(
+    async (targetLane: string, e: React.DragEvent) => {
+      e.preventDefault();
+      setDragOverColumn(null);
+
+      const issueNumber = draggedIssueNumberRef.current;
+      draggedIssueNumberRef.current = null;
+      if (issueNumber == null) return;
+
+      // Check if already in this lane
+      const issue = issues.find((i) => i.number === issueNumber);
+      if (!issue) return;
+      const currentLane = classifyIssue(issue);
+      if (currentLane === targetLane) return;
+
+      setMoving(issueNumber);
+      setMoveError(null);
+      try {
+        await invoke("move_issue_lane", {
+          folder,
+          number: issueNumber,
+          targetLane,
+        });
+        // Refresh after move
+        cache.delete(folder);
+        await load(true);
+      } catch (err) {
+        console.error("[KanbanBoard] Failed to move issue:", err);
+        setMoveError(`Verschieben von #${issueNumber} fehlgeschlagen: ${String(err)}`);
+      } finally {
+        setMoving(null);
+      }
+    },
+    [folder, issues, load]
+  );
 
   if (loading) {
     return (
@@ -147,13 +189,32 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
         </button>
       </div>
 
+      {/* Move error toast */}
+      {moveError && (
+        <div className="mx-4 mt-2 px-3 py-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-sm flex items-center justify-between">
+          <span>{moveError}</span>
+          <button onClick={() => setMoveError(null)} className="ml-2 text-red-400 hover:text-red-300">✕</button>
+        </div>
+      )}
+
       {/* Board */}
       <div className="flex-1 overflow-x-auto overflow-y-hidden p-4">
         <div className="flex gap-3 h-full min-w-min">
           {columns.map((col) => (
             <div
               key={col.id}
-              className="flex flex-col w-[260px] min-w-[260px] bg-surface-raised border border-neutral-700 rounded-sm"
+              className={`flex flex-col w-[260px] min-w-[260px] bg-surface-raised border rounded-sm transition-colors ${
+                dragOverColumn === col.id
+                  ? "border-accent bg-accent-a10/5"
+                  : "border-neutral-700"
+              }`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                setDragOverColumn(col.id);
+              }}
+              onDragLeave={() => setDragOverColumn(null)}
+              onDrop={(e) => handleDrop(col.id, e)}
             >
               {/* Column header */}
               <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-700 shrink-0">
@@ -173,7 +234,20 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
                   </div>
                 ) : (
                   col.issues.map((issue) => (
-                    <KanbanCard key={issue.number} issue={issue} />
+                    <div
+                      key={issue.number}
+                      className={
+                        moving === issue.number ? "opacity-50 pointer-events-none" : ""
+                      }
+                    >
+                      <KanbanCard
+                        issue={issue}
+                        onClick={() => setSelectedIssue(issue.number)}
+                        onDragStart={() => {
+                          draggedIssueNumberRef.current = issue.number;
+                        }}
+                      />
+                    </div>
                   ))
                 )}
               </div>
@@ -181,6 +255,15 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
           ))}
         </div>
       </div>
+
+      {/* Detail Modal */}
+      {selectedIssue !== null && (
+        <KanbanDetailModal
+          folder={folder}
+          issueNumber={selectedIssue}
+          onClose={() => setSelectedIssue(null)}
+        />
+      )}
     </div>
   );
 }
