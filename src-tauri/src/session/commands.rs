@@ -17,12 +17,14 @@ pub mod commands {
         folder: String,
         title: Option<String>,
         shell: Option<String>,
+        resume_session_id: Option<String>,
     ) -> Result<super::super::manager::SessionInfo, String> {
         log::debug!(
-            "create_session called: id={}, folder={}, shell={:?}",
+            "create_session called: id={}, folder={}, shell={:?}, resume={:?}",
             id,
             folder,
-            shell
+            shell,
+            resume_session_id
         );
 
         // Validate that folder exists and is a directory
@@ -52,7 +54,7 @@ pub mod commands {
         });
         let shell = shell.unwrap_or_else(|| "powershell".to_string());
 
-        manager.create_session(app, id, title, folder, shell)
+        manager.create_session(app, id, title, folder, shell, resume_session_id)
     }
 
     #[tauri::command]

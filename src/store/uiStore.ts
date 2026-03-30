@@ -31,6 +31,9 @@ interface UIState {
   toggleConfigPanel: () => void;
   setConfigPanelOpen: (open: boolean) => void;
 
+  configPanelWidth: number;
+  setConfigPanelWidth: (width: number) => void;
+
   detailPanel: DetailPanel;
   openDetailPanel: (type: string, targetId: string) => void;
   closeDetailPanel: () => void;
@@ -52,6 +55,9 @@ export const useUIStore = create<UIState>((set) => ({
   configPanelOpen: false,
   toggleConfigPanel: () => set((state) => ({ configPanelOpen: !state.configPanelOpen })),
   setConfigPanelOpen: (open) => set({ configPanelOpen: open }),
+
+  configPanelWidth: 400,
+  setConfigPanelWidth: (width) => set({ configPanelWidth: Math.max(250, Math.min(800, width)) }),
 
   detailPanel: { isOpen: false, type: null, targetId: null },
   openDetailPanel: (type, targetId) =>

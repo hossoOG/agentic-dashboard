@@ -66,6 +66,7 @@ impl SessionManager {
         title: String,
         folder: String,
         shell: String,
+        resume_session_id: Option<String>,
     ) -> Result<SessionInfo, String> {
         log::info!(
             "Creating session id={}, shell={}, folder={}",
@@ -100,7 +101,7 @@ impl SessionManager {
             })?;
 
         let mut cmd = CommandBuilder::new(shell_exe);
-        for arg in Self::shell_args(&shell) {
+        for arg in Self::shell_args(&shell, resume_session_id.as_deref()) {
             cmd.arg(arg);
         }
         cmd.cwd(&folder);
@@ -370,19 +371,23 @@ impl SessionManager {
         }
     }
 
-    fn shell_args(shell: &str) -> Vec<&'static str> {
+    fn shell_args(shell: &str, resume_session_id: Option<&str>) -> Vec<String> {
+        let claude_cmd = match resume_session_id {
+            Some(id) => format!("claude --dangerously-skip-permissions --resume {}", id),
+            None => "claude --dangerously-skip-permissions".to_string(),
+        };
         match shell {
             "powershell" => vec![
-                "-NoExit",
-                "-Command",
-                "claude --dangerously-skip-permissions",
+                "-NoExit".to_string(),
+                "-Command".to_string(),
+                claude_cmd,
             ],
-            "cmd" => vec!["/K", "claude --dangerously-skip-permissions"],
-            "gitbash" => vec!["-c", "claude --dangerously-skip-permissions"],
+            "cmd" => vec!["/K".to_string(), claude_cmd],
+            "gitbash" => vec!["-c".to_string(), claude_cmd],
             _ => vec![
-                "-NoExit",
-                "-Command",
-                "claude --dangerously-skip-permissions",
+                "-NoExit".to_string(),
+                "-Command".to_string(),
+                claude_cmd,
             ],
         }
     }
@@ -465,7 +470,7 @@ impl Drop for SessionManager {
 fn which_executable(name: &str) -> Option<std::path::PathBuf> {
     // On Windows, try `where`; on Unix, try `which`
     let cmd = if cfg!(windows) { "where" } else { "which" };
-    std::process::Command::new(cmd)
+    crate::util::silent_command(cmd)
         .arg(name)
         .output()
         .ok()

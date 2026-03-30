@@ -18,9 +18,9 @@
   --color-warning: oklch(58% 0.16 70);
   --color-info: oklch(52% 0.14 250);
 
-  /* ── Tinted Neutrals (light mode: high numbers = dark text) ── */
-  --neutral-50:  oklch(98% 0.005 250);
-  --neutral-100: oklch(95% 0.005 250);
+  /* ── Tinted Neutrals (light mode: low numbers = prominent text, high = backgrounds) ── */
+  --neutral-50:  oklch(12% 0.01  250);  /* boldest text */
+  --neutral-100: oklch(18% 0.01  250);  /* heading text */
   --neutral-200: oklch(25% 0.01  250);  /* primary text (dark on light) */
   --neutral-300: oklch(32% 0.01  250);
   --neutral-400: oklch(45% 0.01  250);  /* secondary text */

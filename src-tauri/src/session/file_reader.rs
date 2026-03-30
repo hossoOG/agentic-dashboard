@@ -1,6 +1,8 @@
 // src-tauri/src/session/file_reader.rs
 
 use std::path::PathBuf;
+use serde::Serialize;
+use serde_json::Value;
 
 /// Canonicalize and validate that resolved_path is inside base_folder.
 fn safe_resolve(folder: &str, relative_path: &str) -> Result<PathBuf, String> {
@@ -72,6 +74,255 @@ pub struct SkillDirEntry {
     pub has_reference_dir: bool,
 }
 
+// ============================================================================
+// Claude Session History Scanner
+// ============================================================================
+
+/// Summary of a single Claude CLI session, extracted from JSONL files.
+#[derive(Serialize, Clone)]
+pub struct ClaudeSessionSummary {
+    pub session_id: String,
+    pub title: String,
+    pub started_at: String,
+    pub ended_at: String,
+    pub model: String,
+    pub user_turns: u32,
+    pub total_messages: u32,
+    pub subagent_count: u32,
+    pub git_branch: String,
+    pub cwd: String,
+}
+
+/// Convert a folder path to the Claude projects directory name.
+/// E.g. `C:\Projects\agentic-dashboard` → `C--Projects-agentic-dashboard`
+fn folder_to_project_dir_name(folder: &str) -> String {
+    folder
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' {
+                c
+            } else {
+                '-'
+            }
+        })
+        .collect()
+}
+
+/// Find the matching project directory inside ~/.claude/projects/ (case-insensitive).
+fn find_project_dir(folder: &str) -> Option<PathBuf> {
+    let home = dirs::home_dir()?;
+    let projects_dir = home.join(".claude").join("projects");
+    if !projects_dir.is_dir() {
+        return None;
+    }
+
+    let expected = folder_to_project_dir_name(folder).to_lowercase();
+
+    let read_dir = std::fs::read_dir(&projects_dir).ok()?;
+    for entry in read_dir.flatten() {
+        if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
+            if let Some(name) = entry.file_name().to_str() {
+                if name.to_lowercase() == expected {
+                    return Some(entry.path());
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Check if a string looks like a UUID (simple heuristic).
+fn is_uuid_like(s: &str) -> bool {
+    s.len() == 36
+        && s.chars()
+            .all(|c| c.is_ascii_hexdigit() || c == '-')
+        && s.matches('-').count() == 4
+}
+
+/// Parse a single JSONL session file and extract a summary.
+fn parse_session_jsonl(path: &std::path::Path, session_id: &str) -> Option<ClaudeSessionSummary> {
+    let content = std::fs::read_to_string(path).ok()?;
+    let lines: Vec<&str> = content.lines().collect();
+    if lines.is_empty() {
+        return None;
+    }
+
+    let mut title = String::new();
+    let mut started_at = String::new();
+    let mut ended_at = String::new();
+    let mut model = String::new();
+    let mut user_turns: u32 = 0;
+    let mut total_messages: u32 = 0;
+    let mut git_branch = String::new();
+    let mut cwd = String::new();
+
+    for line in &lines {
+        let val: Value = match serde_json::from_str(line) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+
+        total_messages += 1;
+
+        // Extract timestamp from any message
+        if let Some(ts) = val.get("timestamp").and_then(|v| v.as_str()) {
+            if started_at.is_empty() {
+                started_at = ts.to_string();
+            }
+            ended_at = ts.to_string();
+        }
+
+        // Extract git branch and cwd from first message that has them
+        if git_branch.is_empty() {
+            if let Some(branch) = val.get("gitBranch").and_then(|v| v.as_str()) {
+                git_branch = branch.to_string();
+            }
+        }
+        if cwd.is_empty() {
+            if let Some(c) = val.get("cwd").and_then(|v| v.as_str()) {
+                cwd = c.to_string();
+            }
+        }
+
+        let msg_type = val.get("type").and_then(|v| v.as_str()).unwrap_or("");
+        let is_sidechain = val.get("isSidechain").and_then(|v| v.as_bool()).unwrap_or(false);
+        let is_meta = val.get("isMeta").and_then(|v| v.as_bool()).unwrap_or(false);
+
+        // Count user turns (non-sidechain, non-meta user messages that aren't tool results)
+        if msg_type == "user" && !is_sidechain && !is_meta {
+            if let Some(content) = val.get("message").and_then(|m| m.get("content")) {
+                match content {
+                    Value::String(s) => {
+                        user_turns += 1;
+                        // Use first user prompt as title
+                        if title.is_empty() {
+                            let truncated: String = s.chars().take(120).collect();
+                            title = truncated.replace('\n', " ").trim().to_string();
+                        }
+                    }
+                    Value::Array(arr) => {
+                        // Tool result arrays don't count as user turns
+                        let is_tool_result = arr.iter().any(|item| {
+                            item.get("type")
+                                .and_then(|t| t.as_str())
+                                .map(|t| t == "tool_result")
+                                .unwrap_or(false)
+                        });
+                        if !is_tool_result {
+                            user_turns += 1;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        // Extract model from assistant messages
+        if msg_type == "assistant" && model.is_empty() {
+            if let Some(m) = val
+                .get("message")
+                .and_then(|m| m.get("model"))
+                .and_then(|v| v.as_str())
+            {
+                model = m.to_string();
+            }
+        }
+    }
+
+    // Skip sessions with no real content
+    if user_turns == 0 && title.is_empty() {
+        return None;
+    }
+
+    if title.is_empty() {
+        title = "(Kein Prompt)".to_string();
+    }
+
+    Some(ClaudeSessionSummary {
+        session_id: session_id.to_string(),
+        title,
+        started_at,
+        ended_at,
+        model,
+        user_turns,
+        total_messages,
+        subagent_count: 0, // Will be set by caller
+        git_branch,
+        cwd,
+    })
+}
+
+/// Scan a project's Claude session history from ~/.claude/projects/.
+fn scan_sessions_for_project(folder: &str) -> Result<Vec<ClaudeSessionSummary>, String> {
+    let project_dir = match find_project_dir(folder) {
+        Some(dir) => dir,
+        None => return Ok(Vec::new()),
+    };
+
+    let mut sessions: Vec<ClaudeSessionSummary> = Vec::new();
+    let mut seen_ids = std::collections::HashSet::new();
+
+    let read_dir = std::fs::read_dir(&project_dir)
+        .map_err(|e| format!("Failed to read project directory: {}", e))?;
+
+    for entry in read_dir.flatten() {
+        let name = match entry.file_name().to_str() {
+            Some(n) => n.to_string(),
+            None => continue,
+        };
+
+        let ft = match entry.file_type() {
+            Ok(ft) => ft,
+            Err(_) => continue,
+        };
+
+        if ft.is_dir() {
+            // Check for [uuid]/[uuid].jsonl
+            if is_uuid_like(&name) && !seen_ids.contains(&name) {
+                let jsonl_path = entry.path().join(format!("{}.jsonl", name));
+                if jsonl_path.is_file() {
+                    // Count subagents
+                    let subagent_count = entry
+                        .path()
+                        .join("subagents")
+                        .read_dir()
+                        .map(|rd| {
+                            rd.flatten()
+                                .filter(|e| {
+                                    e.file_name()
+                                        .to_str()
+                                        .map(|n| n.ends_with(".meta.json"))
+                                        .unwrap_or(false)
+                                })
+                                .count() as u32
+                        })
+                        .unwrap_or(0);
+
+                    if let Some(mut summary) = parse_session_jsonl(&jsonl_path, &name) {
+                        summary.subagent_count = subagent_count;
+                        sessions.push(summary);
+                        seen_ids.insert(name);
+                    }
+                }
+            }
+        } else if ft.is_file() && name.ends_with(".jsonl") {
+            // Top-level [uuid].jsonl
+            let session_id = name.trim_end_matches(".jsonl");
+            if is_uuid_like(session_id) && !seen_ids.contains(session_id) {
+                if let Some(summary) = parse_session_jsonl(&entry.path(), session_id) {
+                    sessions.push(summary);
+                    seen_ids.insert(session_id.to_string());
+                }
+            }
+        }
+    }
+
+    // Sort by started_at descending (newest first)
+    sessions.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+
+    Ok(sessions)
+}
+
 // Commands im mod-Block wegen rustc 1.94 E0255 Workaround (siehe CLAUDE.md)
 #[allow(clippy::module_inception)]
 pub mod commands {
@@ -115,6 +366,14 @@ pub mod commands {
 
         entries.sort();
         Ok(entries)
+    }
+
+    /// Scan Claude CLI session history from ~/.claude/projects/ for a given project folder.
+    #[tauri::command]
+    pub async fn scan_claude_sessions(
+        folder: String,
+    ) -> Result<Vec<ClaudeSessionSummary>, String> {
+        scan_sessions_for_project(&folder)
     }
 
     /// Read a file from the user's ~/.claude/ directory.

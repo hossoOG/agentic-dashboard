@@ -1,10 +1,11 @@
 use std::io::{BufRead, BufReader};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use tauri::{AppHandle, Emitter};
 
 use crate::adp::{ADPEmitter, ADPEventType};
+use crate::util::silent_command;
 use crate::{LogEvent, PipelineState};
 
 /// Start the Claude CLI pipeline for the given project path.
@@ -39,7 +40,7 @@ pub async fn start_pipeline(
     }
 
     // Validate that claude CLI is available before spawning
-    let claude_check = Command::new("claude").arg("--version").output();
+    let claude_check = silent_command("claude").arg("--version").output();
     match &claude_check {
         Ok(output) if output.status.success() => {
             log::info!("Claude CLI found, version check passed");
@@ -67,7 +68,7 @@ pub async fn start_pipeline(
 
     log::info!("Starting pipeline in project path: {}", project_path);
 
-    let mut child = Command::new("claude")
+    let mut child = silent_command("claude")
         .arg("m")
         .current_dir(&project_path)
         .stdin(Stdio::piped())
@@ -198,14 +199,14 @@ pub async fn stop_pipeline(
 
     if let Some(pid) = pid {
         #[cfg(unix)]
-        Command::new("kill")
+        silent_command("kill")
             .args(["-TERM", &pid.to_string()])
             .spawn()
             .map_err(|e| format!("Failed to send SIGTERM to pid {}: {}", pid, e))?
             .wait()
             .map_err(|e| format!("Failed to wait for kill command: {}", e))?;
         #[cfg(windows)]
-        Command::new("taskkill")
+        silent_command("taskkill")
             .args(["/PID", &pid.to_string(), "/F"])
             .spawn()
             .map_err(|e| format!("Failed to taskkill pid {}: {}", pid, e))?

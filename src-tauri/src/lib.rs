@@ -8,6 +8,7 @@ pub mod log_reader;
 pub mod pipeline;
 pub mod session;
 pub mod settings;
+pub mod util;
 
 fn init_logging() {
     use env_logger::Builder;
@@ -168,6 +169,7 @@ pub fn run() {
             session::file_reader::commands::list_project_dir,
             session::file_reader::commands::read_user_claude_file,
             session::file_reader::commands::list_skill_dirs,
+            session::file_reader::commands::scan_claude_sessions,
             // Worktree scanning
             session::commands::commands::scan_worktrees,
             // GitHub integration
@@ -175,6 +177,9 @@ pub fn run() {
             github::commands::commands::get_github_prs,
             github::commands::commands::get_github_issues,
             github::commands::commands::get_kanban_issues,
+            github::commands::commands::get_issue_detail,
+            github::commands::commands::get_issue_checks,
+            github::commands::commands::move_issue_lane,
             // Library
             library::commands::commands::list_library_items,
             library::commands::commands::read_library_item,
@@ -194,17 +199,19 @@ pub fn run() {
             settings::commands::load_notes,
             settings::commands::save_note_file,
         ])
-        .on_window_event(move |_window, event| {
+        .on_window_event(move |window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {
-                // Alle Sessions sauber beenden beim Fenster-Close
-                let sessions = session_manager_cleanup.list_sessions();
-                for s in &sessions {
-                    if let Err(e) = session_manager_cleanup.close_session(&s.id) {
-                        log::error!("Failed to close session {} on shutdown: {}", s.id, e);
+                // Nur beim Schließen des Hauptfensters alle Sessions beenden
+                if window.label() == "main" {
+                    let sessions = session_manager_cleanup.list_sessions();
+                    for s in &sessions {
+                        if let Err(e) = session_manager_cleanup.close_session(&s.id) {
+                            log::error!("Failed to close session {} on shutdown: {}", s.id, e);
+                        }
                     }
-                }
-                if !sessions.is_empty() {
-                    log::info!("Closed {} sessions on window close.", sessions.len());
+                    if !sessions.is_empty() {
+                        log::info!("Closed {} sessions on window close.", sessions.len());
+                    }
                 }
             }
         })

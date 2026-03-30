@@ -272,7 +272,7 @@ impl AgentDetector {
 /// Scan a project folder for git worktrees.
 /// Uses `git worktree list --porcelain` for reliable parsing.
 pub fn scan_worktrees_in_folder(folder: &str) -> Result<Vec<WorktreeInfo>, String> {
-    let output = std::process::Command::new("git")
+    let output = crate::util::silent_command("git")
         .args(["worktree", "list", "--porcelain"])
         .current_dir(folder)
         .output()

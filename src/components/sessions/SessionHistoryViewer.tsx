@@ -1,5 +1,24 @@
-import React, { useMemo } from "react";
-import { useSessionHistoryStore, type SessionOutcome } from "../../store/sessionHistoryStore";
+import React, { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { RefreshCw, GitBranch, Bot, MessageSquare, Clock, Play } from "lucide-react";
+import { logError } from "../../utils/errorLogger";
+
+// ============================================================================
+// Types (matches Rust ClaudeSessionSummary)
+// ============================================================================
+
+interface ClaudeSessionSummary {
+  session_id: string;
+  title: string;
+  started_at: string;
+  ended_at: string;
+  model: string;
+  user_turns: number;
+  total_messages: number;
+  subagent_count: number;
+  git_branch: string;
+  cwd: string;
+}
 
 // ============================================================================
 // Props
@@ -7,21 +26,29 @@ import { useSessionHistoryStore, type SessionOutcome } from "../../store/session
 
 interface SessionHistoryViewerProps {
   folder: string;
+  onResumeSession?: (sessionId: string, cwd: string) => void;
 }
 
 // ============================================================================
 // Helpers
 // ============================================================================
 
-const outcomeConfig: Record<SessionOutcome, { label: string; color: string }> = {
-  success: { label: "Erfolg", color: "text-green-400" },
-  error: { label: "Fehler", color: "text-red-400" },
-  cancelled: { label: "Abgebrochen", color: "text-yellow-400" },
-  unknown: { label: "Unbekannt", color: "text-zinc-400" },
-};
+function formatDateTime(isoString: string): string {
+  if (!isoString) return "–";
+  const date = new Date(isoString);
+  return date.toLocaleString("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
-function formatDuration(ms: number | null): string {
-  if (ms === null) return "–";
+function formatDuration(startIso: string, endIso: string): string {
+  if (!startIso || !endIso) return "–";
+  const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
+  if (ms < 0) return "–";
   const seconds = Math.floor(ms / 1000);
   if (seconds < 60) return `${seconds}s`;
   const minutes = Math.floor(seconds / 60);
@@ -32,95 +59,158 @@ function formatDuration(ms: number | null): string {
   return `${hours}h ${remainingMin}m`;
 }
 
-function formatDateTime(timestamp: number): string {
-  const date = new Date(timestamp);
-  return date.toLocaleString("de-DE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function formatModel(model: string): string {
+  if (!model) return "";
+  if (model.includes("opus")) return "Opus";
+  if (model.includes("sonnet")) return "Sonnet";
+  if (model.includes("haiku")) return "Haiku";
+  return model;
+}
+
+function formatRelativeDate(isoString: string): string {
+  if (!isoString) return "";
+  const date = new Date(isoString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return "Heute";
+  if (diffDays === 1) return "Gestern";
+  if (diffDays < 7) return `Vor ${diffDays} Tagen`;
+  return formatDateTime(isoString);
 }
 
 // ============================================================================
 // Component
 // ============================================================================
 
-const SessionHistoryViewer: React.FC<SessionHistoryViewerProps> = ({ folder }) => {
-  const entries = useSessionHistoryStore((state) => state.entries);
-  const clearForProject = useSessionHistoryStore((state) => state.clearForProject);
+const SessionHistoryViewer: React.FC<SessionHistoryViewerProps> = ({ folder, onResumeSession }) => {
+  const [sessions, setSessions] = useState<ClaudeSessionSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const normalizedFolder = folder.replace(/\\/g, "/").toLowerCase();
+  const loadSessions = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await invoke<ClaudeSessionSummary[]>("scan_claude_sessions", { folder });
+      setSessions(result ?? []);
+    } catch (err) {
+      logError("SessionHistoryViewer.scanSessions", err);
+      setError(String(err));
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const filteredEntries = useMemo(
-    () =>
-      entries
-        .filter((e) => e.projectFolder === normalizedFolder)
-        .sort((a, b) => b.startedAt - a.startedAt),
-    [entries, normalizedFolder]
-  );
+  useEffect(() => {
+    loadSessions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload only on folder change
+  }, [folder]);
 
-  if (filteredEntries.length === 0) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-full text-zinc-500 text-sm py-8">
-        Noch keine Sessions aufgezeichnet
+        <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+        Sessions werden geladen...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-sm py-8 gap-2">
+        <span className="text-red-400">Fehler beim Laden: {error}</span>
+        <button
+          onClick={loadSessions}
+          className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+        >
+          Erneut versuchen
+        </button>
+      </div>
+    );
+  }
+
+  if (sessions.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full text-zinc-500 text-sm py-8">
+        Keine Claude-Sessions fuer dieses Projekt gefunden
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-2 p-2 h-full overflow-y-auto">
-      {/* Header with clear button */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-1">
         <span className="text-xs text-zinc-400">
-          {filteredEntries.length} {filteredEntries.length === 1 ? "Eintrag" : "Einträge"}
+          {sessions.length} {sessions.length === 1 ? "Session" : "Sessions"}
         </span>
         <button
-          onClick={() => clearForProject(folder)}
-          className="text-xs text-zinc-500 hover:text-red-400 transition-colors px-2 py-0.5 rounded hover:bg-zinc-800"
+          onClick={loadSessions}
+          className="text-xs text-zinc-500 hover:text-zinc-200 transition-colors px-2 py-0.5 rounded hover:bg-zinc-800"
+          title="Neu laden"
         >
-          Verlauf löschen
+          <RefreshCw className="w-3 h-3" />
         </button>
       </div>
 
-      {/* Entry list */}
+      {/* Session list */}
       <div className="flex flex-col gap-1.5">
-        {filteredEntries.map((entry) => {
-          const outcome = outcomeConfig[entry.outcome];
-          return (
-            <div
-              key={entry.id}
-              className="bg-zinc-800/50 border border-zinc-700/50 rounded-md px-3 py-2 text-sm"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-zinc-200 font-medium truncate flex-1">
-                  {entry.title}
-                </span>
-                <span className={`text-xs font-medium ${outcome.color} shrink-0`}>
-                  {outcome.label}
-                </span>
+        {sessions.map((session) => (
+          <div
+            key={session.session_id}
+            className="bg-zinc-800/50 border border-zinc-700/50 rounded-md px-3 py-2 text-sm group"
+          >
+            {/* Title + Resume button */}
+            <div className="flex items-start gap-2">
+              <div className="text-zinc-200 font-medium leading-snug line-clamp-2 flex-1">
+                {session.title}
               </div>
-              <div className="flex items-center gap-3 mt-1 text-xs text-zinc-500">
-                <span>{formatDateTime(entry.startedAt)}</span>
-                <span>{formatDuration(entry.durationMs)}</span>
-                {entry.agentCount > 0 && (
-                  <span>
-                    {entry.agentCount} {entry.agentCount === 1 ? "Agent" : "Agents"}
-                  </span>
-                )}
-                {entry.exitCode !== null && entry.exitCode !== 0 && (
-                  <span className="text-red-500">Exit {entry.exitCode}</span>
-                )}
-              </div>
-              {entry.lastOutputSnippet && (
-                <div className="mt-1 text-xs text-zinc-600 truncate">
-                  {entry.lastOutputSnippet}
-                </div>
+              {onResumeSession && (
+                <button
+                  onClick={() => onResumeSession(session.session_id, session.cwd)}
+                  className="shrink-0 mt-0.5 p-1 rounded hover:bg-emerald-600/20 text-zinc-500 hover:text-emerald-400 transition-colors opacity-0 group-hover:opacity-100"
+                  title="Session fortsetzen"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                </button>
               )}
             </div>
-          );
-        })}
+
+            {/* Metadata row */}
+            <div className="flex items-center gap-3 mt-1.5 text-xs text-zinc-500 flex-wrap">
+              <span title={formatDateTime(session.started_at)}>
+                {formatRelativeDate(session.started_at)}
+              </span>
+              <span className="flex items-center gap-1" title="Dauer">
+                <Clock className="w-3 h-3" />
+                {formatDuration(session.started_at, session.ended_at)}
+              </span>
+              <span className="flex items-center gap-1" title="User-Prompts">
+                <MessageSquare className="w-3 h-3" />
+                {session.user_turns}
+              </span>
+              {session.subagent_count > 0 && (
+                <span className="flex items-center gap-1" title="Subagents">
+                  <Bot className="w-3 h-3" />
+                  {session.subagent_count}
+                </span>
+              )}
+              {session.git_branch && (
+                <span className="flex items-center gap-1 truncate max-w-[120px]" title={session.git_branch}>
+                  <GitBranch className="w-3 h-3 shrink-0" />
+                  {session.git_branch}
+                </span>
+              )}
+              {session.model && (
+                <span className="text-zinc-600" title={session.model}>
+                  {formatModel(session.model)}
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

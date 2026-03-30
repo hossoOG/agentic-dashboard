@@ -22,15 +22,20 @@ const configTabs: { id: ConfigSubTab; label: string; icon: typeof FileText }[] =
 
 interface ConfigPanelProps {
   folder: string;
+  width?: number;
+  onResumeSession?: (sessionId: string, cwd: string) => void;
 }
 
-export function ConfigPanel({ folder }: ConfigPanelProps) {
+export function ConfigPanel({ folder, width, onResumeSession }: ConfigPanelProps) {
   const configSubTab = useUIStore((s) => s.configSubTab);
   const setConfigSubTab = useUIStore((s) => s.setConfigSubTab);
   const setConfigPanelOpen = useUIStore((s) => s.setConfigPanelOpen);
 
   return (
-    <div className="w-[400px] min-w-[300px] border-l border-neutral-700 flex flex-col min-h-0">
+    <div
+      className="border-l border-neutral-700 flex flex-col min-h-0 shrink-0"
+      style={{ width: width ?? 400 }}
+    >
       {/* Tab header */}
       <div className="flex items-center h-9 bg-surface-raised border-b border-neutral-700 shrink-0">
         <div className="flex items-center flex-1 gap-0 px-1 overflow-x-auto">
@@ -86,7 +91,7 @@ export function ConfigPanel({ folder }: ConfigPanelProps) {
           ) : configSubTab === "kanban" ? (
             <KanbanBoard folder={folder} />
           ) : configSubTab === "history" ? (
-            <SessionHistoryViewer folder={folder} />
+            <SessionHistoryViewer folder={folder} onResumeSession={onResumeSession} />
           ) : null}
         </Suspense>
       </div>

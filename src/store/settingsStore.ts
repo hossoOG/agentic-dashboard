@@ -1,7 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { tauriStorage, getLoadedFavorites, getLoadedNotes } from "./tauriStorage";
+import { tauriStorage, getLoadedFavorites, getLoadedNotes, registerNoteFlush } from "./tauriStorage";
+import { logError } from "../utils/errorLogger";
 
 // ============================================================================
 // Types
@@ -130,17 +131,54 @@ const defaultPipeline: PipelineSettings = {
 
 const isTauri = "__TAURI_INTERNALS__" in window;
 
-function saveNoteFile(noteKey: string, content: string): void {
+// Debounce note saves to prevent excessive file I/O on every keystroke
+const noteTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const NOTE_SAVE_DEBOUNCE_MS = 800;
+
+function debouncedSaveNoteFile(noteKey: string, content: string): void {
   if (!isTauri) return;
-  invoke("save_note_file", { noteKey, content }).catch((err) => {
-    console.error("[settingsStore] Failed to save note file:", err);
-  });
+  const existing = noteTimers.get(noteKey);
+  if (existing) clearTimeout(existing);
+  noteTimers.set(noteKey, setTimeout(() => {
+    noteTimers.delete(noteKey);
+    invoke("save_note_file", { noteKey, content }).catch((err) => {
+      logError("settingsStore.saveNoteFile", err);
+      window.dispatchEvent(new CustomEvent("storage-save-error", {
+        detail: { error: `Note save failed: ${err}` },
+      }));
+    });
+  }, NOTE_SAVE_DEBOUNCE_MS));
 }
+
+/** Flush all pending note saves immediately. */
+function flushPendingNoteSaves(): Promise<void> {
+  const promises: Promise<void>[] = [];
+  for (const [noteKey, timer] of noteTimers) {
+    clearTimeout(timer);
+    noteTimers.delete(noteKey);
+    // We don't have the content in the timer, so read from store state
+    const state = useSettingsStore.getState();
+    const content = noteKey === "global"
+      ? state.globalNotes
+      : state.projectNotes[noteKey] ?? "";
+    if (content) {
+      promises.push(
+        invoke("save_note_file", { noteKey, content })
+          .then(() => {})
+          .catch((err) => logError("settingsStore.noteFlush", err))
+      );
+    }
+  }
+  return Promise.all(promises).then(() => {});
+}
+
+// Register note flush so tauriStorage.flushPendingSaves() can call it
+registerNoteFlush(flushPendingNoteSaves);
 
 function saveFavoritesFile(favorites: FavoriteFolder[]): void {
   if (!isTauri) return;
   invoke("save_favorites_file", { data: JSON.stringify(favorites, null, 2) }).catch((err) => {
-    console.error("[settingsStore] Failed to save favorites file:", err);
+    logError("settingsStore.saveFavoritesFile", err);
   });
 }
 
@@ -191,13 +229,13 @@ export const useSettingsStore = create<SettingsState>()(
 
       setGlobalNotes: (notes) => {
         set({ globalNotes: notes });
-        saveNoteFile("global", notes);
+        debouncedSaveNoteFile("global", notes);
       },
 
       setProjectNotes: (folder, notes) =>
         set((state) => {
           const key = folder.replace(/\\/g, "/").toLowerCase();
-          saveNoteFile(key, notes);
+          debouncedSaveNoteFile(key, notes);
           return {
             projectNotes: { ...state.projectNotes, [key]: notes },
           };
@@ -283,13 +321,56 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: "agenticexplorer-settings",
       storage: createJSONStorage(() => tauriStorage),
+      partialize: (state) => ({
+        theme: state.theme,
+        notifications: state.notifications,
+        sound: state.sound,
+        pipeline: state.pipeline,
+        apiKeys: state.apiKeys,
+        favorites: state.favorites,
+        locale: state.locale,
+        defaultShell: state.defaultShell,
+        defaultProjectPath: state.defaultProjectPath,
+        globalNotes: state.globalNotes,
+        projectNotes: state.projectNotes,
+      }),
       version: 1,
       migrate: (persisted: unknown, _version: number) => {
-        return persisted as SettingsState;
+        // Deep-merge persisted data with defaults so new fields get defaults
+        // while existing values are preserved. This prevents undefined fields
+        // when the schema grows between app versions.
+        const defaults = {
+          theme: defaultTheme,
+          notifications: defaultNotifications,
+          sound: defaultSound,
+          pipeline: defaultPipeline,
+          apiKeys: [],
+          favorites: [],
+          locale: "de" as const,
+          defaultShell: "auto" as const,
+          defaultProjectPath: "",
+          globalNotes: "",
+          projectNotes: {},
+        };
+        if (!persisted || typeof persisted !== "object") return defaults as unknown as SettingsState;
+        const p = persisted as Record<string, unknown>;
+        return {
+          theme: { ...defaults.theme, ...(p.theme && typeof p.theme === "object" ? p.theme : {}) },
+          notifications: { ...defaults.notifications, ...(p.notifications && typeof p.notifications === "object" ? p.notifications : {}) },
+          sound: { ...defaults.sound, ...(p.sound && typeof p.sound === "object" ? p.sound : {}) },
+          pipeline: { ...defaults.pipeline, ...(p.pipeline && typeof p.pipeline === "object" ? p.pipeline : {}) },
+          apiKeys: Array.isArray(p.apiKeys) ? p.apiKeys : defaults.apiKeys,
+          favorites: Array.isArray(p.favorites) ? p.favorites : defaults.favorites,
+          locale: p.locale === "de" || p.locale === "en" ? p.locale : defaults.locale,
+          defaultShell: ["auto", "powershell", "bash", "cmd", "zsh"].includes(p.defaultShell as string) ? p.defaultShell : defaults.defaultShell,
+          defaultProjectPath: typeof p.defaultProjectPath === "string" ? p.defaultProjectPath : defaults.defaultProjectPath,
+          globalNotes: typeof p.globalNotes === "string" ? p.globalNotes : defaults.globalNotes,
+          projectNotes: p.projectNotes && typeof p.projectNotes === "object" && !Array.isArray(p.projectNotes) ? p.projectNotes : defaults.projectNotes,
+        } as unknown as SettingsState; // Actions are added by Zustand during merge
       },
       onRehydrateStorage: () => (_state, error) => {
         if (error) {
-          console.error("[settingsStore] Hydration error:", error);
+          logError("settingsStore.hydration", error);
           return;
         }
         // Merge favorites and notes from their dedicated files.

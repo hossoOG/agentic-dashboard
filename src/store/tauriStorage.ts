@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { StateStorage } from "zustand/middleware";
+import { logError, logWarn } from "../utils/errorLogger";
 
 /**
  * Custom Zustand storage adapter that persists to Documents/AgenticExplorer/settings.json
@@ -14,6 +15,9 @@ const isTauri = "__TAURI_INTERNALS__" in window;
 const cache = new Map<string, string>();
 
 let initialized = false;
+
+const pendingSaves = new Map<string, ReturnType<typeof setTimeout>>();
+const SAVE_DEBOUNCE_MS = 300; // coalesce rapid writes
 
 // Loaded favorites and notes from their dedicated files (available after init)
 let loadedFavorites: unknown[] | null = null;
@@ -41,7 +45,7 @@ export function initTauriStorage(): Promise<void> {
         try {
           loadedFavorites = JSON.parse(favoritesData);
         } catch {
-          console.warn("[tauriStorage] Failed to parse favorites.json");
+          logWarn("tauriStorage", "Failed to parse favorites.json");
         }
       }
 
@@ -58,7 +62,7 @@ export function initTauriStorage(): Promise<void> {
           }
           loadedNotes = { global: globalNotes, project: projectNotes };
         } catch {
-          console.warn("[tauriStorage] Failed to parse notes");
+          logWarn("tauriStorage", "Failed to parse notes");
         }
       }
     })
@@ -66,7 +70,7 @@ export function initTauriStorage(): Promise<void> {
       initialized = true;
     })
     .catch((err) => {
-      console.warn("[tauriStorage] Failed to load settings from disk:", err);
+      logWarn("tauriStorage", `Failed to load settings from disk: ${err}`);
       initialized = true;
     });
 
@@ -94,7 +98,7 @@ export const tauriStorage: StateStorage = {
       return value;
     }
     if (!initialized) {
-      console.warn("[tauriStorage] getItem called before init completed for:", name);
+      logWarn("tauriStorage", `getItem called before init completed for: ${name}`);
     }
     const cached = cache.get(name);
     // Migration: fall back to old persist key if new key has no data
@@ -110,14 +114,25 @@ export const tauriStorage: StateStorage = {
       return;
     }
     cache.set(name, value);
-    invoke("save_user_settings", { data: value }).catch((err) => {
-      console.error("[tauriStorage] Save failed, retrying:", err);
-      setTimeout(() => {
-        invoke("save_user_settings", { data: value }).catch((err2) => {
-          console.error("[tauriStorage] Retry also failed:", err2);
-        });
-      }, 1000);
-    });
+
+    // Per-key debounce: coalesce rapid writes, always save latest value
+    const existing = pendingSaves.get(name);
+    if (existing) clearTimeout(existing);
+    pendingSaves.set(name, setTimeout(() => {
+      pendingSaves.delete(name);
+      const latestValue = cache.get(name) ?? value;
+      invoke("save_user_settings", { data: latestValue }).catch((err) => {
+        logError("tauriStorage.save", err);
+        setTimeout(() => {
+          invoke("save_user_settings", { data: cache.get(name) ?? latestValue }).catch((err2) => {
+            logError("tauriStorage.saveRetry", err2);
+            window.dispatchEvent(new CustomEvent("storage-save-error", {
+              detail: { error: String(err2) },
+            }));
+          });
+        }, 1000);
+      });
+    }, SAVE_DEBOUNCE_MS));
   },
 
   removeItem(name: string): void {
@@ -126,8 +141,38 @@ export const tauriStorage: StateStorage = {
       return;
     }
     cache.delete(name);
-    invoke("save_user_settings", { data: "{}" }).catch((err) => {
-      console.error("[tauriStorage] Failed to clear settings:", err);
-    });
+    // Do NOT write empty object to disk — just clear the cache.
+    // The next save will write the correct state.
+    logWarn("tauriStorage", `removeItem called for: ${name}`);
   },
 };
+
+/** Flush any pending settings saves immediately. Call before app close. */
+export function flushPendingSaves(): Promise<void> {
+  if (!isTauri) return Promise.resolve();
+  // Cancel all pending debounced saves and fire them immediately
+  const promises: Promise<void>[] = [];
+  for (const [name, timer] of pendingSaves) {
+    clearTimeout(timer);
+    pendingSaves.delete(name);
+    const latestValue = cache.get(name);
+    if (latestValue) {
+      promises.push(
+        invoke("save_user_settings", { data: latestValue })
+          .then(() => {})
+          .catch((err) => logError("tauriStorage.flush", err))
+      );
+    }
+  }
+  // Also flush note timers from settingsStore (injected via registerNoteFlush)
+  if (_noteFlushFn) {
+    promises.push(_noteFlushFn());
+  }
+  return Promise.all(promises).then(() => {});
+}
+
+// Allow settingsStore to register its note-flush function to avoid circular imports
+let _noteFlushFn: (() => Promise<void>) | null = null;
+export function registerNoteFlush(fn: () => Promise<void>): void {
+  _noteFlushFn = fn;
+}

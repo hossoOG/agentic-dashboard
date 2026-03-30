@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Settings directory: Documents/AgenticExplorer/
 fn settings_dir() -> Result<PathBuf, String> {
@@ -34,44 +34,163 @@ fn sanitize_note_filename(folder_key: &str) -> String {
         .to_string()
 }
 
+/// Write data to a file atomically via a temp file + rename.
+/// This prevents corruption if the app crashes mid-write.
+fn atomic_write(path: &Path, data: &str) -> Result<(), String> {
+    let temp = path.with_extension("tmp");
+    std::fs::write(&temp, data)
+        .map_err(|e| format!("Failed to write temp file: {}", e))?;
+    std::fs::rename(&temp, path).map_err(|e| {
+        // Clean up temp file on rename failure
+        let _ = std::fs::remove_file(&temp);
+        format!("Failed to rename temp to target: {}", e)
+    })
+}
+
+/// Rotate up to `max_backups` backup copies before overwriting a file.
+/// Pattern: file.backup.3.json -> deleted, .2 -> .3, .1 -> .2, original -> .1 (copy).
+fn create_backup(path: &Path, max_backups: u32) {
+    if !path.exists() {
+        return;
+    }
+
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("json");
+    let stem = path.with_extension("");
+
+    // Delete the oldest backup if it exists
+    let oldest = PathBuf::from(format!(
+        "{}.backup.{}.{}",
+        stem.display(),
+        max_backups,
+        ext
+    ));
+    if oldest.exists() {
+        let _ = std::fs::remove_file(&oldest);
+    }
+
+    // Shift existing backups up by one slot (N-1 -> N, ... , 1 -> 2)
+    for i in (1..max_backups).rev() {
+        let from = PathBuf::from(format!("{}.backup.{}.{}", stem.display(), i, ext));
+        let to = PathBuf::from(format!("{}.backup.{}.{}", stem.display(), i + 1, ext));
+        if from.exists() {
+            let _ = std::fs::rename(&from, &to);
+        }
+    }
+
+    // Copy the current file into backup slot 1 (copy, not move!)
+    let first_backup = PathBuf::from(format!("{}.backup.1.{}", stem.display(), ext));
+    if let Err(e) = std::fs::copy(path, &first_backup) {
+        log::warn!("Failed to create backup of {}: {}", path.display(), e);
+    }
+}
+
+/// Load a JSON file with fallback to backup copies.
+/// If the primary file is missing or contains invalid JSON, tries backup.1, .2, .3.
+/// Returns empty string if nothing is recoverable (fresh start).
+fn load_with_fallback(path: &Path, label: &str) -> Result<String, String> {
+    // Try primary file first
+    if path.exists() {
+        match std::fs::read_to_string(path) {
+            Ok(content) => {
+                if serde_json::from_str::<serde_json::Value>(&content).is_ok() {
+                    return Ok(content);
+                }
+                log::warn!(
+                    "{}: primary file has invalid JSON, trying backups",
+                    label
+                );
+            }
+            Err(e) => {
+                log::warn!("{}: failed to read primary file: {}, trying backups", label, e);
+            }
+        }
+    }
+
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("json");
+    let stem = path.with_extension("");
+
+    // Try backup files 1..3
+    for i in 1..=3 {
+        let backup = PathBuf::from(format!("{}.backup.{}.{}", stem.display(), i, ext));
+        if !backup.exists() {
+            continue;
+        }
+        match std::fs::read_to_string(&backup) {
+            Ok(content) => {
+                if serde_json::from_str::<serde_json::Value>(&content).is_ok() {
+                    log::warn!(
+                        "{}: recovered from backup {}",
+                        label,
+                        backup.display()
+                    );
+                    return Ok(content);
+                }
+                log::warn!(
+                    "{}: backup {} also has invalid JSON, skipping",
+                    label,
+                    backup.display()
+                );
+            }
+            Err(e) => {
+                log::warn!(
+                    "{}: failed to read backup {}: {}",
+                    label,
+                    backup.display(),
+                    e
+                );
+            }
+        }
+    }
+
+    log::warn!(
+        "{}: all files corrupt or missing, returning empty (fresh start)",
+        label
+    );
+    Ok(String::new())
+}
+
 #[allow(clippy::module_inception)]
 pub mod commands {
     use super::*;
 
     /// Load settings JSON from Documents/AgenticExplorer/settings.json
     /// Returns empty string if file doesn't exist yet (first run).
+    /// Falls back to backup files if primary is missing or corrupt.
     #[tauri::command]
     pub async fn load_user_settings() -> Result<String, String> {
         let path = settings_path()?;
-        if !path.exists() {
-            return Ok(String::new());
-        }
-        std::fs::read_to_string(&path).map_err(|e| format!("Failed to read settings: {}", e))
+        load_with_fallback(&path, "settings")
     }
 
     /// Save settings JSON to Documents/AgenticExplorer/settings.json
     #[tauri::command]
     pub async fn save_user_settings(data: String) -> Result<(), String> {
         let path = settings_path()?;
-        std::fs::write(&path, data).map_err(|e| format!("Failed to write settings: {}", e))
+        create_backup(&path, 3);
+        atomic_write(&path, &data)
     }
 
     /// Load favorites JSON from Documents/AgenticExplorer/favorites.json
     /// Returns empty string if file doesn't exist yet.
+    /// Falls back to backup files if primary is missing or corrupt.
     #[tauri::command]
     pub async fn load_favorites_file() -> Result<String, String> {
         let path = settings_dir()?.join("favorites.json");
-        if !path.exists() {
-            return Ok(String::new());
-        }
-        std::fs::read_to_string(&path).map_err(|e| format!("Failed to read favorites file: {}", e))
+        load_with_fallback(&path, "favorites")
     }
 
     /// Save favorites list as JSON to Documents/AgenticExplorer/favorites.json
     #[tauri::command]
     pub async fn save_favorites_file(data: String) -> Result<(), String> {
         let path = settings_dir()?.join("favorites.json");
-        std::fs::write(&path, data).map_err(|e| format!("Failed to write favorites file: {}", e))
+        create_backup(&path, 3);
+        atomic_write(&path, &data)
     }
 
     /// Load all notes from Documents/AgenticExplorer/notes/
@@ -122,6 +241,6 @@ pub mod commands {
             return Ok(());
         }
 
-        std::fs::write(&path, &content).map_err(|e| format!("Failed to write note file: {}", e))
+        atomic_write(&path, &content)
     }
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { SessionList } from "./SessionList";
@@ -14,11 +14,13 @@ import { useSessionStore, selectActiveSession } from "../../store/sessionStore";
 import { useSettingsStore } from "../../store/settingsStore";
 import { useUIStore } from "../../store/uiStore";
 import { useAgentStore } from "../../store/agentStore";
+import { logError } from "../../utils/errorLogger";
 import type { FavoriteFolder } from "../../store/settingsStore";
 import type { SessionShell } from "../../store/sessionStore";
 
 export function SessionManagerView() {
   const [showNewDialog, setShowNewDialog] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const configPanelOpen = useUIStore((s) => s.configPanelOpen);
   const toggleConfigPanel = useUIStore((s) => s.toggleConfigPanel);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
@@ -30,6 +32,37 @@ export function SessionManagerView() {
   const setFocusedGridSession = useSessionStore((s) => s.setFocusedGridSession);
   const maximizeGridSession = useSessionStore((s) => s.maximizeGridSession);
   const removeFromGrid = useSessionStore((s) => s.removeFromGrid);
+  const configPanelWidth = useUIStore((s) => s.configPanelWidth);
+  const setConfigPanelWidth = useUIStore((s) => s.setConfigPanelWidth);
+
+  // --- Resize handle logic ---
+  const isDragging = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isDragging.current = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!isDragging.current || !containerRef.current) return;
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const newWidth = containerRect.right - ev.clientX;
+      setConfigPanelWidth(newWidth);
+    };
+
+    const onMouseUp = () => {
+      isDragging.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  }, [setConfigPanelWidth]);
 
   // Register Tauri event listeners for session lifecycle
   useEffect(() => {
@@ -45,7 +78,7 @@ export function SessionManagerView() {
           const snippet = data.slice(-200);
           useSessionStore.getState().updateLastOutput(id, snippet);
         } catch (err) {
-          console.error("[SessionManagerView] session-output handler error:", err);
+          logError("SessionManagerView.sessionOutput", err);
         }
       })
     );
@@ -59,7 +92,7 @@ export function SessionManagerView() {
           if (typeof id !== "string" || exitCode == null) return;
           useSessionStore.getState().setExitCode(id, exitCode);
         } catch (err) {
-          console.error("[SessionManagerView] session-exit handler error:", err);
+          logError("SessionManagerView.sessionExit", err);
         }
       })
     );
@@ -81,7 +114,7 @@ export function SessionManagerView() {
             useSessionStore.getState().updateStatus(id, status);
           }
         } catch (err) {
-          console.error("[SessionManagerView] session-status handler error:", err);
+          logError("SessionManagerView.sessionStatus", err);
         }
       })
     );
@@ -110,7 +143,7 @@ export function SessionManagerView() {
             worktreePath: null,
           });
         } catch (err) {
-          console.error("[SessionManagerView] agent-detected handler error:", err);
+          logError("SessionManagerView.agentDetected", err);
         }
       })
     );
@@ -133,7 +166,7 @@ export function SessionManagerView() {
             p.completed_at ?? Date.now()
           );
         } catch (err) {
-          console.error("[SessionManagerView] agent-completed handler error:", err);
+          logError("SessionManagerView.agentCompleted", err);
         }
       })
     );
@@ -157,15 +190,41 @@ export function SessionManagerView() {
             active: true,
           });
         } catch (err) {
-          console.error("[SessionManagerView] worktree-detected handler error:", err);
+          logError("SessionManagerView.worktreeDetected", err);
         }
       })
     );
 
     return () => {
-      unlisteners.forEach((p) => p.then((unlisten) => unlisten()).catch(console.error));
+      unlisteners.forEach((p) => p.then((unlisten) => unlisten()).catch((e) => logError("SessionManagerView.cleanup", e)));
     };
   }, []);
+
+  async function handleResumeSession(resumeSessionId: string, cwd: string) {
+    const id = `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const title = "Resume Session";
+    const shell = "powershell";
+
+    try {
+      const result = await invoke<{ id: string; title: string; folder: string; shell: string }>("create_session", {
+        id,
+        folder: cwd,
+        title,
+        shell,
+        resumeSessionId,
+      });
+
+      const sessionId = result?.id ?? id;
+      useSessionStore.getState().addSession({
+        id: sessionId,
+        title: result?.title ?? title,
+        folder: result?.folder ?? cwd,
+        shell: (result?.shell ?? shell) as SessionShell,
+      });
+    } catch (err) {
+      logError("SessionManagerView.resumeSession", err);
+    }
+  }
 
   async function handleQuickStart(favorite: FavoriteFolder) {
     const id = `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -190,17 +249,27 @@ export function SessionManagerView() {
       });
       useSettingsStore.getState().updateFavoriteLastUsed(favorite.id);
     } catch (err) {
-      console.error("[SessionManagerView] Quick start failed:", err);
+      logError("SessionManagerView.quickStart", err);
     }
   }
 
   return (
     <div className="flex flex-col h-full">
       <div className="flex flex-1 min-h-0">
-        {/* Left column: Session list */}
-        <div className="w-[280px] min-w-[280px] border-r border-neutral-700 flex flex-col min-h-0">
-          <SessionList onNewSession={() => setShowNewDialog(true)} onQuickStart={handleQuickStart} />
-        </div>
+        {/* Left column: Session list (collapsible) */}
+        {!sidebarCollapsed && (
+          <div className="w-[280px] min-w-[280px] border-r border-neutral-700 flex flex-col min-h-0">
+            <SessionList onNewSession={() => setShowNewDialog(true)} onQuickStart={handleQuickStart} />
+          </div>
+        )}
+        {/* Sidebar toggle */}
+        <button
+          onClick={() => setSidebarCollapsed((v) => !v)}
+          className="w-5 shrink-0 flex items-center justify-center border-r border-neutral-700 bg-surface-raised hover:bg-hover-overlay text-neutral-500 hover:text-neutral-200 transition-colors"
+          title={sidebarCollapsed ? "Sidebar einblenden" : "Sidebar ausblenden"}
+        >
+          <span className="text-[10px]">{sidebarCollapsed ? "▶" : "◀"}</span>
+        </button>
 
         {/* Right column: Terminal + optional Config panel */}
         <div className="flex-1 min-w-0 flex flex-col">
@@ -220,7 +289,7 @@ export function SessionManagerView() {
           <div className="flex-1 min-h-0">
             {layoutMode === "single" ? (
               activeSessionId ? (
-                <div className="flex flex-row h-full">
+                <div className="flex flex-row h-full" ref={containerRef}>
                   {/* Terminal — always rendered, flex-1 */}
                   <div className="flex-1 min-w-0 flex flex-col">
                     <div className="flex-1 min-h-0">
@@ -229,9 +298,16 @@ export function SessionManagerView() {
                     <AgentBottomPanel sessionId={activeSessionId} />
                   </div>
 
-                  {/* Config panel — conditionally shown */}
+                  {/* Resize handle + Config panel — conditionally shown */}
                   {configPanelOpen && (
-                    <ConfigPanel folder={activeSession?.folder ?? ""} />
+                    <>
+                      <div
+                        onMouseDown={handleResizeStart}
+                        className="w-1 cursor-col-resize bg-neutral-700 hover:bg-accent transition-colors shrink-0"
+                        title="Breite anpassen"
+                      />
+                      <ConfigPanel folder={activeSession?.folder ?? ""} width={configPanelWidth} onResumeSession={handleResumeSession} />
+                    </>
                   )}
                 </div>
               ) : (

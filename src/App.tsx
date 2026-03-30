@@ -7,6 +7,7 @@ import { useLogViewerStore } from "./store/logViewerStore";
 import { installGlobalErrorHandlers } from "./utils/globalErrorHandler";
 import { useThemeEffect } from "./hooks/useThemeEffect";
 import { initSessionHistoryListener } from "./store/sessionHistoryStore";
+import { flushPendingSaves } from "./store/tauriStorage";
 
 function App() {
   useThemeEffect();
@@ -21,6 +22,18 @@ function App() {
 
     // Install global error handlers once
     installGlobalErrorHandlers();
+
+    // Flush pending saves on window close to prevent data loss.
+    // Use Tauri's close-requested event which supports async (unlike beforeunload).
+    let unlistenClose: (() => void) | undefined;
+    import("@tauri-apps/api/window").then(({ getCurrentWindow }) => {
+      getCurrentWindow().onCloseRequested(async () => {
+        await flushPendingSaves();
+      }).then((fn) => { unlistenClose = fn; });
+    }).catch(() => {
+      // Fallback for non-Tauri environments (dev browser)
+      window.addEventListener("beforeunload", () => { flushPendingSaves(); });
+    });
 
     // Start session history listener (records completed sessions)
     const unsubscribeHistory = initSessionHistoryListener();
@@ -55,6 +68,7 @@ function App() {
 
     return () => {
       unlisten?.();
+      unlistenClose?.();
       unsubscribeHistory();
       listenerActive.current = false;
     };

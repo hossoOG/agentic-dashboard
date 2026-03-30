@@ -1,6 +1,6 @@
 // src-tauri/src/session/folder_actions.rs
 
-use std::process::Command;
+use crate::util::silent_command;
 
 // Commands im mod-Block wegen rustc 1.94 E0255 Workaround (siehe CLAUDE.md)
 #[allow(clippy::module_inception)]
@@ -16,21 +16,21 @@ pub mod commands {
 
         #[cfg(target_os = "windows")]
         {
-            Command::new("explorer")
+            silent_command("explorer")
                 .arg(&path)
                 .spawn()
                 .map_err(|e| format!("Failed to open Explorer: {}", e))?;
         }
         #[cfg(target_os = "macos")]
         {
-            Command::new("open")
+            silent_command("open")
                 .arg(&path)
                 .spawn()
                 .map_err(|e| format!("Failed to open Finder: {}", e))?;
         }
         #[cfg(target_os = "linux")]
         {
-            Command::new("xdg-open")
+            silent_command("xdg-open")
                 .arg(&path)
                 .spawn()
                 .map_err(|e| format!("Failed to open file manager: {}", e))?;
@@ -52,7 +52,7 @@ pub mod commands {
 
         #[cfg(target_os = "windows")]
         {
-            Command::new("cmd")
+            silent_command("cmd")
                 .args([
                     "/C",
                     "start",
@@ -67,14 +67,14 @@ pub mod commands {
         }
         #[cfg(target_os = "macos")]
         {
-            Command::new("open")
+            silent_command("open")
                 .args(["-a", "Terminal", &path])
                 .spawn()
                 .map_err(|e| format!("Failed to open Terminal: {}", e))?;
         }
         #[cfg(target_os = "linux")]
         {
-            Command::new("x-terminal-emulator")
+            silent_command("x-terminal-emulator")
                 .current_dir(&path)
                 .spawn()
                 .map_err(|e| format!("Failed to open terminal: {}", e))?;
