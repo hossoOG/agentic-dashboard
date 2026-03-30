@@ -26,7 +26,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     logError("ErrorBoundary", error);
-    console.error("[ErrorBoundary] Component stack:", errorInfo.componentStack);
+    logError("ErrorBoundary", errorInfo.componentStack ?? "Unknown component stack");
     useUIStore.getState().addToast({
       type: "error",
       title: "Fehler",

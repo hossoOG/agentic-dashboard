@@ -10,6 +10,7 @@ import {
   Loader2,
   AlertCircle,
 } from "lucide-react";
+import { logError } from "../../utils/errorLogger";
 import { useWorkflowStore, selectWorkflowsForFolder } from "../../store/workflowStore";
 import { useSessionStore, selectActiveSession } from "../../store/sessionStore";
 import { useUIStore } from "../../store/uiStore";
@@ -177,7 +178,7 @@ export function WorkflowLauncher() {
                 await new Promise((r) => setTimeout(r, delayMs));
                 await writeWithRetry(retriesLeft - 1, delayMs * 1.5);
               } else {
-                console.error("[WorkflowLauncher] write_session failed after retries:", err);
+                logError("WorkflowLauncher.writeSession", err);
               }
             }
           };

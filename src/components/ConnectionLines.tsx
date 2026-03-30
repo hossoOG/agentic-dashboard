@@ -38,12 +38,12 @@ function DataPacket({ path, color, delay = 0 }: { path: string; color: string; d
 export function ConnectionLines({ worktreeCount, dimensions, orchestratorStatus, qaStatus, worktrees }: Props) {
   const { width, height } = dimensions;
 
-  const orchestratorY = 80 + 120; // approx bottom of orchestrator node
-  const worktreeY = height / 2;
-  const qaY = height - 80 - 10; // approx top of QA gate node
-
   const lines = useMemo(() => {
     if (worktreeCount === 0) return { orchToWorktrees: [], worktreesToQA: [] };
+
+    const oY = 80 + 120;
+    const wY = height / 2;
+    const qY = height - 80 - 10;
 
     const orchX = width / 2;
     const spacing = Math.min(220, (width - 100) / worktreeCount);
@@ -51,16 +51,16 @@ export function ConnectionLines({ worktreeCount, dimensions, orchestratorStatus,
 
     const orchToWorktrees = Array.from({ length: worktreeCount }, (_, i) => {
       const x = startX + i * spacing;
-      return { x1: orchX, y1: orchestratorY, x2: x, y2: worktreeY - 130 };
+      return { x1: orchX, y1: oY, x2: x, y2: wY - 130 };
     });
 
     const worktreesToQA = Array.from({ length: worktreeCount }, (_, i) => {
       const x = startX + i * spacing;
-      return { x1: x, y1: worktreeY + 130, x2: orchX, y2: qaY };
+      return { x1: x, y1: wY + 130, x2: orchX, y2: qY };
     });
 
     return { orchToWorktrees, worktreesToQA };
-  }, [worktreeCount, width, height, orchestratorY, worktreeY, qaY]);
+  }, [worktreeCount, width, height]);
 
   const isOrchActive = orchestratorStatus !== "idle";
   const isQAActive = qaStatus === "running";

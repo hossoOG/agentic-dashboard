@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { RefreshCw, Webhook, ChevronDown, ChevronRight } from "lucide-react";
+import { logError } from "../../utils/errorLogger";
 
 interface HooksViewerProps {
   folder: string;
@@ -142,7 +143,7 @@ export function HooksViewer({ folder }: HooksViewerProps) {
         return next;
       });
     } catch (err) {
-      console.error("[HooksViewer] Failed to load:", err);
+      logError("HooksViewer.load", err);
       setSections([]);
     } finally {
       setLoading(false);

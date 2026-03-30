@@ -129,7 +129,7 @@ export function LibraryView() {
 
   useEffect(() => {
     scanAllFavorites();
-  }, []);
+  }, [scanAllFavorites]);
 
   const toggleExpand = (path: string) => {
     setExpandedPath((prev) => (prev === path ? null : path));

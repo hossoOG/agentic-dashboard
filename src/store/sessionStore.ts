@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { logWarn } from "../utils/errorLogger";
 
 // ============================================================================
 // Types
@@ -83,7 +84,7 @@ export const useSessionStore = create<SessionState>((set) => ({
     set((state) => {
       if (state.sessions.some((s) => s.id === params.id)) return state;
       if (state.sessions.length >= MAX_SESSIONS) {
-        console.warn(`[sessionStore] Max sessions (${MAX_SESSIONS}) erreicht.`);
+        logWarn("sessionStore", `Max sessions (${MAX_SESSIONS}) erreicht.`);
         return state;
       }
       const session: ClaudeSession = {

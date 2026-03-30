@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react";
 
 /** Shared module-level timer — one setInterval for all subscribers. */
 let now = Date.now();
-let listeners = new Set<() => void>();
+const listeners = new Set<() => void>();
 let intervalId: ReturnType<typeof setInterval> | null = null;
 
 function startTimer() {

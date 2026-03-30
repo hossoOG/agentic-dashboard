@@ -84,7 +84,7 @@ export function NotesPanel() {
         setActiveTab("global");
       }
     }
-  }, [open, activeSession, availableFolders.length]);
+  }, [open, activeSession, availableFolders, selectedFolder]);
 
   // Click outside to close
   useEffect(() => {

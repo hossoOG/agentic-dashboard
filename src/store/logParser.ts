@@ -1,5 +1,6 @@
 import { usePipelineStore } from "./pipelineStore";
 import type { WorktreeStep, WorktreeStatus } from "./pipelineStore";
+import { logError } from "../utils/errorLogger";
 
 export interface ParsedEvent {
   type:
@@ -54,7 +55,7 @@ const PATTERNS = [
 export function parseLogLine(line: string, worktreeId?: string): ParsedEvent[] {
   // Defensive: return empty array for null/undefined/non-string input
   if (line == null || typeof line !== "string") {
-    console.error("[logParser] parseLogLine called with non-string input:", typeof line);
+    logError("logParser.parseLogLine", `called with non-string input: ${typeof line}`);
     return [];
   }
 
@@ -105,7 +106,7 @@ export function parseLogLine(line: string, worktreeId?: string): ParsedEvent[] {
 
     return events;
   } catch (err) {
-    console.error("[logParser] parseLogLine threw unexpectedly:", err);
+    logError("logParser.parseLogLine", err);
     return [];
   }
 }
@@ -159,10 +160,10 @@ export function applyParsedEvents(events: ParsedEvent[]): void {
             break;
         }
       } catch (eventErr) {
-        console.error(`[logParser] Error applying event ${event.type}:`, eventErr);
+        logError(`logParser.applyEvent(${event.type})`, eventErr);
       }
     }
   } catch (err) {
-    console.error("[logParser] applyParsedEvents threw unexpectedly:", err);
+    logError("logParser.applyParsedEvents", err);
   }
 }

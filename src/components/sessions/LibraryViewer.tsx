@@ -17,6 +17,7 @@ import {
   type LibraryItemType,
 } from "../../store/libraryStore";
 import { useUIStore } from "../../store/uiStore";
+import { logError } from "../../utils/errorLogger";
 
 interface LibraryViewerProps {
   folder?: string;
@@ -57,7 +58,7 @@ export function LibraryViewer({ folder = "" }: LibraryViewerProps) {
 
   useEffect(() => {
     fetchItems();
-  }, []);
+  }, [fetchItems]);
 
   const filteredItems = useMemo(() => {
     let result = items;
@@ -300,7 +301,7 @@ function ItemDetail({
   useEffect(() => {
     loadItemContent(item.id);
     setConfirmDelete(false);
-  }, [item.id]);
+  }, [item.id, loadItemContent]);
 
   const handleCopyPath = async () => {
     try {
@@ -314,7 +315,7 @@ function ItemDetail({
         message: path,
       });
     } catch (err) {
-      console.error("Failed to copy path:", err);
+      logError("LibraryViewer.copyPath", err);
     }
   };
 

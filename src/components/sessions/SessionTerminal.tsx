@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
+import { logError } from "../../utils/errorLogger";
 import "@xterm/xterm/css/xterm.css";
 
 interface SessionTerminalProps {
@@ -40,7 +41,7 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
     // Input: User types -> send to backend
     term.onData((data: string) => {
       invoke("write_session", { id: sessionId, data }).catch((err) => {
-        console.error("[SessionTerminal] write_session failed:", err);
+        logError("SessionTerminal.writeSession", err);
       });
     });
 

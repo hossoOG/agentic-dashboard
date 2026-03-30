@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { RefreshCw, FileText } from "lucide-react";
+import { logError } from "../../utils/errorLogger";
 
 interface ClaudeMdViewerProps {
   folder: string;
@@ -19,7 +20,7 @@ export function ClaudeMdViewer({ folder }: ClaudeMdViewerProps) {
       });
       setContent(text || null);
     } catch (err) {
-      console.error("[ClaudeMdViewer] Failed to load:", err);
+      logError("ClaudeMdViewer.load", err);
       setContent(null);
     } finally {
       setLoading(false);
@@ -28,6 +29,7 @@ export function ClaudeMdViewer({ folder }: ClaudeMdViewerProps) {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload only on folder change
   }, [folder]);
 
   if (loading) {

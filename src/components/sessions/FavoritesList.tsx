@@ -2,6 +2,7 @@ import { FolderPlus } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useSettingsStore } from "../../store/settingsStore";
+import { logError } from "../../utils/errorLogger";
 import { FavoriteCard } from "./FavoriteCard";
 import type { FavoriteFolder } from "../../store/settingsStore";
 
@@ -31,7 +32,7 @@ export function FavoritesList({ onQuickStart }: FavoritesListProps) {
         addFavorite(selected);
       }
     } catch (err) {
-      console.error("[FavoritesList] Folder picker error:", err);
+      logError("FavoritesList.folderPicker", err);
     }
   }
 

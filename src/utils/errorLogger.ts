@@ -42,17 +42,17 @@ function addEntry(entry: LogEntry): void {
   // Notify subscriber
   subscriber?.(entry);
 
-  // Mirror to console
+  // Mirror to console (intentional — this IS the logging sink)
   const formatted = formatEntry(entry);
   switch (entry.severity) {
     case "error":
-      console.error(formatted, entry.stack ?? "");
+      console.error(formatted, entry.stack ?? ""); // eslint-disable-line no-console
       break;
     case "warn":
-      console.warn(formatted);
+      console.warn(formatted); // eslint-disable-line no-console
       break;
     case "info":
-      console.info(formatted);
+      console.info(formatted); // eslint-disable-line no-console
       break;
   }
 }

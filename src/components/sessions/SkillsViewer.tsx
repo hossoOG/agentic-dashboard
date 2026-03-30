@@ -51,6 +51,7 @@ export function SkillsViewer({ folder }: SkillsViewerProps) {
     setSearch("");
     setFilter("alle");
     loadSkills();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload only on folder change
   }, [folder]);
 
   const filteredSkills = useMemo(() => {
