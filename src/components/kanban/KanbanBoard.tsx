@@ -5,9 +5,6 @@ import { KanbanCard, type KanbanIssue } from "./KanbanCard";
 import { KanbanDetailModal } from "./KanbanDetailModal";
 import { logError } from "../../utils/errorLogger";
 
-/** Shared drag state (avoids dataTransfer issues in WebView2) */
-let draggedIssueNumber: number | null = null;
-
 interface KanbanBoardProps {
   folder: string;
 }
@@ -65,6 +62,8 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   const [moving, setMoving] = useState<number | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
+  /** Drag state per instance (avoids dataTransfer issues in WebView2) */
+  const draggedIssueNumberRef = useRef<number | null>(null);
   const mountedRef = useRef(true);
 
   const load = useCallback(
@@ -112,8 +111,8 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
       e.preventDefault();
       setDragOverColumn(null);
 
-      const issueNumber = draggedIssueNumber;
-      draggedIssueNumber = null;
+      const issueNumber = draggedIssueNumberRef.current;
+      draggedIssueNumberRef.current = null;
       if (issueNumber == null) return;
 
       // Check if already in this lane
@@ -247,7 +246,7 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
                         issue={issue}
                         onClick={() => setSelectedIssue(issue.number)}
                         onDragStart={() => {
-                          draggedIssueNumber = issue.number;
+                          draggedIssueNumberRef.current = issue.number;
                         }}
                       />
                     </div>
