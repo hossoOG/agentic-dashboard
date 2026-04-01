@@ -10,6 +10,10 @@ use std::sync::OnceLock;
 /// Maximum buffer size for rolling output window (in chars).
 const MAX_BUFFER: usize = 4000;
 
+/// Maximum number of completed/errored agents to keep in memory.
+/// Running agents are never pruned.
+const MAX_COMPLETED_AGENTS: usize = 50;
+
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct AgentInfo {
     pub id: String,
@@ -251,7 +255,31 @@ impl AgentDetector {
         }
 
         self.last_processed_len = self.buffer.len();
+        self.prune_completed_agents();
         events
+    }
+
+    /// Remove the oldest completed/errored agents when the map exceeds the threshold.
+    /// Running agents are never pruned.
+    fn prune_completed_agents(&mut self) {
+        // Collect completed agents sorted by completion time (oldest first)
+        let mut completed: Vec<(String, i64)> = self
+            .known_agents
+            .iter()
+            .filter(|(_, a)| a.status != "running")
+            .map(|(id, a)| (id.clone(), a.completed_at.unwrap_or(a.detected_at)))
+            .collect();
+
+        if completed.len() <= MAX_COMPLETED_AGENTS {
+            return;
+        }
+
+        completed.sort_by_key(|(_, ts)| *ts);
+
+        let to_remove = completed.len() - MAX_COMPLETED_AGENTS;
+        for (id, _) in completed.into_iter().take(to_remove) {
+            self.known_agents.remove(&id);
+        }
     }
 
     /// Find the most recently spawned agent that's still running.
