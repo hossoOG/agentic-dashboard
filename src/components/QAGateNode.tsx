@@ -32,7 +32,7 @@ export function QAGateNode({ qaGate }: Props) {
       animate={{
         scale: isRunning ? [1, 1.01, 1] : 1,
       }}
-      transition={{ duration: DURATION.ambient / 5, repeat: isRunning ? Infinity : 0, ease: EASE.out as unknown as string }}
+      transition={{ duration: DURATION.ambient / 5, repeat: isRunning ? Infinity : 0, ease: EASE.out }}
       className={`rounded-none border-2 bg-surface-raised overflow-hidden w-96 retro-terminal ${overallStyle.border} ${overallStyle.text} ${glowClass}`}
     >
       {/* Header */}

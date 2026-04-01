@@ -67,7 +67,7 @@ function WorkflowCard({
       transition={{
         duration: DURATION.fast,
         delay: staggerDelay(index),
-        ease: EASE.out as unknown as string,
+        ease: EASE.out,
       }}
       className="bg-surface-raised border border-neutral-700 rounded-sm p-3 flex flex-col gap-2 min-w-[200px]"
     >

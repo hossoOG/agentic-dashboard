@@ -37,7 +37,7 @@ export function WorktreeNode({ worktree }: Props) {
       animate={{
         scale: isActive ? [1, 1.01, 1] : 1,
       }}
-      transition={{ duration: DURATION.ambient / 4, repeat: isActive ? Infinity : 0, ease: EASE.out as unknown as string }}
+      transition={{ duration: DURATION.ambient / 4, repeat: isActive ? Infinity : 0, ease: EASE.out }}
       className={`w-52 rounded-none border-2 ${style.border} ${glowClass} bg-surface-raised overflow-hidden flex flex-col`}
     >
       {/* Header */}
@@ -89,7 +89,7 @@ export function WorktreeNode({ worktree }: Props) {
                 key={step}
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: DURATION.fast, delay: staggerDelay(index), ease: EASE.out as unknown as string }}
+                transition={{ duration: DURATION.fast, delay: staggerDelay(index), ease: EASE.out }}
                 className="flex items-center gap-1.5"
               >
                 {spinning ? (

@@ -8,6 +8,8 @@
  * - Respect `prefers-reduced-motion` (handled in CSS)
  */
 
+import type { BezierDefinition } from "framer-motion";
+
 /* ── Durations (100/300/500 rule) ── */
 export const DURATION = {
   /** Instant feedback: button press, toggle, color change */
@@ -23,14 +25,14 @@ export const DURATION = {
 } as const;
 
 /* ── Easing curves (exponential, no bounce) ── */
-export const EASE = {
+export const EASE: Record<"out" | "in" | "inOut", BezierDefinition> = {
   /** Elements entering — smooth deceleration (default) */
-  out: [0.16, 1, 0.3, 1] as const,
+  out: [0.16, 1, 0.3, 1],
   /** Elements leaving — smooth acceleration */
-  in: [0.7, 0, 0.84, 0] as const,
+  in: [0.7, 0, 0.84, 0],
   /** State toggles — symmetric */
-  inOut: [0.65, 0, 0.35, 1] as const,
-} as const;
+  inOut: [0.65, 0, 0.35, 1],
+};
 
 /* ── Spring presets (gentle, no visible bounce) ── */
 export const SPRING = {

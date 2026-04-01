@@ -30,7 +30,7 @@ export function OrchestratorNode({ orchestratorStatus, orchestratorLog, summary 
     <motion.div
       aria-label={`Orchestrator – ${config.label}`}
       animate={VARIANTS.breathe(isActive)}
-      transition={{ duration: DURATION.ambient / 4, repeat: isActive ? Infinity : 0, ease: EASE.out as unknown as string }}
+      transition={{ duration: DURATION.ambient / 4, repeat: isActive ? Infinity : 0, ease: EASE.out }}
       className={`w-80 rounded-none border-2 ${style.border} bg-surface-raised ${glowClass} overflow-hidden`}
     >
       {/* Header */}
@@ -88,7 +88,7 @@ export function OrchestratorNode({ orchestratorStatus, orchestratorLog, summary 
               key={`${log}-${i}`}
               initial={VARIANTS.fadeInLeft.initial}
               animate={VARIANTS.fadeInLeft.animate}
-              transition={{ duration: DURATION.fast, ease: EASE.out as unknown as string }}
+              transition={{ duration: DURATION.fast, ease: EASE.out }}
               className="text-xs text-neutral-300 py-0.5"
             >
               <span className="text-success mr-1">{"›"}</span>
