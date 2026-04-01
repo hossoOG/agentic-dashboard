@@ -7,12 +7,7 @@ import { ChangelogDialog } from "./shared/ChangelogDialog";
 import { UpdateNotification } from "./shared/UpdateNotification";
 import { useAutoUpdate } from "../hooks/useAutoUpdate";
 import { version } from "../../package.json";
-
-function shortenPath(path: string): string {
-  const parts = path.replace(/\\/g, "/").split("/").filter(Boolean);
-  if (parts.length <= 3) return path;
-  return parts.slice(-2).join("/");
-}
+import { shortenPath } from "../utils/pathUtils";
 
 function getStatusDot(status: string): { dotClass: string; title: string } {
   switch (status) {

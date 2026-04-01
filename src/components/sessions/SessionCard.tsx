@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { ClaudeSession } from "../../store/sessionStore";
 import { getActivityLevel, type ActivityLevel } from "./activityLevel";
 import { useNowTick } from "../../hooks/useNowTick";
+import { shortenPath } from "../../utils/pathUtils";
 
 interface SessionCardProps {
   session: ClaudeSession;
@@ -96,13 +97,6 @@ function TimeDisplay({
         </span>
       );
   }
-}
-
-function shortenPath(path: string): string {
-  // Show last 2-3 segments for readability
-  const parts = path.replace(/\\/g, "/").split("/").filter(Boolean);
-  if (parts.length <= 3) return path;
-  return "~/" + parts.slice(-2).join("/");
 }
 
 const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: SessionCardProps) => {
