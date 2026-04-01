@@ -151,16 +151,11 @@ pub fn run() {
         .manage(session_manager)
         .invoke_handler(tauri::generate_handler![
             commands::open_log_window,
-            // Bestehend
-            pipeline::commands::start_pipeline,
-            pipeline::commands::stop_pipeline,
-            pipeline::commands::pick_project_folder,
             // Session-Commands
             session::commands::commands::create_session,
             session::commands::commands::write_session,
             session::commands::commands::resize_session,
             session::commands::commands::close_session,
-            session::commands::commands::list_sessions,
             // Folder actions
             session::folder_actions::commands::open_folder_in_explorer,
             session::folder_actions::commands::open_terminal_in_folder,

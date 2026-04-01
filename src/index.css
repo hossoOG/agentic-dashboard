@@ -204,14 +204,6 @@ code, pre, kbd,
    Component Styles
    ============================================ */
 
-/* ── Grid Background ── */
-.grid-bg {
-  background-image:
-    linear-gradient(var(--color-accent-subtle) 1px, transparent 1px),
-    linear-gradient(90deg, var(--color-accent-subtle) 1px, transparent 1px);
-  background-size: 40px 40px;
-}
-
 /* ── Terminal Block ── */
 .retro-terminal {
   background: var(--neutral-950);
