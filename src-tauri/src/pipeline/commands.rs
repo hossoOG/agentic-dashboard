@@ -70,7 +70,10 @@ pub async fn start_pipeline(
 ) -> Result<(), String> {
     let path = std::path::Path::new(&project_path);
     if !path.exists() {
-        return Err(format!("Project path does not exist: {}", project_path));
+        return Err(format!(
+            "Failed to start pipeline: project path does not exist: {}",
+            project_path
+        ));
     }
 
     {
@@ -126,8 +129,8 @@ pub async fn start_pipeline(
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| {
-            log::error!("Failed to spawn claude process: {}", e);
-            format!("Failed to spawn claude: {}", e)
+            log::error!("Failed to spawn claude process for pipeline: {}", e);
+            format!("Failed to spawn claude process for pipeline: {}", e)
         })?;
 
     let pid = child.id();
@@ -140,11 +143,17 @@ pub async fn start_pipeline(
         use std::io::Write;
         stdin
             .write_all(b"/orchestrate-issues\n")
-            .map_err(|e| format!("Failed to write to claude stdin: {}", e))?;
+            .map_err(|e| format!("Failed to write to pipeline stdin: {}", e))?;
     }
 
-    let stdout = child.stdout.take().ok_or("Could not get stdout")?;
-    let stderr = child.stderr.take().ok_or("Could not get stderr")?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or("Failed to capture stdout for pipeline process")?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or("Failed to capture stderr for pipeline process")?;
 
     // Stream reader threads — dual-write: legacy + ADP
     spawn_stream_reader(app.clone(), stdout, "stdout", "info");
@@ -177,16 +186,16 @@ pub async fn stop_pipeline(
         silent_command("kill")
             .args(["-TERM", &pid.to_string()])
             .spawn()
-            .map_err(|e| format!("Failed to send SIGTERM to pid {}: {}", pid, e))?
+            .map_err(|e| format!("Failed to send SIGTERM to pipeline process {}: {}", pid, e))?
             .wait()
-            .map_err(|e| format!("Failed to wait for kill command: {}", e))?;
+            .map_err(|e| format!("Failed to wait for kill of pipeline process {}: {}", pid, e))?;
         #[cfg(windows)]
         silent_command("taskkill")
             .args(["/PID", &pid.to_string(), "/F"])
             .spawn()
-            .map_err(|e| format!("Failed to taskkill pid {}: {}", pid, e))?
+            .map_err(|e| format!("Failed to kill pipeline process {}: {}", pid, e))?
             .wait()
-            .map_err(|e| format!("Failed to wait for taskkill: {}", e))?;
+            .map_err(|e| format!("Failed to wait for kill of pipeline process {}: {}", pid, e))?;
     }
 
     log::info!("Pipeline stopped (pid: {:?})", pid);

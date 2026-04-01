@@ -1,5 +1,5 @@
-use serde::Serialize;
 use crate::util::silent_command;
+use serde::Serialize;
 
 #[derive(Serialize, Clone)]
 pub struct GitCommitInfo {
@@ -88,7 +88,15 @@ pub struct LinkedPR {
 }
 
 /// Lane labels used for Kanban classification.
-const LANE_LABELS: &[&str] = &["backlog", "todo", "to do", "in-progress", "in progress", "sprint", "done"];
+const LANE_LABELS: &[&str] = &[
+    "backlog",
+    "todo",
+    "to do",
+    "in-progress",
+    "in progress",
+    "sprint",
+    "done",
+];
 
 fn run_command(folder: &str, program: &str, args: &[&str]) -> Result<String, String> {
     let output = silent_command(program)
@@ -455,7 +463,11 @@ pub mod commands {
                                         c["state"].as_str().unwrap_or("").to_string(),
                                     )
                                 };
-                                CheckRun { name, status, conclusion }
+                                CheckRun {
+                                    name,
+                                    status,
+                                    conclusion,
+                                }
                             })
                             .collect()
                     })
@@ -490,17 +502,11 @@ pub mod commands {
         let output = run_command(
             &folder,
             "gh",
-            &[
-                "issue",
-                "view",
-                &num_str,
-                "--json",
-                "labels,state",
-            ],
+            &["issue", "view", &num_str, "--json", "labels,state"],
         )?;
 
-        let val: serde_json::Value = serde_json::from_str(&output)
-            .map_err(|e| format!("Failed to parse issue: {}", e))?;
+        let val: serde_json::Value =
+            serde_json::from_str(&output).map_err(|e| format!("Failed to parse issue: {}", e))?;
 
         let current_state = val["state"].as_str().unwrap_or("OPEN");
 
