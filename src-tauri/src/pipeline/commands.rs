@@ -70,7 +70,10 @@ pub async fn start_pipeline(
 ) -> Result<(), String> {
     let path = std::path::Path::new(&project_path);
     if !path.exists() {
-        return Err(format!("Failed to start pipeline: project path does not exist: {}", project_path));
+        return Err(format!(
+            "Failed to start pipeline: project path does not exist: {}",
+            project_path
+        ));
     }
 
     {
@@ -143,8 +146,14 @@ pub async fn start_pipeline(
             .map_err(|e| format!("Failed to write to pipeline stdin: {}", e))?;
     }
 
-    let stdout = child.stdout.take().ok_or("Failed to capture stdout for pipeline process")?;
-    let stderr = child.stderr.take().ok_or("Failed to capture stderr for pipeline process")?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or("Failed to capture stdout for pipeline process")?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or("Failed to capture stderr for pipeline process")?;
 
     // Stream reader threads — dual-write: legacy + ADP
     spawn_stream_reader(app.clone(), stdout, "stdout", "info");

@@ -377,18 +377,10 @@ impl SessionManager {
             None => "claude --dangerously-skip-permissions".to_string(),
         };
         match shell {
-            "powershell" => vec![
-                "-NoExit".to_string(),
-                "-Command".to_string(),
-                claude_cmd,
-            ],
+            "powershell" => vec!["-NoExit".to_string(), "-Command".to_string(), claude_cmd],
             "cmd" => vec!["/K".to_string(), claude_cmd],
             "gitbash" => vec!["-c".to_string(), claude_cmd],
-            _ => vec![
-                "-NoExit".to_string(),
-                "-Command".to_string(),
-                claude_cmd,
-            ],
+            _ => vec!["-NoExit".to_string(), "-Command".to_string(), claude_cmd],
         }
     }
 

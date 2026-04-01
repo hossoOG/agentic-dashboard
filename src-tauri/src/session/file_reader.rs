@@ -1,8 +1,8 @@
 // src-tauri/src/session/file_reader.rs
 
-use std::path::{Path, PathBuf};
 use serde::Serialize;
 use serde_json::Value;
+use std::path::{Path, PathBuf};
 
 /// Shared path-traversal protection: resolve `sub` inside `base` and verify
 /// the result stays within `base` after canonicalization.
@@ -123,8 +123,7 @@ fn find_project_dir(folder: &str) -> Option<PathBuf> {
 /// Check if a string looks like a UUID (simple heuristic).
 fn is_uuid_like(s: &str) -> bool {
     s.len() == 36
-        && s.chars()
-            .all(|c| c.is_ascii_hexdigit() || c == '-')
+        && s.chars().all(|c| c.is_ascii_hexdigit() || c == '-')
         && s.matches('-').count() == 4
 }
 
@@ -174,7 +173,10 @@ fn parse_session_jsonl(path: &std::path::Path, session_id: &str) -> Option<Claud
         }
 
         let msg_type = val.get("type").and_then(|v| v.as_str()).unwrap_or("");
-        let is_sidechain = val.get("isSidechain").and_then(|v| v.as_bool()).unwrap_or(false);
+        let is_sidechain = val
+            .get("isSidechain")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
         let is_meta = val.get("isMeta").and_then(|v| v.as_bool()).unwrap_or(false);
 
         // Count user turns (non-sidechain, non-meta user messages that aren't tool results)
@@ -359,9 +361,7 @@ pub mod commands {
 
     /// Scan Claude CLI session history from ~/.claude/projects/ for a given project folder.
     #[tauri::command]
-    pub async fn scan_claude_sessions(
-        folder: String,
-    ) -> Result<Vec<ClaudeSessionSummary>, String> {
+    pub async fn scan_claude_sessions(folder: String) -> Result<Vec<ClaudeSessionSummary>, String> {
         scan_sessions_for_project(&folder)
     }
 

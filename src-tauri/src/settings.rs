@@ -38,8 +38,7 @@ fn sanitize_note_filename(folder_key: &str) -> String {
 /// This prevents corruption if the app crashes mid-write.
 fn atomic_write(path: &Path, data: &str) -> Result<(), String> {
     let temp = path.with_extension("tmp");
-    std::fs::write(&temp, data)
-        .map_err(|e| format!("Failed to write temp file: {}", e))?;
+    std::fs::write(&temp, data).map_err(|e| format!("Failed to write temp file: {}", e))?;
     std::fs::rename(&temp, path).map_err(|e| {
         // Clean up temp file on rename failure
         let _ = std::fs::remove_file(&temp);
@@ -54,19 +53,11 @@ fn create_backup(path: &Path, max_backups: u32) {
         return;
     }
 
-    let ext = path
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("json");
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("json");
     let stem = path.with_extension("");
 
     // Delete the oldest backup if it exists
-    let oldest = PathBuf::from(format!(
-        "{}.backup.{}.{}",
-        stem.display(),
-        max_backups,
-        ext
-    ));
+    let oldest = PathBuf::from(format!("{}.backup.{}.{}", stem.display(), max_backups, ext));
     if oldest.exists() {
         let _ = std::fs::remove_file(&oldest);
     }
@@ -98,21 +89,19 @@ fn load_with_fallback(path: &Path, label: &str) -> Result<String, String> {
                 if serde_json::from_str::<serde_json::Value>(&content).is_ok() {
                     return Ok(content);
                 }
-                log::warn!(
-                    "{}: primary file has invalid JSON, trying backups",
-                    label
-                );
+                log::warn!("{}: primary file has invalid JSON, trying backups", label);
             }
             Err(e) => {
-                log::warn!("{}: failed to read primary file: {}, trying backups", label, e);
+                log::warn!(
+                    "{}: failed to read primary file: {}, trying backups",
+                    label,
+                    e
+                );
             }
         }
     }
 
-    let ext = path
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("json");
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("json");
     let stem = path.with_extension("");
 
     // Try backup files 1..3
@@ -124,11 +113,7 @@ fn load_with_fallback(path: &Path, label: &str) -> Result<String, String> {
         match std::fs::read_to_string(&backup) {
             Ok(content) => {
                 if serde_json::from_str::<serde_json::Value>(&content).is_ok() {
-                    log::warn!(
-                        "{}: recovered from backup {}",
-                        label,
-                        backup.display()
-                    );
+                    log::warn!("{}: recovered from backup {}", label, backup.display());
                     return Ok(content);
                 }
                 log::warn!(
