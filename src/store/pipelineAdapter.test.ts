@@ -64,53 +64,9 @@ describe("deriveCurrentStep", () => {
     expect(deriveCurrentStep(makeAgent({ status: "error" }))).toBe("setup");
   });
 
-  it("returns setup for running agents without worktreePath", () => {
-    expect(deriveCurrentStep(makeAgent({ status: "running", worktreePath: null }))).toBe("setup");
-  });
-
-  it("returns plan for running agents with worktree detected < 1 min ago", () => {
-    const agent = makeAgent({
-      status: "running",
-      worktreePath: "/tmp/wt-1",
-      detectedAt: Date.now() - 30_000, // 30 seconds ago
-    });
-    expect(deriveCurrentStep(agent)).toBe("plan");
-  });
-
-  it("returns validate for running agents detected ~1.5 min ago", () => {
-    const agent = makeAgent({
-      status: "running",
-      worktreePath: "/tmp/wt-1",
-      detectedAt: Date.now() - 90_000, // 1.5 min ago
-    });
-    expect(deriveCurrentStep(agent)).toBe("validate");
-  });
-
-  it("returns code for running agents detected ~5 min ago", () => {
-    const agent = makeAgent({
-      status: "running",
-      worktreePath: "/tmp/wt-1",
-      detectedAt: Date.now() - 5 * 60_000,
-    });
-    expect(deriveCurrentStep(agent)).toBe("code");
-  });
-
-  it("returns review for running agents detected ~12 min ago", () => {
-    const agent = makeAgent({
-      status: "running",
-      worktreePath: "/tmp/wt-1",
-      detectedAt: Date.now() - 12 * 60_000,
-    });
-    expect(deriveCurrentStep(agent)).toBe("review");
-  });
-
-  it("returns self_verify for running agents detected > 15 min ago", () => {
-    const agent = makeAgent({
-      status: "running",
-      worktreePath: "/tmp/wt-1",
-      detectedAt: Date.now() - 20 * 60_000,
-    });
-    expect(deriveCurrentStep(agent)).toBe("self_verify");
+  it("returns code for all running agents", () => {
+    expect(deriveCurrentStep(makeAgent({ status: "running", worktreePath: null }))).toBe("code");
+    expect(deriveCurrentStep(makeAgent({ status: "running", worktreePath: "/tmp/wt-1" }))).toBe("code");
   });
 
   it("returns setup for unknown status (default branch)", () => {
@@ -166,23 +122,14 @@ describe("deriveProgress", () => {
     expect(deriveProgress("draft_pr", "error")).toBe(0);
   });
 
-  it("returns 0 for setup step with running status", () => {
-    // setup is index 0 → 0 / 6 * 100 = 0
-    expect(deriveProgress("setup", "running")).toBe(0);
-  });
-
-  it("returns proportional progress for middle steps", () => {
-    // code is index 3 → round(3/6 * 100) = 50
+  it("returns 50 for any running status regardless of step", () => {
+    expect(deriveProgress("setup", "running")).toBe(50);
     expect(deriveProgress("code", "running")).toBe(50);
+    expect(deriveProgress("draft_pr", "running")).toBe(50);
   });
 
-  it("returns 100 for draft_pr step with running status", () => {
-    // draft_pr is index 6 → round(6/6 * 100) = 100
-    expect(deriveProgress("draft_pr", "running")).toBe(100);
-  });
-
-  it("returns 0 for unknown step", () => {
-    expect(deriveProgress("nonexistent" as never, "running")).toBe(0);
+  it("returns 0 for unknown status", () => {
+    expect(deriveProgress("code", "unknown" as never)).toBe(0);
   });
 });
 

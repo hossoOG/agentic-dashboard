@@ -55,7 +55,7 @@ export function deriveCompletedSteps(currentStep: WorktreeStep): WorktreeStep[] 
 }
 
 /** @internal Exported for testing */
-export function deriveProgress(currentStep: WorktreeStep, status: DetectedAgent["status"]): number {
+export function deriveProgress(_currentStep: WorktreeStep, status: DetectedAgent["status"]): number {
   if (status === "completed") return 100;
   if (status === "error") return 0;
   if (status === "running") return 50;
