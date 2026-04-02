@@ -99,11 +99,9 @@ const LANE_LABELS: &[&str] = &[
 ];
 
 fn run_command(folder: &str, program: &str, args: &[&str]) -> Result<String, String> {
-    let output = silent_command(program)
-        .args(args)
-        .current_dir(folder)
-        .output()
-        .map_err(|e| format!("Failed to run {}: {}", program, e))?;
+    let mut cmd = silent_command(program);
+    cmd.args(args).current_dir(folder);
+    let output = crate::util::timed_output(cmd, crate::util::DEFAULT_COMMAND_TIMEOUT)?;
 
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
@@ -113,13 +111,13 @@ fn run_command(folder: &str, program: &str, args: &[&str]) -> Result<String, Str
     }
 }
 
-fn is_command_available(cmd: &str) -> bool {
-    #[cfg(target_os = "windows")]
-    let check = silent_command("where").arg(cmd).output();
-    #[cfg(not(target_os = "windows"))]
-    let check = silent_command("which").arg(cmd).output();
-
-    check.map(|o| o.status.success()).unwrap_or(false)
+fn is_command_available(cmd_name: &str) -> bool {
+    let check_cmd = if cfg!(windows) { "where" } else { "which" };
+    let mut cmd = silent_command(check_cmd);
+    cmd.arg(cmd_name);
+    crate::util::timed_output(cmd, std::time::Duration::from_secs(5))
+        .map(|o| o.status.success())
+        .unwrap_or(false)
 }
 
 /// Extract label names from a GitHub JSON value containing a "labels" array.

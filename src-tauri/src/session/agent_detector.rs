@@ -362,11 +362,10 @@ impl AgentDetector {
 /// Scan a project folder for git worktrees.
 /// Uses `git worktree list --porcelain` for reliable parsing.
 pub fn scan_worktrees_in_folder(folder: &str) -> Result<Vec<WorktreeInfo>, String> {
-    let output = crate::util::silent_command("git")
-        .args(["worktree", "list", "--porcelain"])
-        .current_dir(folder)
-        .output()
-        .map_err(|e| format!("Failed to run git worktree list: {}", e))?;
+    let mut cmd = crate::util::silent_command("git");
+    cmd.args(["worktree", "list", "--porcelain"])
+        .current_dir(folder);
+    let output = crate::util::timed_output(cmd, crate::util::DEFAULT_COMMAND_TIMEOUT)?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);

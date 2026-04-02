@@ -93,8 +93,11 @@ pub async fn start_pipeline(
     }
 
     // Validate that claude CLI is available before spawning
-    let claude_check = silent_command("claude").arg("--version").output();
-    match &claude_check {
+    let mut version_cmd = silent_command("claude");
+    version_cmd.arg("--version");
+    let claude_check =
+        crate::util::timed_output(version_cmd, std::time::Duration::from_secs(10));
+    match claude_check {
         Ok(output) if output.status.success() => {
             log::info!("Claude CLI found, version check passed");
         }
@@ -107,15 +110,8 @@ pub async fn start_pipeline(
             // Continue anyway — `claude m` may still work
         }
         Err(e) => {
-            let detail = if e.kind() == std::io::ErrorKind::NotFound {
-                "claude CLI not found in PATH. Install it or add it to PATH."
-            } else if e.kind() == std::io::ErrorKind::PermissionDenied {
-                "claude CLI found but permission denied. Check file permissions."
-            } else {
-                "Failed to check claude CLI availability."
-            };
-            log::error!("Claude CLI check failed: {} — {}", detail, e);
-            return Err(format!("{} ({})", detail, e));
+            log::error!("Claude CLI check failed: {}", e);
+            return Err(format!("Claude CLI check failed: {}", e));
         }
     }
 
