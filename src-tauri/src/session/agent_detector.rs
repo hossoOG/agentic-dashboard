@@ -117,6 +117,8 @@ pub struct AgentDetector {
     agent_counter: u32,
     /// Track what we've already processed to avoid duplicate events
     last_processed_len: usize,
+    /// Recent agent launches for deduplication: (name, timestamp_ms)
+    recent_launches: Vec<(String, i64)>,
 }
 
 impl AgentDetector {
@@ -127,6 +129,7 @@ impl AgentDetector {
             known_agents: HashMap::new(),
             agent_counter: 0,
             last_processed_len: 0,
+            recent_launches: Vec::new(),
         }
     }
 
@@ -142,8 +145,10 @@ impl AgentDetector {
             while trim_at < self.buffer.len() && !self.buffer.is_char_boundary(trim_at) {
                 trim_at += 1;
             }
+            let old_processed = self.last_processed_len;
             self.buffer = self.buffer[trim_at..].to_string();
-            self.last_processed_len = 0; // Reset — we shifted the buffer
+            // Adjust processed marker: keep only the portion that was already scanned
+            self.last_processed_len = old_processed.saturating_sub(trim_at);
         }
 
         let mut events = Vec::new();
@@ -161,8 +166,6 @@ impl AgentDetector {
 
         // Check for agent launches
         if p.agent_launch.is_match(scan_text) {
-            self.agent_counter += 1;
-            let agent_id = format!("{}-agent-{}", self.session_id, self.agent_counter);
             let now = chrono::Utc::now().timestamp_millis();
 
             // Try to extract name/task from context
@@ -172,30 +175,56 @@ impl AgentDetector {
                 .and_then(|c| c.get(1))
                 .map(|m| m.as_str().trim().to_string());
 
-            let info = AgentInfo {
-                id: agent_id.clone(),
-                name: name.clone(),
-                task: name.clone(), // Use name as task for now
-                status: "running".to_string(),
-                detected_at: now,
-                completed_at: None,
-                worktree_path: None,
-            };
+            // Deduplication: skip if same agent name was detected within 2000ms cooldown
+            let dedup_key = name.clone().unwrap_or_default();
+            let is_duplicate = !dedup_key.is_empty()
+                && self
+                    .recent_launches
+                    .iter()
+                    .any(|(n, ts)| n == &dedup_key && (now - ts).abs() < 2000);
 
-            self.known_agents.insert(agent_id.clone(), info);
+            // Clean up old entries (older than 5 seconds)
+            self.recent_launches.retain(|(_, ts)| (now - ts).abs() < 5000);
 
-            events.push(AgentEvent::Detected(AgentDetectedEvent {
-                session_id: self.session_id.clone(),
-                agent_id,
-                name: name.clone(),
-                task: name,
-                detected_at: now,
-            }));
+            if !is_duplicate {
+                self.agent_counter += 1;
+                let agent_id = format!("{}-agent-{}", self.session_id, self.agent_counter);
+
+                // Record this launch for future dedup
+                if !dedup_key.is_empty() {
+                    self.recent_launches.push((dedup_key, now));
+                }
+
+                let info = AgentInfo {
+                    id: agent_id.clone(),
+                    name: name.clone(),
+                    task: name.clone(), // Use name as task for now
+                    status: "running".to_string(),
+                    detected_at: now,
+                    completed_at: None,
+                    worktree_path: None,
+                };
+
+                self.known_agents.insert(agent_id.clone(), info);
+
+                events.push(AgentEvent::Detected(AgentDetectedEvent {
+                    session_id: self.session_id.clone(),
+                    agent_id,
+                    name: name.clone(),
+                    task: name,
+                    detected_at: now,
+                }));
+            }
         }
 
         // Check for agent completions
         if p.agent_complete.is_match(scan_text) {
-            if let Some(agent_id) = self.find_running_agent() {
+            let context_name = p
+                .agent_name_task
+                .captures(scan_text)
+                .and_then(|c| c.get(1))
+                .map(|m| m.as_str().trim().to_string());
+            if let Some(agent_id) = self.find_running_agent_by_name(context_name.as_deref()) {
                 let now = chrono::Utc::now().timestamp_millis();
                 if let Some(info) = self.known_agents.get_mut(&agent_id) {
                     info.status = "completed".to_string();
@@ -212,7 +241,12 @@ impl AgentDetector {
 
         // Check for agent errors
         if p.agent_error.is_match(scan_text) {
-            if let Some(agent_id) = self.find_running_agent() {
+            let context_name = p
+                .agent_name_task
+                .captures(scan_text)
+                .and_then(|c| c.get(1))
+                .map(|m| m.as_str().trim().to_string());
+            if let Some(agent_id) = self.find_running_agent_by_name(context_name.as_deref()) {
                 let now = chrono::Utc::now().timestamp_millis();
                 if let Some(info) = self.known_agents.get_mut(&agent_id) {
                     info.status = "error".to_string();
@@ -282,13 +316,41 @@ impl AgentDetector {
         }
     }
 
-    /// Find the most recently spawned agent that's still running.
-    fn find_running_agent(&self) -> Option<String> {
-        self.known_agents
+    /// Find a running agent by name, falling back to most-recently-spawned if no name match.
+    fn find_running_agent_by_name(&self, name_hint: Option<&str>) -> Option<String> {
+        let running: Vec<&AgentInfo> = self
+            .known_agents
             .values()
             .filter(|a| a.status == "running")
+            .collect();
+
+        // Try to match by name first
+        if let Some(hint) = name_hint {
+            let hint_lower = hint.to_lowercase();
+            if let Some(matched) = running
+                .iter()
+                .filter(|a| {
+                    a.name
+                        .as_ref()
+                        .map(|n| n.to_lowercase().contains(&hint_lower) || hint_lower.contains(&n.to_lowercase()))
+                        .unwrap_or(false)
+                })
+                .max_by_key(|a| a.detected_at)
+            {
+                return Some(matched.id.clone());
+            }
+        }
+
+        // Fallback: most recently spawned running agent
+        running
+            .into_iter()
             .max_by_key(|a| a.detected_at)
             .map(|a| a.id.clone())
+    }
+
+    /// Find the most recently spawned agent that's still running.
+    fn find_running_agent(&self) -> Option<String> {
+        self.find_running_agent_by_name(None)
     }
 
     /// Get all known agents for this session.
