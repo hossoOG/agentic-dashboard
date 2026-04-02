@@ -78,8 +78,8 @@ jobs:
 
       - run: npm ci
 
-      - name: Vitest
-        run: npm run test
+      - name: Run tests with coverage
+        run: npm run test:coverage
 
       - name: Install Tauri v2 system dependencies
         run: |
