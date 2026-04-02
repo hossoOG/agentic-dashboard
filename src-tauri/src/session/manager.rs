@@ -425,10 +425,23 @@ impl SessionManager {
     /// - Endet mit "> " oder "? " (Claude's interaktive Prompts)
     /// - Endet mit "❯ " (Claude CLI Prompt)
     /// - Enthaelt "(y/n)" oder "[Y/n]" (Ja/Nein-Frage)
+    ///
+    /// Erkennt auch Thinking-Indikatoren (Spinner, "Thinking" Text),
+    /// um bei ultrathink/langen Denkpausen nicht faelschlich "waiting" zu melden.
     fn detect_status(snippet: &str) -> String {
         let clean = Self::strip_ansi(snippet);
         // Only trim newlines/CR — keep trailing spaces for prompt detection
         let trimmed = clean.trim_end_matches(['\n', '\r']);
+
+        // Thinking indicators: spinner chars or "Thinking" text mean Claude is
+        // actively processing — never treat these as "waiting"
+        const SPINNER_CHARS: &[char] = &['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+        let has_thinking_indicator = trimmed.ends_with(SPINNER_CHARS)
+            || trimmed.contains("Thinking");
+
+        if has_thinking_indicator {
+            return "running".to_string();
+        }
 
         if trimmed.ends_with("> ")
             || trimmed.ends_with("? ")

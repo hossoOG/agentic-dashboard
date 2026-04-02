@@ -103,7 +103,7 @@ const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: Ses
   const now = useNowTick();
 
   const isRunning = session.status === "running" || session.status === "starting";
-  const activityLevel = isRunning ? getActivityLevel(session.lastOutputAt, now) : null;
+  const activityLevel = isRunning ? getActivityLevel(session.lastOutputAt, now, session.lastOutputSnippet) : null;
 
   return (
     <div
