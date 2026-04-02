@@ -119,13 +119,28 @@ function MetricCard({
 // AgentMetricsPanel
 // ============================================================================
 
-export function AgentMetricsPanel() {
+interface AgentMetricsPanelProps {
+  sessionId?: string | null;
+}
+
+export function AgentMetricsPanel({ sessionId }: AgentMetricsPanelProps) {
   const agents = useAgentStore((s) => s.agents);
   const worktrees = useAgentStore((s) => s.worktrees);
 
+  const filteredAgents = useMemo(() => {
+    if (!sessionId) return agents;
+    const filtered: Record<string, DetectedAgent> = {};
+    for (const [id, agent] of Object.entries(agents)) {
+      if (agent.sessionId === sessionId) {
+        filtered[id] = agent;
+      }
+    }
+    return filtered;
+  }, [agents, sessionId]);
+
   const metrics = useMemo(
-    () => computeMetrics(agents, worktrees),
-    [agents, worktrees]
+    () => computeMetrics(filteredAgents, worktrees),
+    [filteredAgents, worktrees]
   );
 
   const now = Date.now();
