@@ -36,23 +36,7 @@ function mapAgentStatusToWorktreeStatus(agent: DetectedAgent): WorktreeStatus {
 function deriveCurrentStep(agent: DetectedAgent): WorktreeStep {
   if (agent.status === "completed") return "draft_pr";
   if (agent.status === "error") return "setup";
-
-  // Running agents: estimate step from elapsed time and worktree state
-  if (agent.status === "running") {
-    if (!agent.worktreePath) return "setup";
-
-    // Agent has a worktree — estimate step from elapsed time
-    const elapsedMs = Date.now() - agent.detectedAt;
-    const elapsedMin = elapsedMs / 60_000;
-
-    // Heuristic: typical agent progression over time
-    if (elapsedMin < 1) return "plan";
-    if (elapsedMin < 2) return "validate";
-    if (elapsedMin < 10) return "code";
-    if (elapsedMin < 15) return "review";
-    return "self_verify";
-  }
-
+  if (agent.status === "running") return "code";
   return "setup";
 }
 
@@ -66,12 +50,11 @@ function deriveCompletedSteps(currentStep: WorktreeStep): WorktreeStep[] {
   return STEP_ORDER.slice(0, idx);
 }
 
-function deriveProgress(currentStep: WorktreeStep, status: DetectedAgent["status"]): number {
+function deriveProgress(status: DetectedAgent["status"]): number {
   if (status === "completed") return 100;
   if (status === "error") return 0;
-  const idx = STEP_ORDER.indexOf(currentStep);
-  if (idx < 0) return 0;
-  return Math.round((idx / (STEP_ORDER.length - 1)) * 100);
+  if (status === "running") return 50;
+  return 0;
 }
 
 // ============================================================================
@@ -118,12 +101,15 @@ const IDLE_QA_GATE: QAGate = {
   overallStatus: "idle",
 };
 
-export function useAdaptedPipelineData(): AdaptedPipelineData {
+export function useAdaptedPipelineData(sessionId?: string | null): AdaptedPipelineData {
   const agents = useAgentStore((s) => s.agents);
   const agentWorktrees = useAgentStore((s) => s.worktrees);
 
   return useMemo(() => {
-    const agentList = Object.values(agents);
+    let agentList = Object.values(agents);
+    if (sessionId) {
+      agentList = agentList.filter((a) => a.sessionId === sessionId);
+    }
     const hasAgents = agentList.length > 0;
 
     if (!hasAgents) {
@@ -146,7 +132,7 @@ export function useAdaptedPipelineData(): AdaptedPipelineData {
       const status = mapAgentStatusToWorktreeStatus(agent);
       const currentStep = deriveCurrentStep(agent);
       const completedSteps = deriveCompletedSteps(currentStep);
-      const progress = deriveProgress(currentStep, agent.status);
+      const progress = deriveProgress(agent.status);
 
       // Build contextual log lines from available agent data
       const logs: string[] = [];
@@ -188,10 +174,7 @@ export function useAdaptedPipelineData(): AdaptedPipelineData {
     let orchestratorStatus: OrchestratorStatus = "idle";
     if (running > 0) {
       orchestratorStatus = "planning";
-    } else if (completed > 0 && errorCount === 0) {
-      orchestratorStatus = "generated_manifest";
-    } else if (completed > 0 && errorCount > 0) {
-      // Mixed results — still mark as done (errors visible in worktree nodes)
+    } else if (completed > 0) {
       orchestratorStatus = "generated_manifest";
     }
 
@@ -226,5 +209,5 @@ export function useAdaptedPipelineData(): AdaptedPipelineData {
         error: errorCount,
       },
     };
-  }, [agents, agentWorktrees]);
+  }, [agents, agentWorktrees, sessionId]);
 }

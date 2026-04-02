@@ -1,12 +1,13 @@
-import { useRef, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { OrchestratorNode } from "./OrchestratorNode";
 import { WorktreeNode } from "./WorktreeNode";
 import { QAGateNode } from "./QAGateNode";
-import { ConnectionLines } from "./ConnectionLines";
 import { useAdaptedPipelineData } from "../store/pipelineAdapter";
-import { DURATION } from "../utils/motion";
-import { Search } from "lucide-react";
+import { Search, ChevronRight } from "lucide-react";
+
+interface DashboardMapProps {
+  sessionId?: string | null;
+}
 
 function EmptyState() {
   return (
@@ -24,105 +25,68 @@ function EmptyState() {
           Keine Agenten erkannt
         </h2>
         <p className="text-sm text-neutral-500 max-w-md leading-relaxed">
-          Starte eine Session mit Claude CLI um Agenten in der Pipeline-Ansicht zu sehen.
-          Sub-Agents werden automatisch erkannt.
+          Starte eine Session mit Agenten um die Pipeline-Ansicht zu sehen.
         </p>
       </motion.div>
     </div>
   );
 }
 
-export function DashboardMap() {
-  const adapted = useAdaptedPipelineData();
+/** Column divider with chevron arrow indicating flow direction */
+function ColumnDivider() {
+  return (
+    <div className="flex flex-col items-center justify-center text-neutral-600">
+      <div className="w-px flex-1 bg-neutral-700" />
+      <ChevronRight className="w-5 h-5 my-2 text-neutral-500" />
+      <div className="w-px flex-1 bg-neutral-700" />
+    </div>
+  );
+}
+
+export function DashboardMap({ sessionId }: DashboardMapProps) {
+  const adapted = useAdaptedPipelineData(sessionId);
   const { hasAgents, worktrees, orchestratorStatus, orchestratorLog, qaGate } = adapted;
-  const [dimensions, setDimensions] = useState({ width: 1200, height: 800 });
-  const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-    const update = () => {
-      if (containerRef.current) {
-        setDimensions({
-          width: containerRef.current.clientWidth,
-          height: containerRef.current.clientHeight,
-        });
-      }
-    };
-
-    const debouncedUpdate = () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      timeoutId = setTimeout(update, 150);
-    };
-
-    update(); // initial measurement
-    window.addEventListener("resize", debouncedUpdate);
-    return () => {
-      window.removeEventListener("resize", debouncedUpdate);
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, []);
-
-  // Empty state when no agents detected
   if (!hasAgents) {
     return (
-      <div ref={containerRef} className="perspective-container bg-surface-base">
+      <div className="h-full bg-surface-base">
         <EmptyState />
       </div>
     );
   }
 
   return (
-    <div ref={containerRef} className="perspective-container bg-surface-base">
-      {/* SVG connection lines layer (outside the isometric board to stay flat) */}
-      <ConnectionLines
-        worktreeCount={worktrees.length}
-        dimensions={dimensions}
-        orchestratorStatus={orchestratorStatus}
-        qaStatus={qaGate.overallStatus}
-        worktrees={worktrees}
-      />
+    <div className="h-full bg-surface-base p-4 flex gap-4 overflow-hidden">
+      {/* Left column: Orchestrator */}
+      <div className="w-72 flex-shrink-0 flex items-start">
+        <OrchestratorNode
+          orchestratorStatus={orchestratorStatus}
+          orchestratorLog={orchestratorLog}
+          summary={adapted.summary}
+        />
+      </div>
 
-      <div className="isometric-board">
-        {/* Orchestrator - Top Center */}
-        <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10 isometric-node">
-          <OrchestratorNode
-            orchestratorStatus={orchestratorStatus}
-            orchestratorLog={orchestratorLog}
-            summary={adapted.summary}
-          />
-        </div>
+      <ColumnDivider />
 
-        {/* Worktrees - Middle */}
-        <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 z-10 max-h-[60%] overflow-y-auto">
-          <div className="flex justify-center gap-6 px-8 flex-wrap">
-            {worktrees.map((wt, index) => (
-              <motion.div
-                key={wt.id}
-                initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ delay: index * 0.15, type: "spring", stiffness: 200 }}
-                className="isometric-node"
-              >
-                <WorktreeNode worktree={wt} />
-              </motion.div>
-            ))}
-          </div>
-        </div>
-
-        {/* QA Gate - Bottom Center */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 isometric-node">
-          <QAGateNode qaGate={qaGate} />
-        </div>
-
-        {/* Ambient scan line effect */}
-        <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-10">
+      {/* Center column: Worktrees */}
+      <div className="flex-1 min-w-0 overflow-y-auto space-y-3">
+        {worktrees.map((wt, index) => (
           <motion.div
-            className="absolute w-full h-px bg-gradient-to-r from-transparent via-accent to-transparent"
-            animate={{ y: [0, dimensions.height] }}
-            transition={{ duration: DURATION.ambient, repeat: Infinity, ease: "linear" }}
-          />
-        </div>
+            key={wt.id}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.08, duration: 0.3 }}
+          >
+            <WorktreeNode worktree={wt} />
+          </motion.div>
+        ))}
+      </div>
+
+      <ColumnDivider />
+
+      {/* Right column: QA Gate */}
+      <div className="w-72 flex-shrink-0 flex items-start">
+        <QAGateNode qaGate={qaGate} />
       </div>
     </div>
   );

@@ -1,134 +1,87 @@
 import { motion } from "framer-motion";
 import type { Worktree } from "../store/pipelineStore";
-import {
-  WORKTREE_STEPS,
-  STEP_LABELS,
-  getStatusStyle,
-  getWorktreeIcon,
-  getStepIcon,
-} from "../utils/statusConfig";
-import { DURATION, EASE, SPRING, staggerDelay } from "../utils/motion";
-
-const GLOW_MAP: Record<string, string> = {
-  active: "glow-accent",
-  done: "glow-success",
-  blocked: "glow-error",
-  error: "glow-error",
-  waiting_for_input: "glow-warning",
-};
+import { STEP_LABELS, getStatusStyle } from "../utils/statusConfig";
+import { DURATION, EASE } from "../utils/motion";
 
 interface Props {
   worktree: Worktree;
 }
 
+/** Map worktree status to left-border color class */
+function getBorderColor(status: string): string {
+  switch (status) {
+    case "active":
+      return "border-l-accent";
+    case "done":
+      return "border-l-success";
+    case "error":
+    case "blocked":
+      return "border-l-error";
+    default:
+      return "border-l-neutral-600";
+  }
+}
+
 export function WorktreeNode({ worktree }: Props) {
-  const { status, currentStep, completedSteps, logs, branch, issue, progress } = worktree;
-  const isActive = status === "active";
+  const { status, currentStep, branch, issue, progress } = worktree;
   const isDone = status === "done";
   const isBlocked = status === "blocked" || status === "error";
+  const isActive = status === "active";
+  const statusLabel = status.toUpperCase().replace("_", " ");
 
   const style = getStatusStyle(status);
-  const StatusIcon = getWorktreeIcon(status);
-  const glowClass = GLOW_MAP[status] ?? "";
+  const borderColor = getBorderColor(status);
 
   return (
     <motion.div
-      aria-label={`Worktree ${branch} – ${status.toUpperCase().replace("_", " ")}`}
-      animate={{
-        scale: isActive ? [1, 1.01, 1] : 1,
-      }}
-      transition={{ duration: DURATION.ambient / 4, repeat: isActive ? Infinity : 0, ease: EASE.out }}
-      className={`w-52 rounded-none border-2 ${style.border} ${glowClass} bg-surface-raised overflow-hidden flex flex-col`}
+      aria-label={`Worktree ${branch} – ${statusLabel}`}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: DURATION.fast, ease: EASE.out }}
+      className={`w-full rounded-lg border border-neutral-700 border-l-[3px] ${borderColor} bg-surface-raised overflow-hidden p-4`}
     >
-      {/* Header */}
-      <div className="px-3 py-2 border-b border-neutral-700">
-        <div className="flex items-center gap-1.5 mb-1">
-          <motion.div
-            animate={{ rotate: isActive ? 360 : 0 }}
-            transition={{ duration: DURATION.ambient / 2, repeat: isActive ? Infinity : 0, ease: "linear" }}
-          >
-            <StatusIcon className={`w-4 h-4 ${style.text}`} />
-          </motion.div>
-          <span className={`text-xs font-display font-bold tracking-wider ${style.text}`}>
-            {status.toUpperCase().replace("_", " ")}
-          </span>
-        </div>
-        <div className="text-xs text-neutral-400 truncate" title={branch}>
-          🌿 {branch.replace("refs/heads/", "")}
-        </div>
-        <div className="text-xs text-neutral-500 truncate mt-0.5" title={issue}>
-          {issue}
-        </div>
-      </div>
+      {/* Row 1: Branch + Step + Progress */}
+      <div className="flex items-center gap-3">
+        {/* Status dot */}
+        <div
+          className={`w-2.5 h-2.5 rounded-full shrink-0 ${style.dot} ${isActive ? "animate-pulse" : ""}`}
+        />
 
-      {/* Progress bar */}
-      <div className="px-3 pt-2">
-        <div className="flex justify-between text-xs mb-1">
-          <span className="text-neutral-500">Progress</span>
-          <span className={style.text}>{progress}%</span>
-        </div>
-        <div className="w-full bg-neutral-800 rounded-full h-1.5">
-          <motion.div
-            className={`h-1.5 rounded-full ${isDone ? "bg-success" : isBlocked ? "bg-error" : "bg-accent"}`}
-            initial={{ width: 0 }}
-            animate={{ width: `${progress}%` }}
-            transition={SPRING.gentle}
-          />
-        </div>
-      </div>
+        {/* Branch name */}
+        <span
+          className="text-sm font-mono text-neutral-200 truncate min-w-0 flex-shrink"
+          title={branch}
+        >
+          {branch.replace("refs/heads/", "")}
+        </span>
 
-      {/* Steps checklist */}
-      <div className="px-3 py-2">
-        <div className="space-y-0.5">
-          {WORKTREE_STEPS.map((step, index) => {
-            const isCompleted = completedSteps.includes(step);
-            const isCurrent = currentStep === step && !isDone;
-            const { icon: StepIcon, spinning } = getStepIcon(step, completedSteps, isDone ? null : currentStep);
-            return (
-              <motion.div
-                key={step}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: DURATION.fast, delay: staggerDelay(index), ease: EASE.out }}
-                className="flex items-center gap-1.5"
-              >
-                {spinning ? (
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: DURATION.base * 3, repeat: Infinity, ease: "linear" }}
-                  >
-                    <StepIcon className="w-3 h-3 text-accent shrink-0" />
-                  </motion.div>
-                ) : (
-                  <StepIcon className={`w-3 h-3 ${isCompleted ? "text-success" : "text-neutral-700"} shrink-0`} />
-                )}
-                <span
-                  className={`text-xs ${
-                    isCompleted
-                      ? "text-success"
-                      : isCurrent
-                      ? "text-accent"
-                      : "text-neutral-600"
-                  }`}
-                >
-                  {STEP_LABELS[step]}
-                </span>
-              </motion.div>
-            );
-          })}
-        </div>
-      </div>
+        {/* Current step badge */}
+        <span className={`text-xs px-2 py-0.5 rounded ${style.text} bg-neutral-800 shrink-0`}>
+          {isDone ? "Fertig" : STEP_LABELS[currentStep]}
+        </span>
 
-      {/* Mini terminal log */}
-      <div className="retro-terminal m-2 mt-1 p-2 h-16 overflow-hidden rounded-none">
-        {logs.slice(-4).map((log, i) => (
-          <div key={i} className="text-xs text-neutral-400 truncate leading-tight py-0.5">
-            <span className="text-neutral-600">›</span> {log.replace(`[${currentStep}] `, "")}
+        {/* Progress bar + percentage */}
+        <div className="flex items-center gap-2 ml-auto shrink-0 w-32">
+          <div className="w-full bg-neutral-800 rounded-full h-1.5">
+            <div
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                isDone ? "bg-success" : isBlocked ? "bg-error" : "bg-accent"
+              }`}
+              style={{ width: `${progress}%` }}
+            />
           </div>
-        ))}
-        {logs.length === 0 && (
-          <div className="text-neutral-700 text-xs italic">Warte auf Daten...</div>
-        )}
+          <span className={`text-xs tabular-nums ${style.text}`}>{progress}%</span>
+        </div>
+      </div>
+
+      {/* Row 2: Task + Status */}
+      <div className="flex items-center justify-between mt-1.5 pl-[22px]">
+        <span className="text-xs text-neutral-500 truncate min-w-0 mr-4" title={issue}>
+          {issue}
+        </span>
+        <span className={`text-xs ${style.text} shrink-0`}>
+          {statusLabel}
+        </span>
       </div>
     </motion.div>
   );

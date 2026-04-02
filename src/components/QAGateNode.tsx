@@ -6,13 +6,7 @@ import {
   getStatusStyle,
   getQAShieldIcon,
 } from "../utils/statusConfig";
-import { DURATION, EASE, SPRING } from "../utils/motion";
-
-const GLOW_MAP: Record<string, string> = {
-  running: "glow-accent",
-  pass: "glow-success",
-  fail: "glow-error",
-};
+import { DURATION, EASE } from "../utils/motion";
 
 interface Props {
   qaGate: QAGate;
@@ -23,28 +17,41 @@ export function QAGateNode({ qaGate }: Props) {
 
   const ShieldIcon = getQAShieldIcon(overallStatus);
   const overallStyle = getStatusStyle(overallStatus);
-  const glowClass = GLOW_MAP[overallStatus] ?? "";
   const isRunning = overallStatus === "running";
+
+  const completedChecks = Object.values(checks).filter(
+    (s) => s === "pass" || s === "fail"
+  ).length;
+  const totalChecks = Object.values(checks).length;
+  const progressPct = totalChecks > 0 ? Math.round((completedChecks / totalChecks) * 100) : 0;
 
   return (
     <motion.div
       aria-label={`QA Gate – ${overallStatus.toUpperCase()}`}
-      animate={{
-        scale: isRunning ? [1, 1.01, 1] : 1,
-      }}
-      transition={{ duration: DURATION.ambient / 5, repeat: isRunning ? Infinity : 0, ease: EASE.out }}
-      className={`rounded-none border-2 bg-surface-raised overflow-hidden w-96 retro-terminal ${overallStyle.border} ${overallStyle.text} ${glowClass}`}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: DURATION.fast, ease: EASE.out }}
+      className={`w-72 rounded-lg border border-neutral-700 border-l-[3px] ${overallStyle.border} bg-surface-raised overflow-hidden`}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-700">
         <div className="flex items-center gap-2">
-          <ShieldIcon className="w-5 h-5" />
-          <span className="font-display font-bold text-sm tracking-widest">QA GATE</span>
+          <ShieldIcon className={`w-5 h-5 ${overallStyle.text}`} />
+          <span className={`font-display font-bold text-sm tracking-widest ${overallStyle.text}`}>
+            QA GATE
+          </span>
         </div>
-        <span className="text-xs uppercase tracking-widest">{overallStatus}</span>
+        <div className="flex items-center gap-1.5">
+          <div
+            className={`w-2 h-2 rounded-full ${overallStyle.dot} ${isRunning ? "animate-pulse" : ""}`}
+          />
+          <span className={`text-xs uppercase tracking-widest ${overallStyle.text}`}>
+            {overallStatus === "idle" ? "Bereit" : overallStatus === "running" ? "Läuft" : overallStatus === "pass" ? "Bestanden" : overallStatus === "fail" ? "Fehlgeschlagen" : overallStatus}
+          </span>
+        </div>
       </div>
 
-      {/* Checks table */}
+      {/* Checks list */}
       <div className="px-4 py-3 space-y-2">
         {overallStatus === "idle" ? (
           <div className="text-center text-neutral-600 text-xs italic py-2">
@@ -58,38 +65,27 @@ export function QAGateNode({ qaGate }: Props) {
             return (
               <div key={key} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <motion.div
-                    animate={{ rotate: status === "running" ? 360 : 0 }}
-                    transition={{ duration: DURATION.base * 3, repeat: status === "running" ? Infinity : 0, ease: "linear" }}
-                  >
-                    <Icon className={`w-4 h-4 ${checkStyle.text}`} />
-                  </motion.div>
+                  <Icon className={`w-4 h-4 ${checkStyle.text}`} />
                   <span className="text-sm text-neutral-300">{label}</span>
                 </div>
-                <div className={`text-xs font-mono px-2 py-0.5 rounded-none border ${checkStyle.border} ${checkStyle.text} ${checkStyle.bg}/10`}>
+                <span
+                  className={`text-xs font-mono px-2 py-0.5 rounded border ${checkStyle.border} ${checkStyle.text}`}
+                >
                   {status.toUpperCase()}
-                </div>
+                </span>
               </div>
             );
           })
         )}
       </div>
 
-      {/* Status bar */}
+      {/* Progress bar */}
       {overallStatus !== "idle" && (
         <div className="px-4 pb-3">
           <div className="w-full bg-neutral-800 rounded-full h-1.5">
-            <motion.div
-              className={`h-1.5 rounded-full ${overallStyle.bg}`}
-              initial={{ width: 0 }}
-              animate={{
-                width: `${
-                  (Object.values(checks).filter((s) => s === "pass" || s === "fail").length /
-                    Object.values(checks).length) *
-                  100
-                }%`,
-              }}
-              transition={SPRING.gentle}
+            <div
+              className={`h-1.5 rounded-full transition-all duration-300 ${overallStyle.bg}`}
+              style={{ width: `${progressPct}%` }}
             />
           </div>
         </div>

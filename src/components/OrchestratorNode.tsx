@@ -1,12 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import type { OrchestratorStatus } from "../store/pipelineStore";
 import { ORCHESTRATOR_CONFIG, getStatusStyle, PULSE_STATUSES } from "../utils/statusConfig";
-import { DURATION, EASE, VARIANTS } from "../utils/motion";
-
-const GLOW_MAP: Record<string, string> = {
-  planning: "glow-accent",
-  generated_manifest: "glow-success",
-};
+import { DURATION, EASE } from "../utils/motion";
 
 interface Props {
   orchestratorStatus: OrchestratorStatus;
@@ -24,39 +19,32 @@ export function OrchestratorNode({ orchestratorStatus, orchestratorLog, summary 
   const style = getStatusStyle(orchestratorStatus);
   const Icon = config.icon;
   const isActive = PULSE_STATUSES.has(orchestratorStatus);
-  const glowClass = GLOW_MAP[orchestratorStatus] ?? "";
 
   return (
     <motion.div
       aria-label={`Orchestrator – ${config.label}`}
-      animate={VARIANTS.breathe(isActive)}
-      transition={{ duration: DURATION.ambient / 4, repeat: isActive ? Infinity : 0, ease: EASE.out }}
-      className={`w-80 rounded-none border-2 ${style.border} bg-surface-raised ${glowClass} overflow-hidden`}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: DURATION.fast, ease: EASE.out }}
+      className={`w-72 rounded-lg border border-neutral-700 bg-surface-raised overflow-hidden border-l-[3px] ${style.border}`}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-700">
         <div className="flex items-center gap-2">
-          <motion.div
-            animate={VARIANTS.spin(isActive)}
-            transition={{ duration: DURATION.ambient / 2.5, repeat: isActive ? Infinity : 0, ease: "linear" }}
-          >
-            <Icon className={`w-5 h-5 ${style.text}`} />
-          </motion.div>
+          <Icon className={`w-5 h-5 ${style.text}`} />
           <span className={`font-display font-bold text-sm tracking-widest ${style.text}`}>
             ORCHESTRATOR
           </span>
         </div>
         <div className={`flex items-center gap-1.5 text-xs ${style.text}`}>
-          <motion.div
-            className="w-2 h-2 rounded-full bg-current"
-            animate={VARIANTS.dotPulse(isActive)}
-            transition={{ duration: DURATION.base * 3, repeat: Infinity }}
+          <div
+            className={`w-2 h-2 rounded-full ${style.dot} ${isActive ? "animate-pulse" : "opacity-40"}`}
           />
           {config.label}
         </div>
       </div>
 
-      {/* Agent summary bar (when using adapted data) */}
+      {/* Agent summary bar */}
       {summary && summary.total > 0 && (
         <div className="px-4 py-2 border-b border-neutral-700 flex items-center gap-3 text-xs">
           <span className="text-neutral-400">
@@ -80,14 +68,14 @@ export function OrchestratorNode({ orchestratorStatus, orchestratorLog, summary 
         </div>
       )}
 
-      {/* Terminal log */}
-      <div className="retro-terminal p-3 h-28 overflow-y-auto">
+      {/* Log viewer */}
+      <div className="p-3 h-28 overflow-y-auto font-mono">
         <AnimatePresence>
-          {orchestratorLog.slice(-8).map((log, i) => (
+          {orchestratorLog.slice(-5).map((log, i) => (
             <motion.div
               key={`${log}-${i}`}
-              initial={VARIANTS.fadeInLeft.initial}
-              animate={VARIANTS.fadeInLeft.animate}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
               transition={{ duration: DURATION.fast, ease: EASE.out }}
               className="text-xs text-neutral-300 py-0.5"
             >
