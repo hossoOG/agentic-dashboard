@@ -61,6 +61,16 @@ npm run test         # Run tests
 npm run lint         # Run ESLint
 ```
 
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [CLAUDE.md](CLAUDE.md) | Conventions, architecture, quality gates (AI-assisted contributing guide) |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Setup, code style, PR workflow |
+| [tasks/todo.md](tasks/todo.md) | Sprint backlog with current plan |
+| [tasks/lessons.md](tasks/lessons.md) | Lessons learned from past sprints |
+| [Softwareprozess/Phase.txt](Softwareprozess/Phase.txt) | Roadmap & release status |
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute.
