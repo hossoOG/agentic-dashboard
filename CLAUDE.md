@@ -19,9 +19,14 @@ npm run preview          # Preview des Production Builds
 npx tsc --noEmit         # Type-Checking ohne Build
 npm run tauri dev        # Tauri Desktop-App im Dev-Modus (startet auch Vite)
 npm run tauri build      # Kompletter Desktop-Build (Frontend + Rust)
+npm run test             # Alle Tests ausfuehren (vitest run)
+npm run test:watch       # Tests im Watch-Modus (vitest)
+npm run test:coverage    # Tests mit Coverage-Report (vitest run --coverage)
+npm run lint             # ESLint ausfuehren
+npm run format:check     # Prettier Format pruefen
 ```
 
-> **Tooling**: ESLint 9 + Prettier 3 + Vitest konfiguriert. ESLint laeuft in CI (GitHub Actions), nicht im Build.
+> **Tooling**: ESLint 9 + Prettier 3 + Vitest 2.1.9 konfiguriert. ESLint laeuft in CI (GitHub Actions), nicht im Build. Pre-Commit Hooks via Husky + lint-staged.
 
 ## Architecture
 
@@ -73,6 +78,21 @@ npm run tauri build      # Kompletter Desktop-Build (Frontend + Rust)
 - Tauri-Backend testen: `cd src-tauri && cargo check`
 
 ## Testing & Quality Requirements
+
+### Test-Infrastruktur
+
+- **Framework**: Vitest 2.1.9 + jsdom + @testing-library/react
+- **Stand**: 281 Tests in 8 Test-Dateien (Sprint v1.3.1)
+- **Test-Dateien**: Neben der Source-Datei (`*.test.ts`), Setup in `src/test/setup.ts`
+- **Coverage-Schwellen** (in `vitest.config.ts`): 60% Statements/Functions/Lines, 50% Branches
+- **CI Coverage Gate**: Coverage-Schwellen werden in CI erzwungen (`npm run test:coverage`)
+
+### Pre-Commit Hooks
+
+- **Husky + lint-staged**: Bei jedem Commit laufen automatisch `tsc --noEmit` und `eslint` auf gestaged `.ts`/`.tsx` Dateien
+- Konfiguration in `package.json` (`lint-staged`) und `.husky/pre-commit`
+
+### Qualitaets-Regeln
 
 - **Build-Verifizierung vor "Done"**: `npx tsc --noEmit && npm run build` muessen gruen sein.
 - **Visuelles Testen**: Dashboard im Dev-Modus (`npm run tauri dev`) pruefen.
