@@ -12,11 +12,8 @@ Thumbs.db
 coverage/
 .eslintcache
 
-# Internal docs and scripts (kept locally, not in public repo)
+# Internal / private
 .claude/
-Softwareprozess/
-tasks/
 scripts/
 AI_ARCHITECT_SYNC.md
 Projekt.txt
-CLAUDE.md
