@@ -46,6 +46,30 @@ pub mod commands {
             return Err(msg);
         }
 
+        // Validate resume_session_id to prevent shell injection.
+        // Session IDs must only contain alphanumeric chars, hyphens, and underscores.
+        if let Some(ref sid) = resume_session_id {
+            if !sid
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+            {
+                let msg = format!(
+                    "Failed to create session {}: invalid resume_session_id '{}' — only alphanumeric characters, hyphens, and underscores are allowed",
+                    id, sid
+                );
+                log::error!("{}", msg);
+                return Err(msg);
+            }
+            if sid.is_empty() {
+                let msg = format!(
+                    "Failed to create session {}: resume_session_id must not be empty",
+                    id
+                );
+                log::error!("{}", msg);
+                return Err(msg);
+            }
+        }
+
         let title = title.unwrap_or_else(|| {
             std::path::Path::new(&folder)
                 .file_name()

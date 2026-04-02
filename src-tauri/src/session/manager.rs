@@ -373,7 +373,19 @@ impl SessionManager {
 
     fn shell_args(shell: &str, resume_session_id: Option<&str>) -> Vec<String> {
         let claude_cmd = match resume_session_id {
-            Some(id) => format!("claude --dangerously-skip-permissions --resume {}", id),
+            Some(id) => {
+                // Defense-in-depth: reject any session ID with unexpected characters.
+                // Primary validation happens at the Tauri command boundary (commands.rs).
+                assert!(
+                    !id.is_empty()
+                        && id
+                            .chars()
+                            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'),
+                    "shell_args: resume_session_id contains invalid characters: '{}'",
+                    id
+                );
+                format!("claude --dangerously-skip-permissions --resume {}", id)
+            }
             None => "claude --dangerously-skip-permissions".to_string(),
         };
         match shell {
