@@ -20,7 +20,8 @@ import type {
 // Status Mapping
 // ============================================================================
 
-function mapAgentStatusToWorktreeStatus(agent: DetectedAgent): WorktreeStatus {
+/** @internal Exported for testing */
+export function mapAgentStatusToWorktreeStatus(agent: DetectedAgent): WorktreeStatus {
   switch (agent.status) {
     case "running":
       return "active";
@@ -33,24 +34,28 @@ function mapAgentStatusToWorktreeStatus(agent: DetectedAgent): WorktreeStatus {
   }
 }
 
-function deriveCurrentStep(agent: DetectedAgent): WorktreeStep {
+/** @internal Exported for testing */
+export function deriveCurrentStep(agent: DetectedAgent): WorktreeStep {
   if (agent.status === "completed") return "draft_pr";
   if (agent.status === "error") return "setup";
   if (agent.status === "running") return "code";
   return "setup";
 }
 
-const STEP_ORDER: WorktreeStep[] = [
+/** @internal Exported for testing */
+export const STEP_ORDER: WorktreeStep[] = [
   "setup", "plan", "validate", "code", "review", "self_verify", "draft_pr",
 ];
 
-function deriveCompletedSteps(currentStep: WorktreeStep): WorktreeStep[] {
+/** @internal Exported for testing */
+export function deriveCompletedSteps(currentStep: WorktreeStep): WorktreeStep[] {
   const idx = STEP_ORDER.indexOf(currentStep);
   if (idx <= 0) return [];
   return STEP_ORDER.slice(0, idx);
 }
 
-function deriveProgress(status: DetectedAgent["status"]): number {
+/** @internal Exported for testing */
+export function deriveProgress(currentStep: WorktreeStep, status: DetectedAgent["status"]): number {
   if (status === "completed") return 100;
   if (status === "error") return 0;
   if (status === "running") return 50;
@@ -132,7 +137,7 @@ export function useAdaptedPipelineData(sessionId?: string | null): AdaptedPipeli
       const status = mapAgentStatusToWorktreeStatus(agent);
       const currentStep = deriveCurrentStep(agent);
       const completedSteps = deriveCompletedSteps(currentStep);
-      const progress = deriveProgress(agent.status);
+      const progress = deriveProgress(currentStep, agent.status);
 
       // Build contextual log lines from available agent data
       const logs: string[] = [];
