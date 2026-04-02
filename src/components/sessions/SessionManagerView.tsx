@@ -21,6 +21,9 @@ import type { SessionShell } from "../../store/sessionStore";
 export function SessionManagerView() {
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Debounce timers for updateLastOutput to avoid UI jank from rapid PTY output
+  const lastOutputTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const configPanelOpen = useUIStore((s) => s.configPanelOpen);
   const toggleConfigPanel = useUIStore((s) => s.toggleConfigPanel);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
@@ -76,7 +79,16 @@ export function SessionManagerView() {
           const data = event?.payload?.data;
           if (typeof id !== "string" || typeof data !== "string") return;
           const snippet = data.slice(-200);
-          useSessionStore.getState().updateLastOutput(id, snippet);
+          // Debounce store update to avoid re-renders on every PTY chunk
+          const existing = lastOutputTimers.current.get(id);
+          if (existing) clearTimeout(existing);
+          lastOutputTimers.current.set(
+            id,
+            setTimeout(() => {
+              useSessionStore.getState().updateLastOutput(id, snippet);
+              lastOutputTimers.current.delete(id);
+            }, 300),
+          );
         } catch (err) {
           logError("SessionManagerView.sessionOutput", err);
         }
@@ -197,6 +209,9 @@ export function SessionManagerView() {
 
     return () => {
       unlisteners.forEach((p) => p.then((unlisten) => unlisten()).catch((e) => logError("SessionManagerView.cleanup", e)));
+      // Clear debounce timers to prevent stale updates after unmount
+      lastOutputTimers.current.forEach((t) => clearTimeout(t));
+      lastOutputTimers.current.clear();
     };
   }, []);
 
