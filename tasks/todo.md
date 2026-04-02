@@ -58,42 +58,42 @@
 
 ## Aktueller Sprint: v1.3.0 → ERLEDIGT ✓
 
-## Sprint: v1.3.1 — Quality & Security Foundation
+## Abgeschlossen: v1.3.1 — Quality & Security Foundation (2026-04-02)
 
 > **Milestone**: https://github.com/hossoOG/agentic-dashboard/milestone/1
 > Kein neues Feature. Sicherheit, QA-Infra, kritische Tests, Bugfixes.
 
 ### Phase 1: Security Fixes (BLOCKING)
 
-- [ ] fix(tauri): Shell-Injection in Session-Resume validieren (#55)
-- [ ] fix(tauri): CSP-Policy haerten — unsafe-eval entfernen (#56)
-- [ ] fix(tauri): Subprocess-Timeouts fuer gh/git/claude Commands (#64)
+- [x] fix(tauri): Shell-Injection in Session-Resume validieren (#55)
+- [x] fix(tauri): CSP-Policy haerten — unsafe-eval entfernen (#56)
+- [x] fix(tauri): Subprocess-Timeouts fuer gh/git/claude Commands (#64)
 
 ### Phase 2: QA-Infrastruktur
 
-- [ ] QA-9: Bestehende Tests stabilisieren & Baseline messen (#69)
-- [ ] QA-1: Pre-Commit Hook installieren (#70) — zusammen mit #61
-- [ ] chore(devops): Pre-Commit-Hooks einrichten / husky (#61)
-- [ ] QA-2: CI Coverage Gate aktivieren (#71)
+- [x] QA-9: Bestehende Tests stabilisieren & Baseline messen (#69)
+- [x] QA-1: Pre-Commit Hook installieren (#70) — zusammen mit #61
+- [x] chore(devops): Pre-Commit-Hooks einrichten / husky (#61)
+- [x] QA-2: CI Coverage Gate aktivieren (#71)
 
 ### Phase 3: Kritische Tests
 
-- [ ] QA-4: AgentDetector Tests — Buffer-Trim & Duplikat-Erkennung (#73)
-- [ ] QA-5: AgentDetector Tests — Name-Matching & Lifecycle (#74)
-- [ ] QA-6: pipelineAdapter Frontend Tests (#75)
-- [ ] test(store): Persistence-Layer absichern — tauriStorage + settings.rs (#60)
+- [x] QA-4: AgentDetector Tests — Buffer-Trim & Duplikat-Erkennung (#73)
+- [x] QA-5: AgentDetector Tests — Name-Matching & Lifecycle (#74)
+- [x] QA-6: pipelineAdapter Frontend Tests (#75)
+- [x] test(store): Persistence-Layer absichern — tauriStorage + settings.rs (#60)
 
 ### Phase 4: Bug Fixes & Quick Wins
 
-- [ ] Session-Status-Erkennung bei ultrathink / langen Denkpausen (#67)
-- [ ] perf(store): updateLastOutput debouncen — UI-Jank eliminieren (#58)
-- [ ] chore(deps): npm audit Vulnerabilities fixen (#57)
+- [x] Session-Status-Erkennung bei ultrathink / langen Denkpausen (#67)
+- [x] perf(store): updateLastOutput debouncen — UI-Jank eliminieren (#58)
+- [x] chore(deps): npm audit Vulnerabilities fixen (#57)
 
 ### Phase 5: Dokumentation & Abschluss
 
-- [ ] QA-3: CLAUDE.md Testing-Abschnitt ueberarbeiten (#72)
-- [ ] QA-8: Claude Code Post-Edit Hook einrichten (#77)
-- [ ] QA-7: Pipeline Component Tests (#76)
+- [x] QA-3: CLAUDE.md Testing-Abschnitt ueberarbeiten (#72)
+- [x] QA-8: Claude Code Post-Edit Hook einrichten (#77)
+- [x] QA-7: Pipeline Component Tests (#76)
 
 ## Backlog (Phase 2+)
 
