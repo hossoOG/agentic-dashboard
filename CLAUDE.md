@@ -89,8 +89,11 @@ npm run format:check     # Prettier Format pruefen
 
 ### Pre-Commit Hooks
 
-- **Husky + lint-staged**: Bei jedem Commit laufen automatisch `tsc --noEmit` und `eslint` auf gestaged `.ts`/`.tsx` Dateien
+- **Husky + lint-staged**: Bei jedem Commit laufen automatisch:
+  - `.ts`/`.tsx` Dateien: `tsc --noEmit` + `eslint --max-warnings=0`
+  - `.rs` Dateien: `cargo fmt --check` + `cargo check --quiet`
 - Konfiguration in `package.json` (`lint-staged`) und `.husky/pre-commit`
+- **Regel:** Jede Pruefung die in CI laeuft, MUSS auch lokal im Hook laufen (CI/Local-Paritaet)
 
 ### Qualitaets-Regeln
 

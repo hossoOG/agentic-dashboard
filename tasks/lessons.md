@@ -103,6 +103,15 @@
 
 ---
 
+## 2026-04-03 — v1.4.0 Release
+
+### Rust-Checks nur in CI, nie lokal
+
+**Was passiert ist:** `cargo fmt --check` lief nur in der GitHub Actions Pipeline. Lokal gab es keinen Pre-Commit-Hook fuer Rust-Dateien. Release v1.4.0 wurde gepusht und die CI schlug sofort wegen Formatting-Diffs in `agent_detector.rs`, `commands.rs`, `manager.rs` und `util.rs` fehl. Vermeidbar.
+**Regel:** Jede Sprache/jedes Tooling das in CI geprueft wird, MUSS auch lokal im Pre-Commit-Hook laufen. Parität zwischen CI und lokal ist Pflicht. Konkret: lint-staged hat jetzt `*.rs`-Einträge fuer `cargo fmt --check` und `cargo check --quiet`.
+
+---
+
 ## 2026-03-16 — Session Manager MVP (aus lessons-learned.md uebernommen)
 
 ### Test-First zahlt sich aus
