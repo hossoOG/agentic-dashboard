@@ -56,6 +56,10 @@
     "*.{ts,tsx}": [
       "bash -c 'npx tsc --noEmit'",
       "eslint --max-warnings=0"
+    ],
+    "*.rs": [
+      "bash -c 'cd src-tauri && cargo fmt --check'",
+      "bash -c 'cd src-tauri && cargo check --quiet'"
     ]
   },
   "devDependencies": {

@@ -455,8 +455,8 @@ impl SessionManager {
         // Thinking indicators: spinner chars or "Thinking" text mean Claude is
         // actively processing — never treat these as "waiting"
         const SPINNER_CHARS: &[char] = &['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-        let has_thinking_indicator = trimmed.ends_with(SPINNER_CHARS)
-            || trimmed.contains("Thinking");
+        let has_thinking_indicator =
+            trimmed.ends_with(SPINNER_CHARS) || trimmed.contains("Thinking");
 
         if has_thinking_indicator {
             return "running".to_string();

@@ -41,10 +41,7 @@ pub fn timed_output(mut cmd: Command, timeout: Duration) -> Result<Output, Strin
                 if start.elapsed() > timeout {
                     let _ = child.kill();
                     let _ = child.wait(); // Reap the process
-                    return Err(format!(
-                        "Command timed out after {}s",
-                        timeout.as_secs()
-                    ));
+                    return Err(format!("Command timed out after {}s", timeout.as_secs()));
                 }
                 std::thread::sleep(Duration::from_millis(50));
             }

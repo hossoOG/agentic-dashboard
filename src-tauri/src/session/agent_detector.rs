@@ -378,7 +378,9 @@ impl AgentDetector {
                 let _issue_num: Option<u32> = caps.get(4).and_then(|m| m.as_str().parse().ok());
                 let status = icon_to_status(icon);
 
-                let blocked_by: Option<u32> = p.blocked_by.captures(line)
+                let blocked_by: Option<u32> = p
+                    .blocked_by
+                    .captures(line)
                     .and_then(|bc| bc.get(1))
                     .and_then(|m| m.as_str().parse().ok());
 
@@ -390,21 +392,32 @@ impl AgentDetector {
 
                 if let Some(phase_n) = phase_num {
                     // Composite key: "phase-{N}-{name}" to handle multiple sub-tasks per phase
-                    let composite_key = format!("phase-{}-{}", phase_n, phase_name.as_deref().unwrap_or(""));
+                    let composite_key =
+                        format!("phase-{}-{}", phase_n, phase_name.as_deref().unwrap_or(""));
 
                     if let Some(agent_id) = self.task_agents.get(&composite_key).cloned() {
-                        self.update_agent_status(&agent_id, effective_status, blocked_by, &mut events);
+                        self.update_agent_status(
+                            &agent_id,
+                            effective_status,
+                            blocked_by,
+                            &mut events,
+                        );
                     } else {
                         let display_name = phase_name.map(|n| format!("Phase {}: {}", phase_n, n));
-                        if let Some(event) = self.try_spawn_agent(display_name, None, Some(phase_n)) {
+                        if let Some(event) = self.try_spawn_agent(display_name, None, Some(phase_n))
+                        {
                             if let AgentEvent::Detected(ref e) = event {
                                 self.task_agents.insert(composite_key, e.agent_id.clone());
-                                self.task_number_agents.entry(phase_n).or_default().push(e.agent_id.clone());
+                                self.task_number_agents
+                                    .entry(phase_n)
+                                    .or_default()
+                                    .push(e.agent_id.clone());
                                 if let Some(info) = self.known_agents.get_mut(&e.agent_id) {
                                     info.status = effective_status.to_string();
                                     info.blocked_by = blocked_by;
                                     if is_terminal_status(effective_status) {
-                                        info.completed_at = Some(chrono::Utc::now().timestamp_millis());
+                                        info.completed_at =
+                                            Some(chrono::Utc::now().timestamp_millis());
                                     }
                                 }
                             }
@@ -422,7 +435,9 @@ impl AgentDetector {
                 let task_name = caps.get(3).map(|m| m.as_str().trim().to_string());
                 let status = icon_to_status(icon);
 
-                let blocked_by: Option<u32> = p.blocked_by.captures(line)
+                let blocked_by: Option<u32> = p
+                    .blocked_by
+                    .captures(line)
                     .and_then(|bc| bc.get(1))
                     .and_then(|m| m.as_str().parse().ok());
 
@@ -433,20 +448,30 @@ impl AgentDetector {
                 };
 
                 if let Some(task_n) = task_num {
-                    let composite_key = format!("task-{}-{}", task_n, task_name.as_deref().unwrap_or(""));
+                    let composite_key =
+                        format!("task-{}-{}", task_n, task_name.as_deref().unwrap_or(""));
 
                     if let Some(agent_id) = self.task_agents.get(&composite_key).cloned() {
-                        self.update_agent_status(&agent_id, effective_status, blocked_by, &mut events);
+                        self.update_agent_status(
+                            &agent_id,
+                            effective_status,
+                            blocked_by,
+                            &mut events,
+                        );
                     } else {
                         if let Some(event) = self.try_spawn_agent(task_name, Some(task_n), None) {
                             if let AgentEvent::Detected(ref e) = event {
                                 self.task_agents.insert(composite_key, e.agent_id.clone());
-                                self.task_number_agents.entry(task_n).or_default().push(e.agent_id.clone());
+                                self.task_number_agents
+                                    .entry(task_n)
+                                    .or_default()
+                                    .push(e.agent_id.clone());
                                 if let Some(info) = self.known_agents.get_mut(&e.agent_id) {
                                     info.status = effective_status.to_string();
                                     info.blocked_by = blocked_by;
                                     if is_terminal_status(effective_status) {
-                                        info.completed_at = Some(chrono::Utc::now().timestamp_millis());
+                                        info.completed_at =
+                                            Some(chrono::Utc::now().timestamp_millis());
                                     }
                                 }
                             }
@@ -460,20 +485,29 @@ impl AgentDetector {
             // 4. Check for task entry: · Task 2: Name... (metrics) or ✱ Main task...
             if let Some(caps) = p.task_entry.captures(line) {
                 let task_num: Option<u32> = caps.name("num").and_then(|m| m.as_str().parse().ok());
-                let task_name = caps.name("name1")
+                let task_name = caps
+                    .name("name1")
                     .or(caps.name("name2"))
                     .map(|m| m.as_str().trim().to_string());
 
                 let (duration_str, token_count) = extract_metrics(line, p);
 
                 if let Some(task_n) = task_num {
-                    let composite_key = format!("task-entry-{}-{}", task_n, task_name.as_deref().unwrap_or(""));
+                    let composite_key = format!(
+                        "task-entry-{}-{}",
+                        task_n,
+                        task_name.as_deref().unwrap_or("")
+                    );
 
                     if let Some(agent_id) = self.task_agents.get(&composite_key).cloned() {
                         // Update existing with metrics
                         if let Some(info) = self.known_agents.get_mut(&agent_id) {
-                            if duration_str.is_some() { info.duration_str = duration_str.clone(); }
-                            if token_count.is_some() { info.token_count = token_count.clone(); }
+                            if duration_str.is_some() {
+                                info.duration_str = duration_str.clone();
+                            }
+                            if token_count.is_some() {
+                                info.token_count = token_count.clone();
+                            }
                             events.push(AgentEvent::StatusUpdate(AgentStatusUpdateEvent {
                                 session_id: self.session_id.clone(),
                                 agent_id,
@@ -487,7 +521,10 @@ impl AgentDetector {
                         if let Some(event) = self.try_spawn_agent(task_name, Some(task_n), None) {
                             if let AgentEvent::Detected(ref e) = event {
                                 self.task_agents.insert(composite_key, e.agent_id.clone());
-                                self.task_number_agents.entry(task_n).or_default().push(e.agent_id.clone());
+                                self.task_number_agents
+                                    .entry(task_n)
+                                    .or_default()
+                                    .push(e.agent_id.clone());
                                 if let Some(info) = self.known_agents.get_mut(&e.agent_id) {
                                     info.duration_str = duration_str;
                                     info.token_count = token_count;
@@ -513,8 +550,14 @@ impl AgentDetector {
 
             // 5. Check for summary line: +3 pending, 1 completed
             if let Some(caps) = p.summary_line.captures(line) {
-                let pending: u32 = caps.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
-                let completed: u32 = caps.get(2).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
+                let pending: u32 = caps
+                    .get(1)
+                    .and_then(|m| m.as_str().parse().ok())
+                    .unwrap_or(0);
+                let completed: u32 = caps
+                    .get(2)
+                    .and_then(|m| m.as_str().parse().ok())
+                    .unwrap_or(0);
                 events.push(AgentEvent::TaskSummary(TaskSummaryEvent {
                     session_id: self.session_id.clone(),
                     pending_count: pending,
@@ -528,12 +571,12 @@ impl AgentDetector {
                 self.complete_all_running(&mut events);
                 continue;
             }
-
         }
 
         // 7. Worktree detection: scan full text (path may be on a different line than "created worktree")
         if p.worktree_create.is_match(&scan_text) {
-            let path = p.worktree_path
+            let path = p
+                .worktree_path
                 .captures(&scan_text)
                 .and_then(|c| c.get(1))
                 .map(|m| m.as_str().trim().to_string())
@@ -573,11 +616,14 @@ impl AgentDetector {
         // Deduplication: skip if same name detected within 2000ms
         let dedup_key = name.clone().unwrap_or_default();
         let is_duplicate = !dedup_key.is_empty()
-            && self.recent_launches.iter()
+            && self
+                .recent_launches
+                .iter()
                 .any(|(n, ts)| n == &dedup_key && (now - ts).abs() < 2000);
 
         // Clean up old dedup entries
-        self.recent_launches.retain(|(_, ts)| (now - ts).abs() < 5000);
+        self.recent_launches
+            .retain(|(_, ts)| (now - ts).abs() < 5000);
 
         if is_duplicate {
             return None;
@@ -819,7 +865,10 @@ mod tests {
         let events = det.feed("● Agent(Explore test infrastructure and stores)\n");
         assert_eq!(count_detected(&events), 1);
         let e = first_detected(&events).unwrap();
-        assert_eq!(e.name.as_deref(), Some("Explore test infrastructure and stores"));
+        assert_eq!(
+            e.name.as_deref(),
+            Some("Explore test infrastructure and stores")
+        );
     }
 
     #[test]
@@ -856,7 +905,8 @@ mod tests {
     #[test]
     fn detects_main_task_entry() {
         let mut det = AgentDetector::new("s1".into());
-        let events = det.feed("✱ Fixing shell injection vulnerability... (6m 29s · ↓ 14.6k tokens)\n");
+        let events =
+            det.feed("✱ Fixing shell injection vulnerability... (6m 29s · ↓ 14.6k tokens)\n");
         assert_eq!(count_detected(&events), 1);
     }
 
@@ -887,7 +937,9 @@ mod tests {
         det.feed("├ ■ Task 2: TicketCollector\n");
         // Then complete it
         let events = det.feed("├ ✓ Task 2: TicketCollector\n");
-        assert!(events.iter().any(|e| matches!(e, AgentEvent::Completed(c) if c.status == "completed")));
+        assert!(events
+            .iter()
+            .any(|e| matches!(e, AgentEvent::Completed(c) if c.status == "completed")));
         let agent = det.known_agents().values().next().unwrap();
         assert_eq!(agent.status, "completed");
     }
@@ -897,7 +949,9 @@ mod tests {
         let mut det = AgentDetector::new("s1".into());
         det.feed("├ ■ Task 2: TicketCollector\n");
         let events = det.feed("├ ✗ Task 2: TicketCollector\n");
-        assert!(events.iter().any(|e| matches!(e, AgentEvent::Completed(c) if c.status == "error")));
+        assert!(events
+            .iter()
+            .any(|e| matches!(e, AgentEvent::Completed(c) if c.status == "error")));
     }
 
     // ── Phase detection ─────────────────────────────────────────────
@@ -1019,12 +1073,24 @@ mod tests {
         let agents: Vec<&AgentInfo> = det.known_agents().values().collect();
         assert_eq!(agents.len(), 2);
 
-        let child = agents.iter().find(|a| a.name.as_deref() == Some("Child task")).unwrap();
-        assert!(child.parent_agent_id.is_some(), "Child should have a parent");
+        let child = agents
+            .iter()
+            .find(|a| a.name.as_deref() == Some("Child task"))
+            .unwrap();
+        assert!(
+            child.parent_agent_id.is_some(),
+            "Child should have a parent"
+        );
         assert_eq!(child.depth, 1);
 
-        let parent = agents.iter().find(|a| a.name.as_deref() == Some("Parent task")).unwrap();
-        assert!(parent.parent_agent_id.is_none(), "Parent should have no parent");
+        let parent = agents
+            .iter()
+            .find(|a| a.name.as_deref() == Some("Parent task"))
+            .unwrap();
+        assert!(
+            parent.parent_agent_id.is_none(),
+            "Parent should have no parent"
+        );
         assert_eq!(parent.depth, 0);
     }
 
@@ -1117,21 +1183,27 @@ mod tests {
         let agents = det.known_agents();
 
         // Should have: main task + 5 phases = 6 agents
-        assert!(agents.len() >= 5, "Expected at least 5 agents, got {}", agents.len());
+        assert!(
+            agents.len() >= 5,
+            "Expected at least 5 agents, got {}",
+            agents.len()
+        );
 
         // Check statuses
         let completed_count = agents.values().filter(|a| a.status == "completed").count();
         let running_count = agents.values().filter(|a| a.status == "running").count();
         let blocked_count = agents.values().filter(|a| a.status == "blocked").count();
 
-        assert!(completed_count >= 1, "Should have at least 1 completed phase");
+        assert!(
+            completed_count >= 1,
+            "Should have at least 1 completed phase"
+        );
         assert!(running_count >= 1, "Should have at least 1 running phase");
         assert!(blocked_count >= 1, "Should have at least 1 blocked phase");
 
         // Check blocked_by
-        let blocked_agents: Vec<&AgentInfo> = agents.values()
-            .filter(|a| a.status == "blocked")
-            .collect();
+        let blocked_agents: Vec<&AgentInfo> =
+            agents.values().filter(|a| a.status == "blocked").collect();
         assert!(blocked_agents.iter().any(|a| a.blocked_by == Some(4)));
     }
 
@@ -1156,7 +1228,11 @@ mod tests {
         // Simulate character-by-character arrival without newlines
         for chunk in &["/", "e", "f", "f", "o", "r", "t"] {
             let events = det.feed(chunk);
-            assert!(events.is_empty(), "Partial input '{}' should not create agents", chunk);
+            assert!(
+                events.is_empty(),
+                "Partial input '{}' should not create agents",
+                chunk
+            );
         }
         // Final newline — but "/effort" doesn't match any pattern
         let events = det.feed("\n");
@@ -1180,7 +1256,10 @@ mod tests {
         let mut det = AgentDetector::new("s1".into());
         // Status bar with middle-dot separator — should not create agents
         let events = det.feed("\r⠙ Thinking... · esc to interrupt\n");
-        assert!(events.is_empty(), "Status bar with \\r should not create agents");
+        assert!(
+            events.is_empty(),
+            "Status bar with \\r should not create agents"
+        );
     }
 
     // ── Noise filter ────────────────────────────────────────────────
@@ -1211,14 +1290,20 @@ mod tests {
         let mut det = AgentDetector::new("s1".into());
         // · without "Task N:" should NOT match (status bar, not a task entry)
         let events = det.feed("· Claude Max\n");
-        assert!(events.is_empty(), "· without 'Task N:' should not create an agent");
+        assert!(
+            events.is_empty(),
+            "· without 'Task N:' should not create an agent"
+        );
     }
 
     #[test]
     fn no_false_positives_on_befuddling() {
         let mut det = AgentDetector::new("s1".into());
         let events = det.feed("· Befuddling... (thought for 4s)\n");
-        assert!(events.is_empty(), "Thinking indicator should not create an agent");
+        assert!(
+            events.is_empty(),
+            "Thinking indicator should not create an agent"
+        );
     }
 
     #[test]
@@ -1243,13 +1328,28 @@ mod tests {
         // Spawn two agents
         det.feed("● Agent(task one)\n");
         det.feed("● Agent(task two)\n");
-        assert_eq!(det.known_agents().values().filter(|a| a.status == "running").count(), 2);
+        assert_eq!(
+            det.known_agents()
+                .values()
+                .filter(|a| a.status == "running")
+                .count(),
+            2
+        );
 
         // Session completes
         let events = det.feed("✻ Churned for 1m 0s\n");
-        let completions = events.iter().filter(|e| matches!(e, AgentEvent::Completed(_))).count();
+        let completions = events
+            .iter()
+            .filter(|e| matches!(e, AgentEvent::Completed(_)))
+            .count();
         assert_eq!(completions, 2, "Both agents should be completed");
-        assert_eq!(det.known_agents().values().filter(|a| a.status == "completed").count(), 2);
+        assert_eq!(
+            det.known_agents()
+                .values()
+                .filter(|a| a.status == "completed")
+                .count(),
+            2
+        );
     }
 
     #[test]
@@ -1262,7 +1362,10 @@ mod tests {
         let events = det.feed("● Agent(new task)\n");
         let e = first_detected(&events).unwrap();
         assert_eq!(e.depth, 0, "Agent after completion should be root level");
-        assert!(e.parent_agent_id.is_none(), "Agent after completion should have no parent");
+        assert!(
+            e.parent_agent_id.is_none(),
+            "Agent after completion should have no parent"
+        );
     }
 
     // ── Anchored regexes ────────────────────────────────────────────
@@ -1286,11 +1389,17 @@ mod tests {
     // ── Helpers ──────────────────────────────────────────────────────
 
     fn count_detected(events: &[AgentEvent]) -> usize {
-        events.iter().filter(|e| matches!(e, AgentEvent::Detected(_))).count()
+        events
+            .iter()
+            .filter(|e| matches!(e, AgentEvent::Detected(_)))
+            .count()
     }
 
     fn count_completed(events: &[AgentEvent]) -> usize {
-        events.iter().filter(|e| matches!(e, AgentEvent::Completed(_))).count()
+        events
+            .iter()
+            .filter(|e| matches!(e, AgentEvent::Completed(_)))
+            .count()
     }
 
     fn first_detected(events: &[AgentEvent]) -> Option<&AgentDetectedEvent> {

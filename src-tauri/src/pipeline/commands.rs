@@ -95,8 +95,7 @@ pub async fn start_pipeline(
     // Validate that claude CLI is available before spawning
     let mut version_cmd = silent_command("claude");
     version_cmd.arg("--version");
-    let claude_check =
-        crate::util::timed_output(version_cmd, std::time::Duration::from_secs(10));
+    let claude_check = crate::util::timed_output(version_cmd, std::time::Duration::from_secs(10));
     match claude_check {
         Ok(output) if output.status.success() => {
             log::info!("Claude CLI found, version check passed");
