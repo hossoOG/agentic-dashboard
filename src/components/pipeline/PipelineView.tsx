@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { WorkflowLauncher } from "./WorkflowLauncher";
-import { DashboardMap } from "../DashboardMap";
+import { TaskTreeView } from "./TaskTreeView";
 import { AgentMetricsPanel } from "./AgentMetricsPanel";
 import { useSessionStore } from "../../store/sessionStore";
 
@@ -8,7 +8,7 @@ import { useSessionStore } from "../../store/sessionStore";
  * PipelineView — Wrapper that combines:
  * 1. Header with session filter dropdown
  * 2. WorkflowLauncher — detected workflows from Skills/Hooks
- * 3. DashboardMap — 2D agent pipeline visualization
+ * 3. TaskTreeView — hierarchical agent/task tree visualization
  * 4. AgentMetricsPanel — aggregated agent metrics
  */
 export function PipelineView() {
@@ -43,9 +43,9 @@ export function PipelineView() {
       {/* Top: Workflow Launcher */}
       <WorkflowLauncher />
 
-      {/* Middle: Dashboard Map — takes remaining space */}
+      {/* Middle: Task Tree — takes remaining space */}
       <div className="flex-1 min-h-0">
-        <DashboardMap sessionId={effectiveSessionId} />
+        <TaskTreeView sessionId={effectiveSessionId} />
       </div>
 
       {/* Bottom: Agent Metrics */}

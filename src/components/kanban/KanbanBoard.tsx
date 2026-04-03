@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { RefreshCw, Columns3, AlertCircle } from "lucide-react";
+import { wrapInvoke } from "../../utils/perfLogger";
 import { KanbanCard, type KanbanIssue } from "./KanbanCard";
 import { KanbanDetailModal } from "./KanbanDetailModal";
 import { logError } from "../../utils/errorLogger";
@@ -82,7 +83,7 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
       setError("");
 
       try {
-        const result = await invoke<KanbanIssue[]>("get_kanban_issues", { folder });
+        const result = await wrapInvoke<KanbanIssue[]>("get_kanban_issues", { folder });
         cache.set(folder, { issues: result, timestamp: Date.now() });
         if (mountedRef.current) {
           setIssues(result);

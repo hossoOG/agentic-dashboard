@@ -1,24 +1,6 @@
-import { lazy, Suspense } from "react";
-import { X, FileText, Puzzle, Webhook, Github, GitBranch, Columns3, Clock } from "lucide-react";
-import { useUIStore, type ConfigSubTab } from "../../store/uiStore";
-
-const ClaudeMdViewer = lazy(() => import("./ClaudeMdViewer").then(m => ({ default: m.ClaudeMdViewer })));
-const SkillsViewer = lazy(() => import("./SkillsViewer").then(m => ({ default: m.SkillsViewer })));
-const HooksViewer = lazy(() => import("./HooksViewer").then(m => ({ default: m.HooksViewer })));
-const GitHubViewer = lazy(() => import("./GitHubViewer").then(m => ({ default: m.GitHubViewer })));
-const WorktreeViewer = lazy(() => import("./WorktreeViewer").then(m => ({ default: m.WorktreeViewer })));
-const KanbanBoard = lazy(() => import("../kanban/KanbanBoard").then(m => ({ default: m.KanbanBoard })));
-const SessionHistoryViewer = lazy(() => import("./SessionHistoryViewer"));
-
-const configTabs: { id: ConfigSubTab; label: string; icon: typeof FileText }[] = [
-  { id: "claude-md", label: "CLAUDE.md", icon: FileText },
-  { id: "skills", label: "Skills", icon: Puzzle },
-  { id: "hooks", label: "Hooks", icon: Webhook },
-  { id: "github", label: "GitHub", icon: Github },
-  { id: "worktrees", label: "Worktrees", icon: GitBranch },
-  { id: "kanban", label: "Kanban", icon: Columns3 },
-  { id: "history", label: "History", icon: Clock },
-];
+import { X } from "lucide-react";
+import { useUIStore } from "../../store/uiStore";
+import { CONFIG_TABS, ConfigPanelContent } from "./configPanelShared";
 
 interface ConfigPanelProps {
   folder: string;
@@ -39,7 +21,7 @@ export function ConfigPanel({ folder, width, onResumeSession }: ConfigPanelProps
       {/* Tab header */}
       <div className="flex items-center h-9 bg-surface-raised border-b border-neutral-700 shrink-0">
         <div className="flex items-center flex-1 gap-0 px-1 overflow-x-auto">
-          {configTabs.map((tab) => {
+          {CONFIG_TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = configSubTab === tab.id;
             return (
@@ -71,29 +53,7 @@ export function ConfigPanel({ folder, width, onResumeSession }: ConfigPanelProps
 
       {/* Config viewer content */}
       <div className="flex-1 min-h-0 overflow-auto">
-        <Suspense
-          fallback={
-            <div className="flex-1 flex items-center justify-center text-neutral-500 py-8">
-              Laden...
-            </div>
-          }
-        >
-          {configSubTab === "claude-md" ? (
-            <ClaudeMdViewer folder={folder} />
-          ) : configSubTab === "skills" ? (
-            <SkillsViewer folder={folder} />
-          ) : configSubTab === "hooks" ? (
-            <HooksViewer folder={folder} />
-          ) : configSubTab === "github" ? (
-            <GitHubViewer folder={folder} />
-          ) : configSubTab === "worktrees" ? (
-            <WorktreeViewer folder={folder} />
-          ) : configSubTab === "kanban" ? (
-            <KanbanBoard folder={folder} />
-          ) : configSubTab === "history" ? (
-            <SessionHistoryViewer folder={folder} onResumeSession={onResumeSession} />
-          ) : null}
-        </Suspense>
+        <ConfigPanelContent folder={folder} activeTab={configSubTab} onResumeSession={onResumeSession} />
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 {
   "name": "agenticexplorer",
   "private": false,
-  "version": "1.3.0",
+  "version": "1.4.0",
   "type": "module",
   "description": "Desktop app for managing and monitoring multiple Claude CLI sessions",
   "author": "hossoOG",
@@ -54,7 +54,7 @@
   },
   "lint-staged": {
     "*.{ts,tsx}": [
-      "npx tsc --noEmit --skipLibCheck",
+      "bash -c 'npx tsc --noEmit'",
       "eslint --max-warnings=0"
     ]
   },

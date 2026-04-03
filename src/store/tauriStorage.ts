@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { StateStorage } from "zustand/middleware";
 import { logError, logWarn } from "../utils/errorLogger";
+import { wrapInvoke } from "../utils/perfLogger";
 
 /**
  * Custom Zustand storage adapter that persists to Documents/AgenticExplorer/settings.json
@@ -121,10 +122,10 @@ export const tauriStorage: StateStorage = {
     pendingSaves.set(name, setTimeout(() => {
       pendingSaves.delete(name);
       const latestValue = cache.get(name) ?? value;
-      invoke("save_user_settings", { data: latestValue }).catch((err) => {
+      wrapInvoke("save_user_settings", { data: latestValue }).catch((err) => {
         logError("tauriStorage.save", err);
         setTimeout(() => {
-          invoke("save_user_settings", { data: cache.get(name) ?? latestValue }).catch((err2) => {
+          wrapInvoke("save_user_settings", { data: cache.get(name) ?? latestValue }).catch((err2) => {
             logError("tauriStorage.saveRetry", err2);
             window.dispatchEvent(new CustomEvent("storage-save-error", {
               detail: { error: String(err2) },

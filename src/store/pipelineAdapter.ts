@@ -1,8 +1,9 @@
 /**
- * Pipeline Adapter — maps agentStore data to pipelineStore-compatible structures.
+ * Pipeline Adapter — maps agentStore data to visualization structures.
  *
- * This adapter enables the Pipeline-View to render real detected agents
- * from agent_detector.rs without modifying pipelineStore itself.
+ * Provides two hooks:
+ * - useAdaptedTaskTree: Tree-based adapter for the new TaskTreeView (Phase 3)
+ * - useAdaptedPipelineData: Legacy adapter for the 3-column DashboardMap (deprecated)
  */
 
 import { useMemo } from "react";
@@ -17,7 +18,84 @@ import type {
 } from "./pipelineStore";
 
 // ============================================================================
-// Status Mapping
+// Task Tree Types (new)
+// ============================================================================
+
+export interface TaskTreeNode {
+  agent: DetectedAgent;
+  children: TaskTreeNode[];
+}
+
+export interface AdaptedTaskTreeData {
+  hasAgents: boolean;
+  roots: TaskTreeNode[];
+  summary: {
+    total: number;
+    running: number;
+    completed: number;
+    error: number;
+    pending: number;
+    blocked: number;
+  };
+  taskSummary: { pending: number; completed: number } | null;
+}
+
+// ============================================================================
+// Task Tree Hook (new)
+// ============================================================================
+
+export function useAdaptedTaskTree(sessionId?: string | null): AdaptedTaskTreeData {
+  const agents = useAgentStore((s) => s.agents);
+  const taskSummary = useAgentStore((s) => s.taskSummary);
+
+  return useMemo(() => {
+    let agentList = Object.values(agents);
+    if (sessionId) {
+      agentList = agentList.filter((a) => a.sessionId === sessionId);
+    }
+    const hasAgents = agentList.length > 0;
+
+    if (!hasAgents) {
+      return {
+        hasAgents: false,
+        roots: [],
+        summary: { total: 0, running: 0, completed: 0, error: 0, pending: 0, blocked: 0 },
+        taskSummary,
+      };
+    }
+
+    // Build tree: find roots (agents with no parent or whose parent is not in this session)
+    const agentMap = new Map(agentList.map((a) => [a.id, a]));
+    const roots: TaskTreeNode[] = [];
+
+    function buildNode(agent: DetectedAgent): TaskTreeNode {
+      const children = agentList
+        .filter((a) => a.parentAgentId === agent.id)
+        .sort((a, b) => a.detectedAt - b.detectedAt)
+        .map(buildNode);
+      return { agent, children };
+    }
+
+    agentList
+      .filter((a) => !a.parentAgentId || !agentMap.has(a.parentAgentId))
+      .sort((a, b) => a.detectedAt - b.detectedAt)
+      .forEach((a) => roots.push(buildNode(a)));
+
+    const summary = {
+      total: agentList.length,
+      running: agentList.filter((a) => a.status === "running").length,
+      completed: agentList.filter((a) => a.status === "completed").length,
+      error: agentList.filter((a) => a.status === "error").length,
+      pending: agentList.filter((a) => a.status === "pending").length,
+      blocked: agentList.filter((a) => a.status === "blocked").length,
+    };
+
+    return { hasAgents: true, roots, summary, taskSummary };
+  }, [agents, sessionId, taskSummary]);
+}
+
+// ============================================================================
+// Legacy Adapter (deprecated — used by DashboardMap until Phase 3 replaces it)
 // ============================================================================
 
 /** @internal Exported for testing */
@@ -29,6 +107,8 @@ export function mapAgentStatusToWorktreeStatus(agent: DetectedAgent): WorktreeSt
       return "done";
     case "error":
       return "error";
+    case "blocked":
+      return "blocked";
     default:
       return "idle";
   }
@@ -63,21 +143,15 @@ export function deriveProgress(_currentStep: WorktreeStep, status: DetectedAgent
 }
 
 // ============================================================================
-// Adapter Types
+// Legacy Adapter Types
 // ============================================================================
 
 export interface AdaptedPipelineData {
-  /** True if agentStore has agents to display */
   hasAgents: boolean;
-  /** Agents mapped to Worktree-compatible structures */
   worktrees: Worktree[];
-  /** Derived orchestrator status */
   orchestratorStatus: OrchestratorStatus;
-  /** Summary log lines for orchestrator */
   orchestratorLog: string[];
-  /** QA gate (idle when using agent data) */
   qaGate: QAGate;
-  /** Summary counts */
   summary: {
     total: number;
     running: number;
@@ -87,7 +161,7 @@ export interface AdaptedPipelineData {
 }
 
 // ============================================================================
-// Adapter Hook
+// Legacy Adapter Hook
 // ============================================================================
 
 const DEFAULT_TOKEN_USAGE = {
@@ -106,6 +180,7 @@ const IDLE_QA_GATE: QAGate = {
   overallStatus: "idle",
 };
 
+/** @deprecated Use useAdaptedTaskTree instead */
 export function useAdaptedPipelineData(sessionId?: string | null): AdaptedPipelineData {
   const agents = useAgentStore((s) => s.agents);
   const agentWorktrees = useAgentStore((s) => s.worktrees);
@@ -128,7 +203,6 @@ export function useAdaptedPipelineData(sessionId?: string | null): AdaptedPipeli
       };
     }
 
-    // Map agents to Worktree-compatible structures
     const worktrees: Worktree[] = agentList.map((agent) => {
       const wtInfo = agent.worktreePath
         ? agentWorktrees[agent.worktreePath]
@@ -139,7 +213,6 @@ export function useAdaptedPipelineData(sessionId?: string | null): AdaptedPipeli
       const completedSteps = deriveCompletedSteps(currentStep);
       const progress = deriveProgress(currentStep, agent.status);
 
-      // Build contextual log lines from available agent data
       const logs: string[] = [];
       if (agent.task) logs.push(agent.task);
       if (agent.worktreePath) logs.push(`Worktree: ${agent.worktreePath.split(/[\\/]/).pop()}`);
@@ -167,15 +240,10 @@ export function useAdaptedPipelineData(sessionId?: string | null): AdaptedPipeli
       };
     });
 
-    // Derive orchestrator status from agent states
     const running = agentList.filter((a) => a.status === "running").length;
     const completed = agentList.filter((a) => a.status === "completed").length;
     const errorCount = agentList.filter((a) => a.status === "error").length;
 
-    // Derive orchestrator status:
-    // - "planning" = agents are actively running (closest available status)
-    // - "generated_manifest" = all agents completed (pipeline done)
-    // - "idle" = no active work (but agents with errors exist)
     let orchestratorStatus: OrchestratorStatus = "idle";
     if (running > 0) {
       orchestratorStatus = "planning";
@@ -183,7 +251,6 @@ export function useAdaptedPipelineData(sessionId?: string | null): AdaptedPipeli
       orchestratorStatus = "generated_manifest";
     }
 
-    // Build orchestrator log from agent info
     const orchestratorLog: string[] = [];
     orchestratorLog.push(`${agentList.length} Agent(en) erkannt`);
     if (running > 0) orchestratorLog.push(`${running} aktiv`);

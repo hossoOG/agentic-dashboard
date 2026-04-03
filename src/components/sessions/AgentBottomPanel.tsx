@@ -7,6 +7,10 @@ import {
   Check,
   AlertTriangle,
   Loader2,
+  Clock,
+  Coins,
+  Lock,
+  Pause,
 } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import {
@@ -34,12 +38,16 @@ export function AgentBottomPanel({ sessionId }: AgentBottomPanelProps) {
     [agents]
   );
 
-  // Don't render if no agents or worktrees
   if (agents.length === 0 && worktrees.length === 0) {
     return null;
   }
 
   const selectedAgent = agents.find((a) => a.id === selectedAgentId) ?? null;
+
+  // Build tree: root agents have no parent in this session
+  const rootAgents = agents.filter(
+    (a) => !a.parentAgentId || !agents.some((p) => p.id === a.parentAgentId)
+  );
 
   return (
     <div className="border-t border-neutral-700 bg-surface-base shrink-0">
@@ -82,12 +90,15 @@ export function AgentBottomPanel({ sessionId }: AgentBottomPanelProps) {
                 <div className="px-3 py-1 text-[10px] text-neutral-500 uppercase tracking-wider">
                   Agenten
                 </div>
-                {agents.map((agent) => (
-                  <AgentTreeNode
+                {rootAgents.map((agent) => (
+                  <AgentTreeBranch
                     key={agent.id}
                     agent={agent}
+                    allAgents={agents}
+                    depth={0}
                     isSelected={selectedAgentId === agent.id}
-                    onClick={() => setSelectedAgent(agent.id)}
+                    selectedAgentId={selectedAgentId}
+                    onClick={setSelectedAgent}
                   />
                 ))}
               </div>
@@ -130,32 +141,58 @@ function AgentStatusIcon({ status }: { status: DetectedAgent["status"] }) {
       return <Check className="w-3 h-3 text-success shrink-0" />;
     case "error":
       return <AlertTriangle className="w-3 h-3 text-red-500 shrink-0" />;
+    case "blocked":
+      return <Lock className="w-3 h-3 text-yellow-500 shrink-0" />;
+    case "pending":
+      return <Pause className="w-3 h-3 text-neutral-500 shrink-0" />;
   }
 }
 
-function AgentTreeNode({
+function AgentTreeBranch({
   agent,
-  isSelected,
+  allAgents,
+  depth,
+  isSelected: _isSelected,
+  selectedAgentId,
   onClick,
 }: {
   agent: DetectedAgent;
+  allAgents: DetectedAgent[];
+  depth: number;
   isSelected: boolean;
-  onClick: () => void;
+  selectedAgentId: string | null;
+  onClick: (id: string) => void;
 }) {
+  const children = allAgents.filter((a) => a.parentAgentId === agent.id);
+
   return (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors ${
-        isSelected
-          ? "bg-accent-a10 text-accent"
-          : "text-neutral-300 hover:bg-hover-overlay"
-      }`}
-    >
-      <AgentStatusIcon status={agent.status} />
-      <span className="text-xs truncate">
-        {agent.name ?? agent.task ?? agent.id}
-      </span>
-    </button>
+    <>
+      <button
+        onClick={() => onClick(agent.id)}
+        className={`w-full flex items-center gap-2 py-1.5 text-left transition-colors ${
+          selectedAgentId === agent.id
+            ? "bg-accent-a10 text-accent"
+            : "text-neutral-300 hover:bg-hover-overlay"
+        }`}
+        style={{ paddingLeft: `${12 + depth * 16}px`, paddingRight: "12px" }}
+      >
+        <AgentStatusIcon status={agent.status} />
+        <span className="text-xs truncate">
+          {agent.name ?? agent.task ?? agent.id}
+        </span>
+      </button>
+      {children.map((child) => (
+        <AgentTreeBranch
+          key={child.id}
+          agent={child}
+          allAgents={allAgents}
+          depth={depth + 1}
+          isSelected={selectedAgentId === child.id}
+          selectedAgentId={selectedAgentId}
+          onClick={onClick}
+        />
+      ))}
+    </>
   );
 }
 
@@ -181,15 +218,35 @@ function AgentDetailCard({
   worktrees: DetectedWorktree[];
 }) {
   const linkedWorktree = worktrees.find((w) => w.agentId === agent.id);
-  const duration = agent.completedAt
-    ? agent.completedAt - agent.detectedAt
-    : Date.now() - agent.detectedAt;
-  const durationSec = Math.floor(duration / 1000);
-  const durationMin = Math.floor(durationSec / 60);
-  const durationStr =
-    durationMin > 0
+
+  // Use parsed duration from terminal if available, otherwise compute
+  const durationStr = (() => {
+    if (agent.durationStr) return agent.durationStr;
+    const duration = agent.completedAt
+      ? agent.completedAt - agent.detectedAt
+      : Date.now() - agent.detectedAt;
+    const durationSec = Math.floor(duration / 1000);
+    const durationMin = Math.floor(durationSec / 60);
+    return durationMin > 0
       ? `${durationMin}m ${durationSec % 60}s`
       : `${durationSec}s`;
+  })();
+
+  const statusLabel = {
+    running: "Aktiv",
+    completed: "Fertig",
+    error: "Fehler",
+    pending: "Wartend",
+    blocked: "Blockiert",
+  }[agent.status] ?? agent.status;
+
+  const statusColorClass = {
+    running: "bg-success/10 text-success",
+    completed: "bg-neutral-800 text-neutral-400",
+    error: "bg-red-900/30 text-red-400",
+    pending: "bg-neutral-800 text-neutral-500",
+    blocked: "bg-yellow-900/30 text-yellow-400",
+  }[agent.status] ?? "bg-neutral-800 text-neutral-400";
 
   return (
     <div className="space-y-3">
@@ -199,39 +256,31 @@ function AgentDetailCard({
         <span className="text-sm font-semibold text-neutral-200">
           {agent.name ?? agent.task ?? "Agent"}
         </span>
-        <span
-          className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-            agent.status === "running"
-              ? "bg-success/10 text-success"
-              : agent.status === "completed"
-                ? "bg-neutral-800 text-neutral-400"
-                : "bg-red-900/30 text-red-400"
-          }`}
-        >
-          {agent.status === "running"
-            ? "Aktiv"
-            : agent.status === "completed"
-              ? "Fertig"
-              : "Fehler"}
+        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${statusColorClass}`}>
+          {statusLabel}
         </span>
       </div>
 
       {/* Details */}
       <div className="space-y-1.5 text-xs">
         {agent.task && (
-          <div className="flex gap-2">
-            <span className="text-neutral-500 shrink-0">Task:</span>
-            <span className="text-neutral-300">{agent.task}</span>
-          </div>
+          <DetailRow label="Task" value={agent.task} />
         )}
-        <div className="flex gap-2">
-          <span className="text-neutral-500 shrink-0">Dauer:</span>
-          <span className="text-neutral-300">{durationStr}</span>
-        </div>
-        <div className="flex gap-2">
-          <span className="text-neutral-500 shrink-0">ID:</span>
-          <span className="text-neutral-500 font-mono">{agent.id}</span>
-        </div>
+        {agent.phaseNumber != null && (
+          <DetailRow label="Phase" value={`Phase ${agent.phaseNumber}`} />
+        )}
+        <DetailRow label="Dauer" value={durationStr} icon={<Clock className="w-3 h-3" />} />
+        {agent.tokenCount && (
+          <DetailRow label="Tokens" value={agent.tokenCount} icon={<Coins className="w-3 h-3" />} />
+        )}
+        {agent.blockedBy != null && (
+          <DetailRow
+            label="Blockiert"
+            value={`durch Task #${agent.blockedBy}`}
+            icon={<Lock className="w-3 h-3 text-yellow-500" />}
+          />
+        )}
+        <DetailRow label="ID" value={agent.id} mono />
         {linkedWorktree && (
           <div className="flex gap-2">
             <span className="text-neutral-500 shrink-0">Worktree:</span>
@@ -242,6 +291,28 @@ function AgentDetailCard({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  icon,
+  mono,
+}: {
+  label: string;
+  value: string;
+  icon?: React.ReactNode;
+  mono?: boolean;
+}) {
+  return (
+    <div className="flex gap-2">
+      <span className="text-neutral-500 shrink-0">{label}:</span>
+      <span className={`text-neutral-300 flex items-center gap-1 ${mono ? "font-mono text-neutral-500" : ""}`}>
+        {icon}
+        {value}
+      </span>
     </div>
   );
 }

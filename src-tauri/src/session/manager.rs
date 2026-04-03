@@ -216,9 +216,10 @@ impl SessionManager {
                             match event {
                                 super::agent_detector::AgentEvent::Detected(e) => {
                                     log::info!(
-                                        "Session {} agent detected: {}",
+                                        "Session {} agent detected: {} (name: {:?})",
                                         read_id,
-                                        e.agent_id
+                                        e.agent_id,
+                                        e.name
                                     );
                                     let _ = read_app.emit("agent-detected", e);
                                 }
@@ -230,6 +231,24 @@ impl SessionManager {
                                         e.status
                                     );
                                     let _ = read_app.emit("agent-completed", e);
+                                }
+                                super::agent_detector::AgentEvent::StatusUpdate(e) => {
+                                    log::debug!(
+                                        "Session {} agent status update: {} → {}",
+                                        read_id,
+                                        e.agent_id,
+                                        e.status
+                                    );
+                                    let _ = read_app.emit("agent-status-update", e);
+                                }
+                                super::agent_detector::AgentEvent::TaskSummary(e) => {
+                                    log::debug!(
+                                        "Session {} task summary: {} pending, {} completed",
+                                        read_id,
+                                        e.pending_count,
+                                        e.completed_count
+                                    );
+                                    let _ = read_app.emit("task-summary", e);
                                 }
                                 super::agent_detector::AgentEvent::Worktree(e) => {
                                     log::info!("Session {} worktree detected: {}", read_id, e.path);

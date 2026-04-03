@@ -95,17 +95,60 @@
 - [x] QA-8: Claude Code Post-Edit Hook einrichten (#77)
 - [x] QA-7: Pipeline Component Tests (#76)
 
-## Backlog (Phase 2+)
+## Abgeschlossen: v1.4.0 — Agent Detection & Pipeline Rewrite (2026-04-03)
 
-- [ ] **US-P1**: Pipeline-View mit echten Agent-Daten verbinden (#59)
+> **Plan**: `.claude/plans/virtual-sauteeing-barto.md`
+> **Bezug**: US-P1 (#59), US-P5, QA-4 (#73), QA-5 (#74), #14
+> **Ziel**: Echte Agent-Erkennung + Task-Tree-Visualisierung
+
+### Phase 1: Agent Detector Rewrite (Rust)
+
+- [x] 1.1 Neue Claude Code-spezifische Regex-Patterns (Unicode: ●, ■, □, ✓, ✗)
+- [x] 1.2 AgentInfo Datenmodell erweitern (hierarchy, tokens, phases, dependencies)
+- [x] 1.3 Neue Event-Typen: `agent-status-update`, `task-summary`
+- [x] 1.4 Hierarchie-Tracking: agent_stack + task_agents Map
+- [x] 1.5 feed() auf Zeile-fuer-Zeile-Scanning umstellen
+- [x] 1.6 Event-Emission in manager.rs erweitern
+- [x] 1.7 Rust Unit Tests (36 Tests gruen inkl. false-positive Guards)
+
+### Phase 2: Frontend Data Model Extension
+
+- [x] 2.1 agentStore: Typen + Actions + Selectors erweitern
+- [x] 2.2 SessionManagerView: Event-Listener fuer neue Events
+- [x] 2.3 pipelineAdapter: useAdaptedTaskTree Hook (Tree statt Flat)
+- [x] 2.4 Frontend Tests: 287 Tests gruen, Build gruen
+
+### Phase 3: Pipeline Visualization Redesign
+
+- [x] 3.1 TaskTreeView.tsx (NEU): Ersetzt DashboardMap
+- [x] 3.2 TaskTreeNode.tsx (NEU): Rekursiver Baum-Node mit Status-Icons
+- [x] 3.3 PipelineView.tsx: DashboardMap → TaskTreeView
+- [x] 3.4 AgentMetricsPanel: Token-Card erweitert
+- [x] 3.5 AgentBottomPanel: Hierarchie-Darstellung + neue Felder
+- [ ] 3.6 Legacy-Komponenten verschieben (DashboardMap noch referenziert)
+
+### Phase 4: Coverage QA + Performance Measurement — ERLEDIGT
+
+> **Plan**: `.claude/plans/synthetic-tickling-hoare.md`
+
+- [x] A0: CI Coverage-Schwellen auf Baseline senken
+- [x] A1: Pure Function Tests (pathUtils, parseSkillFrontmatter, statusConfig, activityLevel)
+- [x] A2: Error Logger + Log Viewer Store Tests
+- [x] A3: Agent Store + Session History Store Tests
+- [x] A4: Library Store + Workflow Store Tests
+- [x] B1: perfLogger.ts erstellen + Tests
+- [x] B2: perfLogger Initialisierung in main.tsx
+- [x] B3: IPC/Event/Store/Render Instrumentierung (24 Punkte)
+- [x] Coverage-Schwellen hochgezogen (24/32/58/24)
+
+## Backlog (Future)
+
 - [ ] **US-P3**: Session-Start nach erkanntem Workflow (abhaengig von US-P2)
-- [ ] **US-P5**: Agent-Hierarchie-Darstellung (abhaengig von US-P1)
 - [ ] refactor(ui): SessionManagerView zerlegen (#62)
 - [ ] refactor(tauri): ADPError in Tauri-Commands deployen (#63)
 - [ ] refactor(ui): Component-Library formalisieren (#65)
 - [ ] feat: In-App Markdown-Editor mit Speicherfunktion (#68)
 - [ ] test(all): Test-Coverage auf 75%+ erhoehen (#66)
-- [ ] Node/Graph-basierte Session-Visualisierung (#14)
 - [ ] Gamification-System (#15)
 
 ---

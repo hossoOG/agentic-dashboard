@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { invoke } from "@tauri-apps/api/core";
+import { wrapInvoke, createEventTracker, markRender } from "../../utils/perfLogger";
 import { SessionList } from "./SessionList";
 import { SessionTerminal } from "./SessionTerminal";
 import { SessionGrid } from "./SessionGrid";
@@ -9,6 +9,7 @@ import { NewSessionDialog } from "./NewSessionDialog";
 import { SessionStatusBar } from "./SessionStatusBar";
 import { EmptyState } from "./EmptyState";
 import { ConfigPanel } from "./ConfigPanel";
+import { FavoritePreview } from "./FavoritePreview";
 import { AgentBottomPanel } from "./AgentBottomPanel";
 import { useSessionStore, selectActiveSession } from "../../store/sessionStore";
 import { useSettingsStore } from "../../store/settingsStore";
@@ -18,7 +19,12 @@ import { logError } from "../../utils/errorLogger";
 import type { FavoriteFolder } from "../../store/settingsStore";
 import type { SessionShell } from "../../store/sessionStore";
 
+const trackSessionOutput = createEventTracker("session-output");
+
 export function SessionManagerView() {
+  const renderDone = markRender("SessionManagerView");
+  useEffect(() => { renderDone.done(); });
+
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -37,6 +43,8 @@ export function SessionManagerView() {
   const removeFromGrid = useSessionStore((s) => s.removeFromGrid);
   const configPanelWidth = useUIStore((s) => s.configPanelWidth);
   const setConfigPanelWidth = useUIStore((s) => s.setConfigPanelWidth);
+  const previewFolder = useUIStore((s) => s.previewFolder);
+  const closePreview = useUIStore((s) => s.closePreview);
 
   // --- Resize handle logic ---
   const isDragging = useRef(false);
@@ -70,23 +78,25 @@ export function SessionManagerView() {
   // Register Tauri event listeners for session lifecycle
   useEffect(() => {
     const unlisteners: Array<Promise<() => void>> = [];
+    const timers = lastOutputTimers.current;
 
     // session-output → update lastOutput in store
     unlisteners.push(
       listen<{ id: string; data: string }>("session-output", (event) => {
         try {
+          trackSessionOutput();
           const id = event?.payload?.id;
           const data = event?.payload?.data;
           if (typeof id !== "string" || typeof data !== "string") return;
           const snippet = data.slice(-200);
           // Debounce store update to avoid re-renders on every PTY chunk
-          const existing = lastOutputTimers.current.get(id);
+          const existing = timers.get(id);
           if (existing) clearTimeout(existing);
-          lastOutputTimers.current.set(
+          timers.set(
             id,
             setTimeout(() => {
               useSessionStore.getState().updateLastOutput(id, snippet);
-              lastOutputTimers.current.delete(id);
+              timers.delete(id);
             }, 300),
           );
         } catch (err) {
@@ -138,6 +148,10 @@ export function SessionManagerView() {
         agent_id: string;
         name: string | null;
         task: string | null;
+        task_number: number | null;
+        phase_number: number | null;
+        parent_agent_id: string | null;
+        depth: number;
         detected_at: number;
       }>("agent-detected", (event) => {
         try {
@@ -146,13 +160,21 @@ export function SessionManagerView() {
           useAgentStore.getState().addAgent({
             id: p.agent_id,
             sessionId: p.session_id,
-            parentAgentId: null,
+            parentAgentId: p.parent_agent_id ?? null,
+            childrenIds: [],
+            depth: p.depth ?? 0,
             name: p.name ?? null,
             task: p.task ?? null,
+            taskNumber: p.task_number ?? null,
+            phaseNumber: p.phase_number ?? null,
             status: "running",
             detectedAt: p.detected_at ?? Date.now(),
             completedAt: null,
             worktreePath: null,
+            durationStr: null,
+            tokenCount: null,
+            blockedBy: null,
+            toolUses: null,
           });
         } catch (err) {
           logError("SessionManagerView.agentDetected", err);
@@ -179,6 +201,55 @@ export function SessionManagerView() {
           );
         } catch (err) {
           logError("SessionManagerView.agentCompleted", err);
+        }
+      })
+    );
+
+    // agent-status-update → update agent details (status, metrics, blocked_by)
+    unlisteners.push(
+      listen<{
+        session_id: string;
+        agent_id: string;
+        status: string;
+        duration_str: string | null;
+        token_count: string | null;
+        blocked_by: number | null;
+      }>("agent-status-update", (event) => {
+        try {
+          const p = event?.payload;
+          if (!p?.agent_id) return;
+          const updates: Record<string, unknown> = {
+            status: p.status,
+          };
+          if (p.duration_str) updates.durationStr = p.duration_str;
+          if (p.token_count) updates.tokenCount = p.token_count;
+          if (p.blocked_by !== null && p.blocked_by !== undefined) updates.blockedBy = p.blocked_by;
+          if (p.status === "completed" || p.status === "error") {
+            updates.completedAt = Date.now();
+          }
+          useAgentStore.getState().updateAgentDetails(p.agent_id, updates);
+        } catch (err) {
+          logError("SessionManagerView.agentStatusUpdate", err);
+        }
+      })
+    );
+
+    // task-summary → update summary counts
+    unlisteners.push(
+      listen<{
+        session_id: string;
+        pending_count: number;
+        completed_count: number;
+      }>("task-summary", (event) => {
+        try {
+          const p = event?.payload;
+          if (!p) return;
+          useAgentStore.getState().setTaskSummary(
+            p.pending_count ?? 0,
+            p.completed_count ?? 0
+          );
+        } catch (err) {
+          logError("SessionManagerView.taskSummary", err);
         }
       })
     );
@@ -210,8 +281,8 @@ export function SessionManagerView() {
     return () => {
       unlisteners.forEach((p) => p.then((unlisten) => unlisten()).catch((e) => logError("SessionManagerView.cleanup", e)));
       // Clear debounce timers to prevent stale updates after unmount
-      lastOutputTimers.current.forEach((t) => clearTimeout(t));
-      lastOutputTimers.current.clear();
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
     };
   }, []);
 
@@ -221,7 +292,7 @@ export function SessionManagerView() {
     const shell = "powershell";
 
     try {
-      const result = await invoke<{ id: string; title: string; folder: string; shell: string }>("create_session", {
+      const result = await wrapInvoke<{ id: string; title: string; folder: string; shell: string }>("create_session", {
         id,
         folder: cwd,
         title,
@@ -248,7 +319,7 @@ export function SessionManagerView() {
     const shell = favorite.shell;
 
     try {
-      const result = await invoke<{ id: string; title: string; folder: string; shell: string }>("create_session", {
+      const result = await wrapInvoke<{ id: string; title: string; folder: string; shell: string }>("create_session", {
         id,
         folder,
         title,
@@ -263,6 +334,7 @@ export function SessionManagerView() {
         shell: (result?.shell ?? shell) as SessionShell,
       });
       useSettingsStore.getState().updateFavoriteLastUsed(favorite.id);
+      useUIStore.getState().closePreview();
     } catch (err) {
       logError("SessionManagerView.quickStart", err);
     }
@@ -303,7 +375,14 @@ export function SessionManagerView() {
           {/* Content area */}
           <div className="flex-1 min-h-0">
             {layoutMode === "single" ? (
-              activeSessionId ? (
+              previewFolder && !activeSessionId ? (
+                <FavoritePreview
+                  key={previewFolder}
+                  folder={previewFolder}
+                  onClose={closePreview}
+                  onResumeSession={handleResumeSession}
+                />
+              ) : activeSessionId ? (
                 <div className="flex flex-row h-full" ref={containerRef}>
                   {/* Terminal — always rendered, flex-1 */}
                   <div className="flex-1 min-w-0 flex flex-col">

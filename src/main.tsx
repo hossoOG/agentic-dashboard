@@ -6,6 +6,11 @@ import "./index.css";
 const LogWindowApp = lazy(() => import("./LogWindowApp"));
 
 initTauriStorage().then(async () => {
+  if (import.meta.env.DEV || localStorage.getItem("agenticexplorer-perf") === "1") {
+    const { initPerf } = await import("./utils/perfLogger");
+    initPerf();
+  }
+
   const isLogWindow = window.location.search.includes("view=logs");
 
   if (isLogWindow) {

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { logError } from "../utils/errorLogger";
+import { wrapInvoke } from "../utils/perfLogger";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -75,7 +76,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
     set({ loading: true });
     try {
-      const items = await invoke<LibraryItemMeta[]>("list_library_items");
+      const items = await wrapInvoke<LibraryItemMeta[]>("list_library_items");
       // Also rebuild usage from index
       const index = await invoke<LibraryIndex>("rebuild_library_index");
       set({

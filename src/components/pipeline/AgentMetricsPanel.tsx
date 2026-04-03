@@ -33,10 +33,13 @@ interface AgentMetrics {
   running: number;
   completed: number;
   error: number;
+  pending: number;
+  blocked: number;
   totalDurationMs: number;
   oldestAgentAt: number | null;
   worktreeCount: number;
   agentsWithWorktrees: number;
+  tokenAgents: string[];
 }
 
 function computeMetrics(
@@ -49,14 +52,19 @@ function computeMetrics(
   let running = 0;
   let completed = 0;
   let error = 0;
+  let pending = 0;
+  let blocked = 0;
   let totalDurationMs = 0;
   let oldestAgentAt: number | null = null;
   let agentsWithWorktrees = 0;
+  const tokenAgents: string[] = [];
 
   for (const agent of agentList) {
     if (agent.status === "running") running++;
     else if (agent.status === "completed") completed++;
     else if (agent.status === "error") error++;
+    else if (agent.status === "pending") pending++;
+    else if (agent.status === "blocked") blocked++;
 
     const endTime = agent.completedAt ?? now;
     totalDurationMs += endTime - agent.detectedAt;
@@ -68,6 +76,10 @@ function computeMetrics(
     if (agent.worktreePath) {
       agentsWithWorktrees++;
     }
+
+    if (agent.tokenCount) {
+      tokenAgents.push(agent.tokenCount);
+    }
   }
 
   return {
@@ -75,10 +87,13 @@ function computeMetrics(
     running,
     completed,
     error,
+    pending,
+    blocked,
     totalDurationMs,
     oldestAgentAt,
     worktreeCount: Object.keys(worktrees).length,
     agentsWithWorktrees,
+    tokenAgents,
   };
 }
 
@@ -176,7 +191,7 @@ export function AgentMetricsPanel({ sessionId }: AgentMetricsPanelProps) {
       </div>
 
       {/* Metrics grid */}
-      <div className="px-4 py-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div className="px-4 py-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <MetricCard
           icon={Users}
           label="Gesamt"
@@ -209,6 +224,15 @@ export function AgentMetricsPanel({ sessionId }: AgentMetricsPanelProps) {
           subValue={metrics.total > 1 ? `${formatDuration(Math.round(metrics.totalDurationMs / metrics.total))} avg` : undefined}
           color="text-neutral-400"
         />
+        {metrics.tokenAgents.length > 0 && (
+          <MetricCard
+            icon={Activity}
+            label="Tokens"
+            value={metrics.tokenAgents.length}
+            subValue={metrics.tokenAgents[0]}
+            color="text-neutral-400"
+          />
+        )}
       </div>
 
       {/* Worktree usage bar */}

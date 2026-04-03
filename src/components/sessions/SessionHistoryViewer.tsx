@@ -110,7 +110,7 @@ const SessionHistoryViewer: React.FC<SessionHistoryViewerProps> = ({ folder, onR
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full text-zinc-500 text-sm py-8">
+      <div className="flex items-center justify-center h-full text-neutral-400 text-sm py-8">
         <RefreshCw className="w-4 h-4 animate-spin mr-2" />
         Sessions werden geladen...
       </div>
@@ -120,10 +120,10 @@ const SessionHistoryViewer: React.FC<SessionHistoryViewerProps> = ({ folder, onR
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-sm py-8 gap-2">
-        <span className="text-red-400">Fehler beim Laden: {error}</span>
+        <span className="text-error">Fehler beim Laden: {error}</span>
         <button
           onClick={loadSessions}
-          className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+          className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors"
         >
           Erneut versuchen
         </button>
@@ -133,7 +133,7 @@ const SessionHistoryViewer: React.FC<SessionHistoryViewerProps> = ({ folder, onR
 
   if (sessions.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-zinc-500 text-sm py-8">
+      <div className="flex items-center justify-center h-full text-neutral-400 text-sm py-8">
         Keine Claude-Sessions fuer dieses Projekt gefunden
       </div>
     );
@@ -143,12 +143,12 @@ const SessionHistoryViewer: React.FC<SessionHistoryViewerProps> = ({ folder, onR
     <div className="flex flex-col gap-2 p-2 h-full overflow-y-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-zinc-400">
+        <span className="text-xs text-neutral-400">
           {sessions.length} {sessions.length === 1 ? "Session" : "Sessions"}
         </span>
         <button
           onClick={loadSessions}
-          className="text-xs text-zinc-500 hover:text-zinc-200 transition-colors px-2 py-0.5 rounded hover:bg-zinc-800"
+          className="text-xs text-neutral-500 hover:text-neutral-200 transition-colors px-2 py-0.5 rounded hover:bg-neutral-800"
           title="Neu laden"
         >
           <RefreshCw className="w-3 h-3" />
@@ -160,17 +160,17 @@ const SessionHistoryViewer: React.FC<SessionHistoryViewerProps> = ({ folder, onR
         {sessions.map((session) => (
           <div
             key={session.session_id}
-            className="bg-zinc-800/50 border border-zinc-700/50 rounded-md px-3 py-2 text-sm group"
+            className="bg-surface-raised border border-neutral-700 rounded-md px-3 py-2 text-sm group"
           >
             {/* Title + Resume button */}
             <div className="flex items-start gap-2">
-              <div className="text-zinc-200 font-medium leading-snug line-clamp-2 flex-1">
+              <div className="text-neutral-200 font-medium leading-snug line-clamp-2 flex-1">
                 {session.title}
               </div>
               {onResumeSession && (
                 <button
                   onClick={() => onResumeSession(session.session_id, session.cwd)}
-                  className="shrink-0 mt-0.5 p-1 rounded hover:bg-emerald-600/20 text-zinc-500 hover:text-emerald-400 transition-colors opacity-0 group-hover:opacity-100"
+                  className="shrink-0 mt-0.5 p-1 rounded hover:bg-accent-a15 text-neutral-400 hover:text-accent transition-colors opacity-0 group-hover:opacity-100"
                   title="Session fortsetzen"
                 >
                   <Play className="w-3.5 h-3.5" />
@@ -179,7 +179,7 @@ const SessionHistoryViewer: React.FC<SessionHistoryViewerProps> = ({ folder, onR
             </div>
 
             {/* Metadata row */}
-            <div className="flex items-center gap-3 mt-1.5 text-xs text-zinc-500 flex-wrap">
+            <div className="flex items-center gap-3 mt-1.5 text-xs text-neutral-400 flex-wrap">
               <span title={formatDateTime(session.started_at)}>
                 {formatRelativeDate(session.started_at)}
               </span>
@@ -204,7 +204,7 @@ const SessionHistoryViewer: React.FC<SessionHistoryViewerProps> = ({ folder, onR
                 </span>
               )}
               {session.model && (
-                <span className="text-zinc-600" title={session.model}>
+                <span className="text-neutral-500" title={session.model}>
                   {formatModel(session.model)}
                 </span>
               )}

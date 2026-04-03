@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { invoke } from "@tauri-apps/api/core";
 import { Terminal } from "@xterm/xterm";
+import { wrapInvoke, markRender } from "../../utils/perfLogger";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { logError } from "../../utils/errorLogger";
@@ -12,6 +12,9 @@ interface SessionTerminalProps {
 }
 
 export function SessionTerminal({ sessionId }: SessionTerminalProps) {
+  const renderDone = markRender("SessionTerminal");
+  useEffect(() => { renderDone.done(); });
+
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
 
@@ -40,7 +43,7 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
 
     // Input: User types -> send to backend
     term.onData((data: string) => {
-      invoke("write_session", { id: sessionId, data }).catch((err) => {
+      wrapInvoke("write_session", { id: sessionId, data }).catch((err) => {
         logError("SessionTerminal.writeSession", err);
       });
     });
@@ -58,14 +61,14 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
     // Resize
     const resizeObserver = new ResizeObserver(() => {
       fitAddon.fit();
-      invoke("resize_session", { id: sessionId, cols: term.cols, rows: term.rows }).catch(() => {});
+      wrapInvoke("resize_session", { id: sessionId, cols: term.cols, rows: term.rows }).catch(() => {});
     });
     resizeObserver.observe(containerRef.current);
 
     // Report initial size
     setTimeout(() => {
       fitAddon.fit();
-      invoke("resize_session", { id: sessionId, cols: term.cols, rows: term.rows }).catch(() => {});
+      wrapInvoke("resize_session", { id: sessionId, cols: term.cols, rows: term.rows }).catch(() => {});
     }, 50);
 
     return () => {

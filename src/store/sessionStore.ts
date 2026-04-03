@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { logWarn } from "../utils/errorLogger";
+import { recordPerf } from "../utils/perfLogger";
 
 // ============================================================================
 // Types
@@ -132,22 +133,27 @@ export const useSessionStore = create<SessionState>((set) => ({
     }),
 
   updateStatus: (id, status) =>
-    set((state) => ({
-      sessions: state.sessions.map((s) =>
-        s.id === id
-          ? {
-              ...s,
-              status,
-              finishedAt:
-                status === "done" || status === "error"
-                  ? Date.now()
-                  : status === "running" || status === "starting" || status === "waiting"
-                    ? null
-                    : s.finishedAt,
-            }
-          : s
-      ),
-    })),
+    set((state) => {
+      const t0 = performance.now();
+      const result = {
+        sessions: state.sessions.map((s) =>
+          s.id === id
+            ? {
+                ...s,
+                status,
+                finishedAt:
+                  status === "done" || status === "error"
+                    ? Date.now()
+                    : status === "running" || status === "starting" || status === "waiting"
+                      ? null
+                      : s.finishedAt,
+              }
+            : s
+        ),
+      };
+      recordPerf("store-update", "updateStatus", performance.now() - t0);
+      return result;
+    }),
 
   setExitCode: (id, exitCode) =>
     set((state) => ({
@@ -164,13 +170,18 @@ export const useSessionStore = create<SessionState>((set) => ({
     })),
 
   updateLastOutput: (id, snippet) =>
-    set((state) => ({
-      sessions: state.sessions.map((s) =>
-        s.id === id
-          ? { ...s, lastOutputAt: Date.now(), lastOutputSnippet: snippet }
-          : s
-      ),
-    })),
+    set((state) => {
+      const t0 = performance.now();
+      const result = {
+        sessions: state.sessions.map((s) =>
+          s.id === id
+            ? { ...s, lastOutputAt: Date.now(), lastOutputSnippet: snippet }
+            : s
+        ),
+      };
+      recordPerf("store-update", "updateLastOutput", performance.now() - t0);
+      return result;
+    }),
 
   // Layout actions
   setLayoutMode: (mode) =>

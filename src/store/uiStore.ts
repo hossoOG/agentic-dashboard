@@ -34,6 +34,10 @@ interface UIState {
   configPanelWidth: number;
   setConfigPanelWidth: (width: number) => void;
 
+  previewFolder: string | null;
+  openPreview: (folder: string) => void;
+  closePreview: () => void;
+
   detailPanel: DetailPanel;
   openDetailPanel: (type: string, targetId: string) => void;
   closeDetailPanel: () => void;
@@ -58,6 +62,10 @@ export const useUIStore = create<UIState>((set) => ({
 
   configPanelWidth: 400,
   setConfigPanelWidth: (width) => set({ configPanelWidth: Math.max(250, Math.min(800, width)) }),
+
+  previewFolder: null,
+  openPreview: (folder) => set({ previewFolder: folder }),
+  closePreview: () => set({ previewFolder: null }),
 
   detailPanel: { isOpen: false, type: null, targetId: null },
   openDetailPanel: (type, targetId) =>

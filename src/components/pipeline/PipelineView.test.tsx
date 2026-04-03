@@ -27,12 +27,20 @@ function makeAgent(overrides: Partial<DetectedAgent> = {}): DetectedAgent {
     id: `agent-${Math.random().toString(36).slice(2, 8)}`,
     sessionId: "sess-1",
     parentAgentId: null,
+    childrenIds: [],
+    depth: 0,
     name: "test-agent",
     task: "Implement feature",
+    taskNumber: null,
+    phaseNumber: null,
     status: "running",
     detectedAt: Date.now() - 60_000,
     completedAt: null,
     worktreePath: null,
+    durationStr: null,
+    tokenCount: null,
+    blockedBy: null,
+    toolUses: null,
     ...overrides,
   };
 }
@@ -44,6 +52,7 @@ beforeEach(() => {
     worktrees: {},
     selectedAgentId: null,
     bottomPanelCollapsed: true,
+    taskSummary: null,
   });
 });
 
