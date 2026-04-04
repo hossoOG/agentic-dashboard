@@ -138,6 +138,31 @@ npm run format:check     # Prettier Format pruefen
 - **Tauri v2**: API-Imports immer aus `@tauri-apps/api` (v2), nicht v1-Syntax.
 - **Protokoll-Schema**: `src/protocols/schema.ts` definiert das ADP-Protokoll und wird von `pipelineStore.ts` aktiv importiert (`ADPError`). Nicht loeschen.
 
+## Agent-Pipeline Skills
+
+| Skill | Beschreibung | Phasen |
+|-------|-------------|--------|
+| `/implement` | Issue → PR Workflow | Lessons → Analyse → Implement → Test → QA → Review → PR |
+| `/bugfix` | Bug Investigation + Fix | Lessons → Investigate → Regression-Test → Fix → QA → PR |
+| `/review` | Code Review | Lessons → Changes → Security → Quality → Conventions → Coverage |
+
+### Agents
+
+| Agent | Modell | Rolle |
+|-------|--------|-------|
+| architect | Opus | Issue-Analyse, Implementierungsplan (READ-ONLY) |
+| test-engineer | Sonnet | Tests schreiben nach Projekt-Patterns |
+| security-reviewer | Opus | Tauri 5-Fragen-Checkliste + Frontend Security (READ-ONLY) |
+| code-quality | Sonnet | DRY, Performance, Null-Safety (READ-ONLY) |
+| git-workflow | Sonnet | Commits, PRs nach Conventions |
+
+### Hooks
+
+| Event | Hook | Beschreibung |
+|-------|------|-------------|
+| PreToolUse (Bash) | `safe-guard.mjs` | Blockiert gefaehrliche Commands (rm -rf, force-push, publish) |
+| PostToolUse (Edit/Write) | tsc --noEmit | TypeScript-Check nach jeder Dateiaenderung |
+
 ## Prozess-Dokumentation
 
 - `Softwareprozess/Phase.txt` — Aktuelle Roadmap und Release-Status

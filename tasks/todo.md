@@ -125,7 +125,7 @@
 - [x] 3.3 PipelineView.tsx: DashboardMap → TaskTreeView
 - [x] 3.4 AgentMetricsPanel: Token-Card erweitert
 - [x] 3.5 AgentBottomPanel: Hierarchie-Darstellung + neue Felder
-- [ ] 3.6 Legacy-Komponenten verschieben (DashboardMap noch referenziert)
+- [x] 3.6 Legacy-Komponenten entfernt (DashboardMap + dead code in c3982d5)
 
 ### Phase 4: Coverage QA + Performance Measurement — ERLEDIGT
 
@@ -143,11 +143,17 @@
 
 ## Backlog (Future)
 
+- [x] **DEBT-04**: Store-Deduplizierung agentStore vs pipelineStore (#85) — rawLogs entfernt, agentId Cross-Ref, Log-Flow 3→2
 - [ ] **US-P3**: Session-Start nach erkanntem Workflow (abhaengig von US-P2)
 - [ ] refactor(ui): SessionManagerView zerlegen (#62)
 - [ ] refactor(tauri): ADPError in Tauri-Commands deployen (#63)
 - [ ] refactor(ui): Component-Library formalisieren (#65)
-- [ ] feat: In-App Markdown-Editor mit Speicherfunktion (#68)
+- [x] feat: In-App Markdown-Editor mit Speicherfunktion (#68) — Core implementiert + QA-Haertung
+- [ ] feat(editor): Unsaved-Changes-Warnung bei Tab-Wechsel/Close/Datei-Oeffnen (#68 follow-up)
+- [ ] feat(editor): Projekt-Dateibrowser fuer .md Dateien (#68 follow-up)
+- [ ] feat(editor): Library-Integration (Klick auf Datei → Editor oeffnet) (#68 follow-up)
+- [ ] perf(editor): @codemirror/language-data auf ~20 Sprachen reduzieren (#68 follow-up)
+- [ ] test(editor): Komponenten-Tests (EditorToolbar, MarkdownPreview XSS, MarkdownEditorView) (#68 follow-up)
 - [ ] test(all): Test-Coverage auf 75%+ erhoehen (#66)
 - [ ] Gamification-System (#15)
 
