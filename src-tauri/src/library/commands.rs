@@ -252,6 +252,7 @@ pub mod commands {
 
     #[tauri::command]
     pub async fn read_library_item(id: String) -> Result<LibraryItemFull, String> {
+        crate::validation::validate_library_id(&id)?;
         let dir = library_dir()?;
         let file_name = format!("{}.md", id);
         let path = dir.join(&file_name);
@@ -275,6 +276,7 @@ pub mod commands {
 
     #[tauri::command]
     pub async fn save_library_item(id: String, content: String) -> Result<LibraryItemMeta, String> {
+        crate::validation::validate_library_id(&id)?;
         let dir = library_dir()?;
         let file_name = format!("{}.md", id);
         let path = dir.join(&file_name);
@@ -301,6 +303,7 @@ pub mod commands {
 
     #[tauri::command]
     pub async fn delete_library_item(id: String) -> Result<(), String> {
+        crate::validation::validate_library_id(&id)?;
         let dir = library_dir()?;
         let path = dir.join(format!("{}.md", id));
 
@@ -326,6 +329,7 @@ pub mod commands {
 
     #[tauri::command]
     pub async fn attach_library_item(id: String, project_path: String) -> Result<(), String> {
+        crate::validation::validate_library_id(&id)?;
         let normalized = normalize_path(&project_path);
         let mut index = read_index()?;
 
@@ -340,6 +344,7 @@ pub mod commands {
 
     #[tauri::command]
     pub async fn detach_library_item(id: String, project_path: String) -> Result<(), String> {
+        crate::validation::validate_library_id(&id)?;
         let normalized = normalize_path(&project_path);
         let mut index = read_index()?;
 
@@ -356,6 +361,7 @@ pub mod commands {
 
     #[tauri::command]
     pub async fn get_library_item_path(id: String) -> Result<String, String> {
+        crate::validation::validate_library_id(&id)?;
         let dir = library_dir()?;
         let path = dir.join(format!("{}.md", id));
         Ok(path.to_string_lossy().to_string())

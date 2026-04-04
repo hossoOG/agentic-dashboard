@@ -9,6 +9,7 @@ pub mod pipeline;
 pub mod session;
 pub mod settings;
 pub mod util;
+pub mod validation;
 
 fn init_logging() {
     use env_logger::Builder;
@@ -161,6 +162,7 @@ pub fn run() {
             session::folder_actions::commands::open_terminal_in_folder,
             // File reader (Agent Config Viewer)
             session::file_reader::commands::read_project_file,
+            session::file_reader::commands::write_project_file,
             session::file_reader::commands::list_project_dir,
             session::file_reader::commands::read_user_claude_file,
             session::file_reader::commands::list_skill_dirs,

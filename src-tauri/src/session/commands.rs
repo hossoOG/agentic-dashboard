@@ -27,47 +27,20 @@ pub mod commands {
             resume_session_id
         );
 
-        // Validate that folder exists and is a directory
-        let folder_path = std::path::Path::new(&folder);
-        if !folder_path.exists() {
-            let msg = format!(
-                "Failed to create session {}: folder does not exist: {}",
-                id, folder
-            );
+        // Validate folder exists and is a directory
+        crate::validation::validate_folder(&folder).map_err(|e| {
+            let msg = format!("Failed to create session {}: {}", id, e);
             log::error!("{}", msg);
-            return Err(msg);
-        }
-        if !folder_path.is_dir() {
-            let msg = format!(
-                "Failed to create session {}: path is not a directory: {}",
-                id, folder
-            );
-            log::error!("{}", msg);
-            return Err(msg);
-        }
+            msg
+        })?;
 
-        // Validate resume_session_id to prevent shell injection.
-        // Session IDs must only contain alphanumeric chars, hyphens, and underscores.
+        // Validate resume_session_id to prevent shell injection
         if let Some(ref sid) = resume_session_id {
-            if !sid
-                .chars()
-                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-            {
-                let msg = format!(
-                    "Failed to create session {}: invalid resume_session_id '{}' — only alphanumeric characters, hyphens, and underscores are allowed",
-                    id, sid
-                );
+            crate::validation::validate_session_id(sid).map_err(|e| {
+                let msg = format!("Failed to create session {}: {}", id, e);
                 log::error!("{}", msg);
-                return Err(msg);
-            }
-            if sid.is_empty() {
-                let msg = format!(
-                    "Failed to create session {}: resume_session_id must not be empty",
-                    id
-                );
-                log::error!("{}", msg);
-                return Err(msg);
-            }
+                msg
+            })?;
         }
 
         let title = title.unwrap_or_else(|| {
