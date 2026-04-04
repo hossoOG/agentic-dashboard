@@ -1,7 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { RefreshCw, FileText } from "lucide-react";
+import { RefreshCw, FileText, Pencil, Eye, Save, Loader2 } from "lucide-react";
 import { logError } from "../../utils/errorLogger";
+import { MarkdownPreview } from "../editor/MarkdownPreview";
+import { useUIStore } from "../../store/uiStore";
+
+const CodeMirrorEditor = lazy(() =>
+  import("../editor/CodeMirrorEditor").then((m) => ({ default: m.CodeMirrorEditor }))
+);
 
 interface ClaudeMdViewerProps {
   folder: string;
@@ -9,9 +15,19 @@ interface ClaudeMdViewerProps {
 
 export function ClaudeMdViewer({ folder }: ClaudeMdViewerProps) {
   const [content, setContent] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
   const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const addToast = useUIStore((s) => s.addToast);
 
-  const load = async () => {
+  const isDirty = isEditing && editContent !== (content ?? "");
+
+  // Ref to avoid stale closure in load() — prevents overwriting unsaved edits
+  const isEditingRef = useRef(isEditing);
+  useEffect(() => { isEditingRef.current = isEditing; }, [isEditing]);
+
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const text = await invoke<string>("read_project_file", {
@@ -19,18 +35,63 @@ export function ClaudeMdViewer({ folder }: ClaudeMdViewerProps) {
         relativePath: "CLAUDE.md",
       });
       setContent(text || null);
+      if (!isEditingRef.current) setEditContent(text || "");
     } catch (err) {
       logError("ClaudeMdViewer.load", err);
       setContent(null);
     } finally {
       setLoading(false);
     }
-  };
+  }, [folder]);
 
   useEffect(() => {
+    setIsEditing(false);
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload only on folder change
-  }, [folder]);
+  }, [load]);
+
+  const enterEditMode = useCallback(() => {
+    setEditContent(content ?? "");
+    setIsEditing(true);
+  }, [content]);
+
+  const exitEditMode = useCallback(() => {
+    setIsEditing(false);
+    setEditContent(content ?? "");
+  }, [content]);
+
+  const saveFile = useCallback(async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      await invoke("write_project_file", {
+        folder,
+        relativePath: "CLAUDE.md",
+        content: editContent,
+      });
+      setContent(editContent);
+      setIsEditing(false);
+      addToast({ type: "success", title: "CLAUDE.md gespeichert" });
+    } catch (err) {
+      logError("ClaudeMdViewer.save", err);
+      addToast({ type: "error", title: "Speichern fehlgeschlagen", message: String(err) });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [folder, editContent, isSaving, addToast]);
+
+  // Ctrl+S handler in edit mode (stopPropagation prevents double-fire with MarkdownEditorView)
+  useEffect(() => {
+    if (!isEditing) return;
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (isDirty) saveFile();
+      }
+    };
+    window.addEventListener("keydown", handler, { capture: true });
+    return () => window.removeEventListener("keydown", handler, { capture: true });
+  }, [isEditing, isDirty, saveFile]);
 
   if (loading) {
     return (
@@ -40,7 +101,7 @@ export function ClaudeMdViewer({ folder }: ClaudeMdViewerProps) {
     );
   }
 
-  if (!content) {
+  if (!content && !isEditing) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3 text-neutral-500">
         <FileText className="w-10 h-10 text-neutral-600" />
@@ -52,21 +113,82 @@ export function ClaudeMdViewer({ folder }: ClaudeMdViewerProps) {
 
   return (
     <div className="flex flex-col h-full">
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-700 shrink-0">
-        <span className="text-xs text-neutral-400 font-medium">CLAUDE.md</span>
-        <button
-          onClick={load}
-          className="p-1 text-neutral-500 hover:text-neutral-300 transition-colors"
-          title="Neu laden"
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-neutral-400 font-medium">CLAUDE.md</span>
+          {isDirty && (
+            <span className="w-2 h-2 rounded-full bg-orange-400" title="Ungespeicherte Aenderungen" />
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          {isEditing ? (
+            <>
+              <button
+                onClick={saveFile}
+                disabled={!isDirty || isSaving}
+                className="flex items-center gap-1 px-2 py-0.5 text-[11px] rounded transition-colors disabled:opacity-40 text-accent hover:bg-accent-a10"
+                title="Speichern (Ctrl+S)"
+                aria-label="Datei speichern"
+              >
+                {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                Speichern
+              </button>
+              <button
+                onClick={exitEditMode}
+                className="flex items-center gap-1 px-2 py-0.5 text-[11px] text-neutral-400 hover:text-neutral-200 rounded hover:bg-hover-overlay transition-colors"
+                title="Zur Vorschau"
+                aria-label="Zurueck zur Vorschau"
+              >
+                <Eye className="w-3 h-3" />
+                Vorschau
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={enterEditMode}
+              className="flex items-center gap-1 px-2 py-0.5 text-[11px] text-neutral-400 hover:text-neutral-200 rounded hover:bg-hover-overlay transition-colors"
+              title="Bearbeiten"
+              aria-label="Datei bearbeiten"
+            >
+              <Pencil className="w-3 h-3" />
+              Bearbeiten
+            </button>
+          )}
+          <button
+            onClick={load}
+            className="p-1 text-neutral-500 hover:text-neutral-300 transition-colors"
+            title="Neu laden"
+            aria-label="Neu laden"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      {isEditing ? (
+        <div className="flex-1 min-h-0">
+          <Suspense fallback={<div className="flex items-center justify-center h-full text-neutral-500 text-sm">Editor laden...</div>}>
+            <CodeMirrorEditor
+              value={editContent}
+              onChange={setEditContent}
+              onSave={saveFile}
+            />
+          </Suspense>
+        </div>
+      ) : (
+        <div
+          className="flex-1 min-h-0 cursor-pointer"
+          onClick={enterEditMode}
+          title="Klicken zum Bearbeiten"
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") enterEditMode(); }}
         >
-          <RefreshCw className="w-3.5 h-3.5" />
-        </button>
-      </div>
-      <div className="flex-1 overflow-auto p-4">
-        <pre className="text-sm text-neutral-200 whitespace-pre-wrap font-mono leading-relaxed">
-          {content}
-        </pre>
-      </div>
+          <MarkdownPreview content={content ?? ""} />
+        </div>
+      )}
     </div>
   );
 }

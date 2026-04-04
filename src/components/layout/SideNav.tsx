@@ -1,4 +1,4 @@
-import { Monitor, Activity, Columns3, ScrollText, BookOpen, Settings } from "lucide-react";
+import { Monitor, Activity, Columns3, ScrollText, BookOpen, Settings, FileEdit } from "lucide-react";
 import { useUIStore, type ActiveTab } from "../../store/uiStore";
 
 interface NavItem {
@@ -20,6 +20,7 @@ export function SideNav({ badges = {} }: SideNavProps) {
     { id: "pipeline", label: "Pipeline", icon: Activity, badge: badges.pipeline },
     { id: "kanban", label: "Kanban", icon: Columns3, badge: badges.kanban },
     { id: "library", label: "Library", icon: BookOpen, badge: badges.library },
+    { id: "editor", label: "Editor", icon: FileEdit, badge: badges.editor },
   ];
 
   const bottomItems: NavItem[] = [

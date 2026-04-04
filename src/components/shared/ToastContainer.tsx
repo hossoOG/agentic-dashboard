@@ -7,7 +7,7 @@ const MAX_VISIBLE_TOASTS = 5;
 
 /** Maps uiStore Toast type to ToastData type */
 function mapToastType(
-  storeType: "achievement" | "error" | "info"
+  storeType: "achievement" | "error" | "info" | "success"
 ): ToastData["type"] {
   return storeType;
 }

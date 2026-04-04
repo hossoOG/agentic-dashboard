@@ -18,6 +18,9 @@ const LogViewer = React.lazy(() =>
 const LibraryView = React.lazy(() =>
   import("../library/LibraryView").then((m) => ({ default: m.LibraryView }))
 );
+const MarkdownEditorView = React.lazy(() =>
+  import("../editor/MarkdownEditorView").then((m) => ({ default: m.MarkdownEditorView }))
+);
 
 function NeonSpinner() {
   return (
@@ -52,6 +55,12 @@ export function AppShell() {
         return (
           <Suspense fallback={<NeonSpinner />}>
             <LibraryView />
+          </Suspense>
+        );
+      case "editor":
+        return (
+          <Suspense fallback={<NeonSpinner />}>
+            <MarkdownEditorView />
           </Suspense>
         );
       case "settings":

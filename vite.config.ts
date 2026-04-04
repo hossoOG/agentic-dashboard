@@ -23,6 +23,8 @@ export default defineConfig(async () => ({
           'vendor-xterm': ['@xterm/xterm', '@xterm/addon-fit', '@xterm/addon-web-links'],
           'vendor-motion': ['framer-motion'],
           'vendor-react': ['react', 'react-dom'],
+          'vendor-codemirror': ['@uiw/react-codemirror', '@codemirror/lang-markdown'],
+          'vendor-markdown': ['markdown-it', 'dompurify'],
         },
       },
     },
