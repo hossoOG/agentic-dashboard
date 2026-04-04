@@ -26,8 +26,55 @@ fn safe_resolve_with_base(base: &Path, sub: &str) -> Result<PathBuf, String> {
         }
         Ok(canon_target)
     } else {
-        // File doesn't exist — that's okay, caller handles empty result
-        Ok(target)
+        // File doesn't exist yet — canonicalize parent + append filename
+        // to prevent symlink attacks (TOCTOU) on write operations
+        if let Some(parent) = target.parent() {
+            if parent.exists() {
+                let canon_parent = parent.canonicalize().map_err(|e| {
+                    format!("Failed to resolve parent '{}': {}", parent.display(), e)
+                })?;
+                if !canon_parent.starts_with(&canon_base) {
+                    return Err(format!(
+                        "Path traversal detected: target is outside {}",
+                        base.display()
+                    ));
+                }
+                let file_name = target
+                    .file_name()
+                    .ok_or_else(|| "Invalid file name".to_string())?;
+                Ok(canon_parent.join(file_name))
+            } else {
+                // Parent doesn't exist either — validate by collapsing components
+                let mut resolved = canon_base.clone();
+                for component in std::path::Path::new(sub).components() {
+                    match component {
+                        std::path::Component::Normal(c) => resolved.push(c),
+                        std::path::Component::ParentDir => {
+                            resolved.pop();
+                            if !resolved.starts_with(&canon_base) {
+                                return Err(format!(
+                                    "Path traversal detected: target is outside {}",
+                                    base.display()
+                                ));
+                            }
+                        }
+                        std::path::Component::CurDir => {}
+                        _ => {
+                            return Err("Invalid path component".to_string());
+                        }
+                    }
+                }
+                if !resolved.starts_with(&canon_base) {
+                    return Err(format!(
+                        "Path traversal detected: target is outside {}",
+                        base.display()
+                    ));
+                }
+                Ok(resolved)
+            }
+        } else {
+            Err("Invalid path: no parent directory".to_string())
+        }
     }
 }
 
@@ -45,11 +92,17 @@ fn safe_resolve(folder: &str, relative_path: &str) -> Result<PathBuf, String> {
 
 /// Resolve a path inside ~/.claude/ with traversal protection.
 fn safe_resolve_user_claude(relative_path: &str) -> Result<PathBuf, String> {
+    // Reject traversal attempts even before checking directory existence
+    if relative_path.contains("..") {
+        return Err("Path traversal detected: '..' not allowed in relative path".to_string());
+    }
+
     let home = dirs::home_dir().ok_or_else(|| "Cannot determine home directory".to_string())?;
     let claude_dir = home.join(".claude");
 
     if !claude_dir.is_dir() {
         // ~/.claude/ doesn't exist — return non-existent path, caller handles empty result
+        // Still validate: only allow simple relative paths (no traversal)
         return Ok(claude_dir.join(relative_path));
     }
     safe_resolve_with_base(&claude_dir, relative_path)
@@ -334,6 +387,47 @@ pub mod commands {
             .map_err(|e| format!("Failed to read file '{}': {}", relative_path, e))
     }
 
+    /// Max file size for write operations (10 MB)
+    const MAX_WRITE_SIZE: usize = 10 * 1024 * 1024;
+
+    #[tauri::command]
+    pub async fn write_project_file(
+        folder: String,
+        relative_path: String,
+        content: String,
+    ) -> Result<(), String> {
+        // Size limit to prevent OOM / disk exhaustion
+        if content.len() > MAX_WRITE_SIZE {
+            return Err(format!(
+                "File too large: {}MB exceeds {}MB limit",
+                content.len() / (1024 * 1024),
+                MAX_WRITE_SIZE / (1024 * 1024)
+            ));
+        }
+
+        // Reject null bytes (binary content)
+        if content.contains('\0') {
+            return Err("File contains null bytes — binary files are not supported".to_string());
+        }
+
+        let path = safe_resolve(&folder, &relative_path)?;
+
+        if path.is_dir() {
+            return Err(format!("Cannot write to directory: {}", relative_path));
+        }
+
+        if let Some(parent) = path.parent() {
+            if !parent.exists() {
+                log::warn!("Creating directory for write: {}", parent.display());
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| format!("Failed to create directory: {}", e))?;
+            }
+        }
+
+        std::fs::write(&path, content)
+            .map_err(|e| format!("Failed to write file '{}': {}", relative_path, e))
+    }
+
     #[tauri::command]
     pub async fn list_project_dir(
         folder: String,
@@ -433,5 +527,108 @@ pub mod commands {
 
         skills.sort_by(|a, b| a.dir_name.cmp(&b.dir_name));
         Ok(skills)
+    }
+}
+
+// ============================================================================
+// Tests — Path Traversal Prevention
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    fn setup_temp_dir() -> tempfile::TempDir {
+        tempfile::tempdir().expect("Failed to create temp dir")
+    }
+
+    // --- safe_resolve_with_base tests ---
+
+    #[test]
+    fn test_safe_resolve_normal_existing_file() {
+        let tmp = setup_temp_dir();
+        let base = tmp.path();
+        fs::write(base.join("hello.txt"), "content").unwrap();
+
+        let result = safe_resolve_with_base(base, "hello.txt");
+        assert!(result.is_ok());
+        assert!(result.unwrap().ends_with("hello.txt"));
+    }
+
+    #[test]
+    fn test_safe_resolve_blocks_parent_traversal() {
+        let tmp = setup_temp_dir();
+        let base = tmp.path();
+
+        let result = safe_resolve_with_base(base, "../../../etc/passwd");
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err();
+        assert!(err_msg.contains("Path traversal detected"));
+    }
+
+    #[test]
+    fn test_safe_resolve_blocks_dotdot_in_middle() {
+        let tmp = setup_temp_dir();
+        let base = tmp.path();
+        fs::create_dir_all(base.join("subdir")).unwrap();
+
+        let result = safe_resolve_with_base(base, "subdir/../../etc/passwd");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_safe_resolve_allows_nonexistent_file() {
+        let tmp = setup_temp_dir();
+        let base = tmp.path();
+
+        let result = safe_resolve_with_base(base, "new-file.txt");
+        assert!(result.is_ok());
+        let resolved = result.unwrap();
+        assert!(resolved.starts_with(base.canonicalize().unwrap()));
+    }
+
+    #[test]
+    fn test_safe_resolve_allows_nested_nonexistent() {
+        let tmp = setup_temp_dir();
+        let base = tmp.path();
+
+        let result = safe_resolve_with_base(base, "new-dir/new-file.txt");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_safe_resolve_blocks_traversal_in_nonexistent_path() {
+        let tmp = setup_temp_dir();
+        let base = tmp.path();
+
+        let result = safe_resolve_with_base(base, "foo/../../secret.txt");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_safe_resolve_curdir_is_harmless() {
+        let tmp = setup_temp_dir();
+        let base = tmp.path();
+        fs::write(base.join("test.txt"), "data").unwrap();
+
+        let result = safe_resolve_with_base(base, "./test.txt");
+        assert!(result.is_ok());
+    }
+
+    // --- safe_resolve_user_claude tests ---
+
+    #[test]
+    fn test_user_claude_blocks_traversal() {
+        let result = safe_resolve_user_claude("../../etc/passwd");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("traversal"));
+    }
+
+    #[test]
+    fn test_user_claude_allows_simple_path() {
+        let result = safe_resolve_user_claude("settings.json");
+        // Should succeed (even if ~/.claude doesn't exist — returns non-existent path)
+        assert!(result.is_ok());
     }
 }
