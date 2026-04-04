@@ -172,29 +172,24 @@ describe("parseLogLine — QA checks", () => {
 });
 
 // ============================================================================
-// Raw log (unrecognized lines)
+// Unrecognized lines
 // ============================================================================
 
-describe("parseLogLine — raw log", () => {
-  it("always includes a raw_log event", () => {
+describe("parseLogLine — unrecognized lines", () => {
+  it("returns empty array for unrecognized lines (raw logs handled by logViewerStore)", () => {
     const events = parseLogLine("some random log output");
-    const raw = findEvent(events, "raw_log");
-    expect(raw).toBeDefined();
-    expect(raw!.payload.line).toBe("some random log output");
+    expect(events).toEqual([]);
   });
 
-  it("returns raw_log even for recognized lines (alongside the parsed event)", () => {
+  it("returns only the parsed event for recognized lines", () => {
     const events = parseLogLine("MODE: plan-only");
-    expect(events.filter((e) => e.type === "raw_log")).toHaveLength(1);
     expect(events.filter((e) => e.type === "orchestrator_status")).toHaveLength(1);
-    expect(events.length).toBe(2);
+    expect(events).toHaveLength(1);
   });
 
-  it("returns raw_log for empty string", () => {
+  it("returns empty array for empty string", () => {
     const events = parseLogLine("");
-    const raw = findEvent(events, "raw_log");
-    expect(raw).toBeDefined();
-    expect(raw!.payload.line).toBe("");
+    expect(events).toEqual([]);
   });
 });
 

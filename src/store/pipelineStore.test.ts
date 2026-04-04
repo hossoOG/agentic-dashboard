@@ -114,6 +114,18 @@ describe("spawnWorktree", () => {
     expect(wt.stepTimings[0].step).toBe("setup");
     expect(typeof wt.stepTimings[0].startedAt).toBe("number");
   });
+
+  it("stores agentId cross-reference when provided", () => {
+    usePipelineStore.getState().spawnWorktree("wt-1", "fix/bug", "#42", 0, "agent-abc");
+    const wt = usePipelineStore.getState().worktrees[0];
+    expect(wt.agentId).toBe("agent-abc");
+  });
+
+  it("has undefined agentId when not provided", () => {
+    usePipelineStore.getState().spawnWorktree("wt-1", "fix/bug", "#42");
+    const wt = usePipelineStore.getState().worktrees[0];
+    expect(wt.agentId).toBeUndefined();
+  });
 });
 
 // ============================================================================
@@ -309,7 +321,6 @@ describe("reset", () => {
     usePipelineStore.getState().setIsRunning(true);
     usePipelineStore.getState().updateQACheck("unitTests", "pass");
     usePipelineStore.getState().addOrchestratorLog("test log");
-    usePipelineStore.getState().addRawLog("raw log");
 
     // Reset
     usePipelineStore.getState().reset();
@@ -321,7 +332,6 @@ describe("reset", () => {
     expect(state.qaGate.unitTests).toBe("pending");
     expect(state.qaGate.overallStatus).toBe("idle");
     expect(state.orchestratorLog).toEqual([]);
-    expect(state.rawLogs).toEqual([]);
     expect(state.pipelineStartedAt).toBeNull();
     expect(state.pipelineStoppedAt).toBeNull();
     expect(state.manifest).toBeNull();

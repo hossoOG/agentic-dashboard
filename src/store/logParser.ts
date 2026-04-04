@@ -10,8 +10,7 @@ export interface ParsedEvent {
     | "worktree_step"
     | "worktree_status"
     | "worktree_log"
-    | "qa_check"
-    | "raw_log";
+    | "qa_check";
   payload: Record<string, string>;
 }
 
@@ -101,9 +100,6 @@ export function parseLogLine(line: string, worktreeId?: string): ParsedEvent[] {
       }
     }
 
-    // Always add raw log
-    events.push({ type: "raw_log", payload: { line } });
-
     return events;
   } catch (err) {
     logError("logParser.parseLogLine", err);
@@ -155,9 +151,6 @@ export function applyParsedEvents(events: ParsedEvent[]): void {
             }
             break;
           }
-          case "raw_log":
-            store.addRawLog(event.payload.line ?? "");
-            break;
         }
       } catch (eventErr) {
         logError(`logParser.applyEvent(${event.type})`, eventErr);

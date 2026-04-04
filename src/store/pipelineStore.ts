@@ -5,7 +5,6 @@ export type OrchestratorStatus = "idle" | "planning" | "generated_manifest";
 
 const MAX_ORCHESTRATOR_LOGS = 50;
 const MAX_WORKTREE_LOGS = 20;
-const MAX_RAW_LOGS = 200;
 const MAX_ERRORS = 100;
 
 export type WorktreeStep =
@@ -75,6 +74,7 @@ export interface Worktree {
   id: string;
   branch: string;
   issue: string;
+  agentId?: string; // Cross-reference to agentStore DetectedAgent (SSOT for agent identity)
   currentStep: WorktreeStep;
   status: WorktreeStatus;
   completedSteps: WorktreeStep[];
@@ -105,7 +105,6 @@ export interface PipelineState {
   qaGate: QAGate;
   isRunning: boolean;
   projectPath: string;
-  rawLogs: string[];
   pipelineStartedAt: number | null;
   pipelineStoppedAt: number | null;
   manifest: SpawnManifest | null;
@@ -117,14 +116,13 @@ export interface PipelineState {
   setProjectPath: (path: string) => void;
   setOrchestratorStatus: (status: OrchestratorStatus) => void;
   addOrchestratorLog: (log: string) => void;
-  spawnWorktree: (id: string, branch: string, issue: string, priority?: number) => void;
+  spawnWorktree: (id: string, branch: string, issue: string, priority?: number, agentId?: string) => void;
   updateWorktreeStep: (id: string, step: WorktreeStep) => void;
   updateWorktreeStatus: (id: string, status: WorktreeStatus, reason?: string) => void;
   addWorktreeLog: (id: string, log: string) => void;
   updateQACheck: (check: keyof Omit<QAGate, "overallStatus">, status: QACheckStatus) => void;
   setQAOverallStatus: (status: QAGate["overallStatus"]) => void;
   setIsRunning: (running: boolean) => void;
-  addRawLog: (log: string) => void;
   setManifest: (manifest: SpawnManifest) => void;
   addError: (error: Omit<PipelineError, "id" | "timestamp" | "acknowledged">) => void;
   acknowledgeError: (errorId: string) => void;
@@ -159,7 +157,6 @@ export const usePipelineStore = create<PipelineState>((set) => ({
   qaGate: initialQAGate,
   isRunning: false,
   projectPath: "",
-  rawLogs: [],
   pipelineStartedAt: null,
   pipelineStoppedAt: null,
   manifest: null,
@@ -177,7 +174,7 @@ export const usePipelineStore = create<PipelineState>((set) => ({
       orchestratorLog: [...state.orchestratorLog, log].slice(-MAX_ORCHESTRATOR_LOGS),
     })),
 
-  spawnWorktree: (id, branch, issue, priority = 0) =>
+  spawnWorktree: (id, branch, issue, priority = 0, agentId?) =>
     set((state) => {
       const now = Date.now();
       return {
@@ -187,6 +184,7 @@ export const usePipelineStore = create<PipelineState>((set) => ({
             id,
             branch,
             issue,
+            agentId,
             currentStep: "setup" as WorktreeStep,
             status: "active" as WorktreeStatus,
             completedSteps: [],
@@ -296,11 +294,6 @@ export const usePipelineStore = create<PipelineState>((set) => ({
       return updates;
     }),
 
-  addRawLog: (log) =>
-    set((state) => ({
-      rawLogs: [...state.rawLogs, log].slice(-MAX_RAW_LOGS),
-    })),
-
   setManifest: (manifest) => set({ manifest }),
 
   addError: (error) =>
@@ -369,7 +362,6 @@ export const usePipelineStore = create<PipelineState>((set) => ({
       worktrees: [],
       qaGate: initialQAGate,
       isRunning: false,
-      rawLogs: [],
       pipelineStartedAt: null,
       pipelineStoppedAt: null,
       manifest: null,
