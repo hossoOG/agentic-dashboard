@@ -174,16 +174,23 @@
 - [x] `README.md` + `CONTRIBUTING.md`: Phase.txt-Referenzen durch arc42 + CHANGELOG ersetzt
 - [x] `tasks/lessons.md`: neue Lesson zur Sprint-Plan-Archivierungs-Regel
 
-### Stage 2: MD-Pinning im Config-Panel (naechste Session → v1.5)
+### Stage 2: MD-Pinning im Config-Panel (Session 2026-04-05)
 
-> Geplante Umsetzung im v1.5-Sprint.
+- [x] `settingsStore`: `pinnedDocs: Record<projectPath, PinnedDoc[]>` mit Actions + Persistenz
+- [x] `ConfigPanel`: "+" Button fuer neue Pins, X-Button zum Entfernen (on-hover)
+- [x] OS File-Picker mit .md/.markdown-Filter + defaultPath=Projektordner
+- [x] `PinnedDocViewer`: Read+Edit+Save-Viewer (ClaudeMdViewer-Pattern)
+- [x] Tests: 33 neue Tests (validatePinnedPath, normalizeProjectKey, add/remove/rename)
+- [x] Path-Traversal-Guard: im Store (validatePinnedPath) + beim Laden (Rust safe_resolve)
+- [x] Security-Review: Pfad-Validierung mehrstufig, keine neuen Tauri-Commands, vorhandene Commands wiederverwendet
 
-- [ ] `settingsStore`: `pinnedDocs: Record<projectPath, string[]>` mit Actions + Persistenz
-- [ ] `ContentTabs`: "+" Button fuer neue Pins, X-Button zum Entfernen
-- [ ] Pin-Dialog: File-Picker fuer .md-Dateien im Projektordner
-- [ ] Editor-Integration: Klick auf Pin-Tab oeffnet im Markdown-Editor
-- [ ] Tests: Store-Actions, Persistenz, Path-Traversal-Guard
-- [ ] Security-Review (5-Fragen-Checkliste)
+### Stage 2 Follow-ups (Backlog)
+
+- [ ] Pin umbenennen per Context-Menu / Inline-Edit (`renamePinnedDoc` existiert, UI fehlt)
+- [ ] Pin-Reordering per Drag & Drop
+- [ ] Unsaved-Changes-Warnung wenn Pin-Tab gewechselt wird
+- [ ] Komponenten-Tests fuer ConfigPanel (Pin hinzufuegen/entfernen, Pin-Tab-Switch)
+- [ ] Dead-Code-Audit: `ContentTabs.tsx` pruefen — wird nirgends importiert (vermutlich orphan)
 
 ## Backlog (Future)
 
