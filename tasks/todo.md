@@ -156,11 +156,16 @@
 - [x] refactor(ui): DashboardMap Legacy-Code entfernt
 - [x] docs: arc42 v2.1 + sprint-plan v1.5-v2.0 + sprint-review Skill
 
-## Aktueller Sprint: v1.4.2 — Kompass (Doku-Housekeeping)
+## Abgeschlossen: v1.5.0 — "Kompass" (2026-04-05)
 
-> **Ziel:** Doku-Drift beheben, Navigation wiederherstellen. Kein neues Feature.
-> **Plan:** Nach User-Feedback 2026-04-05, Details siehe Commit `chore(docs): v1.4.2 housekeeping`.
-> **Folge-Sprint:** v1.5 "Kompass II" bringt MD-Pinning im Config-Panel.
+> Stage 1 (Housekeeping) + Stage 2 (MD-Pinning) in einer Session gebuendelt.
+> Release: https://github.com/hossoOG/agentic-dashboard/releases/tag/v1.5.0
+
+### Post-Release: /release Skill gebaut (2026-04-05)
+
+- [x] `.claude/skills/release/SKILL.md` — 9-Phasen-Pipeline
+- [x] CLAUDE.md Skills-Tabelle erweitert
+- Erste Nutzung: naechster Release (v1.5.1 oder v1.6.0)
 
 ### Stage 1: Doku-Housekeeping (Session 2026-04-05)
 

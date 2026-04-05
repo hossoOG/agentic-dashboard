@@ -163,6 +163,7 @@ Pflicht-Review fuer jeden neuen Tauri-Command:
 | `/bugfix` | Bug Investigation + Fix | Lessons → Investigate → Regression-Test → Fix → QA → PR |
 | `/review` | Code Review | Lessons → Changes → Security → Quality → Conventions → Coverage |
 | `/sprint-review` | Sprint-Review PPTX generieren | Sprint ID → Daten sammeln → Aufbereiten → STOPP → PPTX generieren |
+| `/release` | Release-Pipeline mit allen Gates | Lessons → Pre-Flight → Quality Gates → Version-Bump → CHANGELOG → Archiv-Check → STOPP → Tag+Push → GitHub Release |
 
 ### Agents
 
