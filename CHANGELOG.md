@@ -8,6 +8,32 @@ Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
 
 
+## [1.5.1] — 2026-04-05 — Kompass Aufraeum-Patch
+
+> Nachtrag zu v1.5.0: Follow-ups vom MD-Pinning, Dead-Code entfernt,
+> GitHub-Milestones aufgeraeumt.
+
+### Features
+- **Pin umbenennen**: Doppelklick auf Pin-Label → Inline-Edit. Enter/Blur
+  speichert, Escape bricht ab. Auto-focus beim Edit-Start.
+- **Unsaved-Changes-Warnung**: Beim Tab-Wechsel mit ungespeicherten
+  Aenderungen im Pin-Editor erscheint ein Bestaetigungsdialog.
+- **Release-Skill `/release`**: 9-Phasen-Pipeline (Pre-Flight → Quality
+  Gates → Version-Bump → CHANGELOG → Archiv-Check → STOPP → Tag + Push →
+  GitHub Release → Post-Release). Codifiziert die Lessons aus v1.5.0.
+
+### Cleanup
+- Orphan `ContentTabs.tsx` entfernt (123 Zeilen Dead Code, Relikt aus
+  alter Tab-Architektur vor Split-View).
+
+### DevOps / Housekeeping
+- GitHub-Milestones aufgeraeumt:
+  - v1.5.0 geschlossen (Issues #68 + #85 als erledigt markiert)
+  - 11 Tech-Debt/QA-Issues verschoben zu neuem Milestone v1.6.0
+  - Neue Milestones: v1.5.1 (dieser Patch) und v1.6.0 (Tech-Debt-Sprint)
+- Behebt den Drift zwischen GitHub-Milestones und tatsaechlichen
+  Releases.
+
 ## [1.5.0] — 2026-04-05 — "Kompass"
 
 > Sprint-Ziel: Orientierung im Projekt wiederherstellen (Doku-Drift beheben)
