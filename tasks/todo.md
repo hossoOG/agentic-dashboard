@@ -189,13 +189,18 @@
 - [x] Path-Traversal-Guard: im Store (validatePinnedPath) + beim Laden (Rust safe_resolve)
 - [x] Security-Review: Pfad-Validierung mehrstufig, keine neuen Tauri-Commands, vorhandene Commands wiederverwendet
 
-### Stage 2 Follow-ups (Backlog)
+### Stage 2 Follow-ups (erledigt in v1.5.1)
 
-- [ ] Pin umbenennen per Context-Menu / Inline-Edit (`renamePinnedDoc` existiert, UI fehlt)
-- [ ] Pin-Reordering per Drag & Drop
-- [ ] Unsaved-Changes-Warnung wenn Pin-Tab gewechselt wird
-- [ ] Komponenten-Tests fuer ConfigPanel (Pin hinzufuegen/entfernen, Pin-Tab-Switch)
-- [ ] Dead-Code-Audit: `ContentTabs.tsx` pruefen — wird nirgends importiert (vermutlich orphan)
+- [x] Pin umbenennen per Doppelklick/Inline-Edit (v1.5.1)
+- [x] Unsaved-Changes-Warnung beim Pin-Tab-Wechsel (v1.5.1)
+- [x] Dead-Code-Audit: `ContentTabs.tsx` entfernt (v1.5.1)
+- [ ] Pin-Reordering per Drag & Drop (offen)
+- [ ] Komponenten-Tests fuer ConfigPanel (offen, v1.6.0 QA-Sprint)
+
+## Abgeschlossen: v1.5.1 — Kompass Aufraeum-Patch (2026-04-05)
+
+> Release: https://github.com/hossoOG/agentic-dashboard/releases/tag/v1.5.1
+> GitHub-Milestones aufgeraeumt: v1.5.0 geschlossen, 11 Issues → v1.6.0.
 
 ## Backlog (Future)
 
