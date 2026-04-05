@@ -72,4 +72,47 @@ describe("MarkdownPreview", () => {
     const { container } = render(<MarkdownPreview content="" />);
     expect(container.querySelector(".md-preview")).toBeTruthy();
   });
+
+  it("strips data: URI scheme from links", () => {
+    const { container } = render(
+      <MarkdownPreview
+        content={'[x](data:text/html,<script>alert(1)</script>)'}
+      />,
+    );
+    const anchor = container.querySelector("a");
+    if (anchor) {
+      const href = anchor.getAttribute("href") ?? "";
+      expect(href.toLowerCase()).not.toContain("data:");
+    }
+    // Regardless, no script tags should ever appear
+    expect(container.querySelectorAll("script").length).toBe(0);
+    expect(container.innerHTML).not.toContain("<script");
+  });
+
+  it("allows safe URI schemes (mailto:, tel:, #anchor)", () => {
+    const { container } = render(
+      <MarkdownPreview
+        content={
+          "[mail](mailto:foo@example.com) [tel](tel:+1234) [https](https://example.com)"
+        }
+      />,
+    );
+    const anchors = container.querySelectorAll("a");
+    const hrefs = Array.from(anchors).map((a) => a.getAttribute("href") ?? "");
+    expect(hrefs).toContain("mailto:foo@example.com");
+    expect(hrefs).toContain("tel:+1234");
+    expect(hrefs).toContain("https://example.com");
+  });
+
+  it("renders GFM features (bold, italic) correctly", () => {
+    const { container } = render(
+      <MarkdownPreview content={"**bold** and *italic* text"} />,
+    );
+    const strong = container.querySelector("strong");
+    const em = container.querySelector("em");
+    expect(strong).toBeTruthy();
+    expect(strong?.textContent).toBe("bold");
+    expect(em).toBeTruthy();
+    expect(em?.textContent).toBe("italic");
+  });
 });
