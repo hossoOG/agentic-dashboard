@@ -8,6 +8,42 @@ Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
 
 
+## [1.5.0] — 2026-04-05 — "Kompass"
+
+> Sprint-Ziel: Orientierung im Projekt wiederherstellen (Doku-Drift beheben)
+> + beliebige Markdown-Dateien pro Projekt schnell erreichbar machen.
+
+### Features
+- **MD-Pinning im Config-Panel**: Beliebige .md-Dateien aus dem Projekt
+  als Tabs anpinnen, inline bearbeiten (CodeMirror + Preview), mit
+  Persistenz pro Projekt. "+"-Button oeffnet OS-File-Picker, "x"-Button
+  entfernt Pin (on-hover). Zweistufig gegen Path-Traversal abgesichert
+  (Store-Ebene + Rust-Command-Ebene).
+- Shared Tab-State zwischen Split-View-ConfigPanel und FavoritePreview —
+  Tab-Auswahl bleibt jetzt konsistent.
+
+### Refactoring
+- Neue Komponente `ConfigPanelTabList` eliminiert Duplikation zwischen
+  ConfigPanel und FavoritePreview (beide nutzen jetzt `uiStore.configSubTab`).
+
+### Docs & Housekeeping
+- CLAUDE.md auf 4-Gates-Struktur umgestellt (Pre-Commit / CI / Feature /
+  Tauri-Security), stale Testzahlen entfernt, Verweise auf `arc42` als
+  Master-Spec.
+- `Softwareprozess/Phase.txt` → `history/` (ersetzt durch arc42 + CHANGELOG).
+- `tasks/testing-spec.md` → `history/testing-spec-v1.3.1.md` (Sprint beendet,
+  zeitlose Regeln in CLAUDE.md migriert).
+- `Softwareprozess/lessons-learned.md` → `history/lessons-learned.md`
+  (Inhalt in `tasks/lessons.md` migriert).
+- Neu: `tasks/docs-inventory.md` (Landkarte aller aktiven/archivierten Docs).
+- CHANGELOG.md: v1.3.0, v1.4.0, v1.4.1 nachgetragen (waren ungepflegt).
+
+### Lessons Learned (tasks/lessons.md)
+- Sprint-Plan-Docs sind Artefakte → Drei-Phasen-Archivierungsregel.
+- Hardcodierte Zahlen in Dauer-Docs driften garantiert.
+- CHANGELOG-Pflege gehoert in Release-Checkliste.
+- Usage-Check vor Komponenten-Aenderung (mehrfach verifiziert durch eigene Fehler).
+
 ## [1.4.1] — 2026-04-04
 
 ### Features
