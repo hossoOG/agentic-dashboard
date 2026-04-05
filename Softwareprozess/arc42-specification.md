@@ -926,10 +926,14 @@ graph LR
 
 | Aspekt | Details |
 |--------|---------|
-| **Wann** | Vor `npm run tauri build` + Tag |
-| **Pre-Release-Checkliste** | (1) Changelog aktualisiert? (2) Tests gruen? (3) Coverage >= 70%? (4) Security-Audit? |
-| **Pass-Kriterien** | Build erfolgreich; Versionsbump konsistent |
-| **Fail-Handling** | Hotfix branch erstellen |
+| **Wann** | Vor Tag-Erstellung + GitHub Release |
+| **Automation** | `/release` Skill (`.claude/skills/release/SKILL.md`) fuehrt alle Phasen aus |
+| **Pre-Release-Checkliste** | (1) Branch = `master`? (2) Working Tree clean? (3) Up-to-date mit origin? (4) `npx tsc --noEmit` gruen? (5) `npm run test` gruen? (6) `npm run build` gruen? (7) `cargo check` gruen? (8) CHANGELOG.md aktualisiert? (9) Version in **drei Dateien** konsistent (`package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`)? (10) Archivierungs-Check fuer abgeschlossene Sprint-Docs? |
+| **Tag-Konvention** | `vMAJOR.MINOR.PATCH` (SemVer 2.0), annotated Tag mit Sprint-Name: `git tag -a v1.5.0 -m "v1.5.0 Kompass — ..."` |
+| **Version-Bump-Regeln** | `feat(...)` Commits → MINOR, nur `fix/chore/refactor/docs` → PATCH, `BREAKING CHANGE:` im Body → MAJOR |
+| **Release-Flow** | 1) `/release [patch\|minor\|major]` → 2) Skill prueft Gates → 3) Version bumpen → 4) CHANGELOG-Block generieren → 5) **⏸️ User-Review** → 6) Commit + annotated Tag → 7) `git push && git push --tags` → 8) `gh release create` mit CHANGELOG-Body → 9) `tasks/todo.md` Sprint als abgeschlossen markieren |
+| **Pass-Kriterien** | Alle Gates gruen, Version konsistent, Tag gepusht, GitHub-Release online |
+| **Fail-Handling** | Gate A (Pre-Flight) rot → User fixt; Gate B (Quality) rot → Release ABBRUCH; `git push` failed → Tag lokal loeschen, pullen, neu pushen; `gh release create` failed → Tag ist bereits gepusht, Release manuell nachziehen |
 
 #### Gate 5: POST-RELEASE MONITORING
 

@@ -202,6 +202,39 @@
 > Release: https://github.com/hossoOG/agentic-dashboard/releases/tag/v1.5.1
 > GitHub-Milestones aufgeraeumt: v1.5.0 geschlossen, 11 Issues → v1.6.0.
 
+## Aktueller Sprint: v1.6.0 — Tech-Debt & QA-Haertung
+
+> **Milestone**: https://github.com/hossoOG/agentic-dashboard/milestone/5 (11 Issues)
+> **Ziel**: Test-Coverage von Baseline auf 60% heben, DevOps-Infrastruktur haerten,
+> God-Components entschlacken. Basis fuer v2.0 schaffen.
+
+### Welle 1 — DevOps Quick Wins
+
+- [x] DEVOPS-02 Dependency Audit in CI (#92) — `npm audit` + `cargo audit` als Warn-Job, wochentl. Schedule
+- [x] DEVOPS-04 Release-Workflow dokumentieren (#93) — arc42 Kap. 10.3 Gate 4 erweitert
+
+### Welle 2 — Test-Coverage heben (Reihenfolge beachten)
+
+- [x] QA-12 editorStore Tests verifizieren/erweitern (#89) — PR #94 merged, 14 → 26 Tests
+- [ ] QA-11 Editor-Komponenten Tests — Toolbar/Preview/View (#88)
+- [ ] QA-10 Component-Tests fuer Kern-UI (#87)
+- [ ] QA-16 Rust Integration Tests fuer kritische Tauri-Commands (#91)
+- [ ] QA-15 Coverage-Schwellen auf 60/60/60/50 hochziehen (#90) — **erst nach 1–4**
+- [ ] test(all): Test-Coverage auf 75%+ Langzeit-Ziel (#66)
+
+### Welle 3 — Tech-Debt Refactorings
+
+- [ ] refactor(ui): SessionManagerView God-Component zerlegen (#62)
+- [ ] refactor(tauri): ADPError statt String in Tauri-Commands (#63)
+- [ ] refactor(ui): Component-Library formalisieren — Button/Modal/Input (#65) — Stretch
+
+### Skill-Infrastruktur (parallel zum Sprint)
+
+- [x] `/implement` Skill: Phase 0.5 Pre-Flight (Working Tree clean) + Phase 7 Post-Merge-Cleanup ergaenzt (2026-04-05)
+- [ ] `/parallel-implement` Skill **designen** — Liste von Issues entgegennehmen, pro Issue einen Worktree + Subagent starten, am Ende PR-Uebersicht liefern. Offene Fragen: Subagent kann `disable-model-invocation` Skills nicht aufrufen — muss Pipeline-Schritte selbst fahren. State-Sync zwischen parallel laufenden Subagents?
+- [ ] `/parallel-implement` Skill **implementieren** (nach Design)
+- [ ] `/parallel-implement` Skill **testen** mit 2–3 gleichzeitigen QA-Issues aus v1.6.0
+
 ## Backlog (Future)
 
 - [x] **DEBT-04**: Store-Deduplizierung agentStore vs pipelineStore (#85) — rawLogs entfernt, agentId Cross-Ref, Log-Flow 3→2
