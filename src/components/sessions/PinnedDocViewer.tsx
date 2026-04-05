@@ -29,8 +29,15 @@ export function PinnedDocViewer({ folder, pinId }: PinnedDocViewerProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const addToast = useUIStore((s) => s.addToast);
+  const setHasDirtyEditor = useUIStore((s) => s.setHasDirtyEditor);
 
   const isDirty = isEditing && editContent !== (content ?? "");
+
+  // Propagate dirty state to uiStore so tab-switch guard can warn the user
+  useEffect(() => {
+    setHasDirtyEditor(isDirty);
+    return () => setHasDirtyEditor(false);
+  }, [isDirty, setHasDirtyEditor]);
 
   // Ref to avoid stale closure in load() — prevents overwriting unsaved edits
   const isEditingRef = useRef(isEditing);

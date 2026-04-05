@@ -52,6 +52,10 @@ interface UIState {
   configPanelWidth: number;
   setConfigPanelWidth: (width: number) => void;
 
+  /** True when an inline editor has unsaved changes — triggers confirm on tab switch. */
+  hasDirtyEditor: boolean;
+  setHasDirtyEditor: (dirty: boolean) => void;
+
   previewFolder: string | null;
   openPreview: (folder: string) => void;
   closePreview: () => void;
@@ -80,6 +84,9 @@ export const useUIStore = create<UIState>((set) => ({
 
   configPanelWidth: 400,
   setConfigPanelWidth: (width) => set({ configPanelWidth: Math.max(250, Math.min(800, width)) }),
+
+  hasDirtyEditor: false,
+  setHasDirtyEditor: (dirty) => set({ hasDirtyEditor: dirty }),
 
   previewFolder: null,
   openPreview: (folder) => set({ previewFolder: folder }),

@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from "react";
 import { X, Plus, Pin } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useUIStore, type ConfigSubTab } from "../../store/uiStore";
@@ -20,14 +21,60 @@ interface ConfigPanelTabListProps {
  */
 export function ConfigPanelTabList({ folder, size = "md" }: ConfigPanelTabListProps) {
   const configSubTab = useUIStore((s) => s.configSubTab);
-  const setConfigSubTab = useUIStore((s) => s.setConfigSubTab);
+  const setConfigSubTabRaw = useUIStore((s) => s.setConfigSubTab);
   const addToast = useUIStore((s) => s.addToast);
+  const hasDirtyEditor = useUIStore((s) => s.hasDirtyEditor);
+
+  /** Tab-switch with unsaved-changes guard. */
+  const setConfigSubTab = (newTab: ConfigSubTab) => {
+    if (hasDirtyEditor && newTab !== configSubTab) {
+      const ok = window.confirm(
+        "Ungespeicherte Aenderungen gehen verloren. Wirklich wechseln?"
+      );
+      if (!ok) return;
+    }
+    setConfigSubTabRaw(newTab);
+  };
 
   const pins = useSettingsStore(
     (s) => s.pinnedDocs[normalizeProjectKey(folder)] ?? []
   );
   const addPinnedDoc = useSettingsStore((s) => s.addPinnedDoc);
   const removePinnedDoc = useSettingsStore((s) => s.removePinnedDoc);
+  const renamePinnedDoc = useSettingsStore((s) => s.renamePinnedDoc);
+
+  // Inline-Edit state for pin labels
+  const [editingPinId, setEditingPinId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-focus + select when edit mode starts
+  useEffect(() => {
+    if (editingPinId && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [editingPinId]);
+
+  const startRename = (pinId: string, currentLabel: string) => {
+    setEditingPinId(pinId);
+    setEditValue(currentLabel);
+  };
+
+  const commitRename = () => {
+    if (!editingPinId) return;
+    const trimmed = editValue.trim();
+    if (trimmed) {
+      renamePinnedDoc(folder, editingPinId, trimmed);
+    }
+    setEditingPinId(null);
+    setEditValue("");
+  };
+
+  const cancelRename = () => {
+    setEditingPinId(null);
+    setEditValue("");
+  };
 
   const buttonPadding = size === "sm" ? "px-2.5 py-1" : "px-2 py-1";
   const iconSize = size === "sm" ? "w-3 h-3" : "w-3 h-3";
@@ -77,9 +124,10 @@ export function ConfigPanelTabList({ folder, size = "md" }: ConfigPanelTabListPr
 
   const handleRemovePin = (pinId: string, label: string) => {
     removePinnedDoc(folder, pinId);
-    // If the removed pin was active, switch back to CLAUDE.md
+    // If the removed pin was active, switch back to CLAUDE.md.
+    // Use raw setter to bypass dirty-guard (user removed the pin intentionally).
     if (configSubTab === `pin:${pinId}`) {
-      setConfigSubTab("claude-md");
+      setConfigSubTabRaw("claude-md");
     }
     addToast({ type: "info", title: "Pin entfernt", message: label });
   };
@@ -110,6 +158,7 @@ export function ConfigPanelTabList({ folder, size = "md" }: ConfigPanelTabListPr
       {pins.map((pin) => {
         const tabId: ConfigSubTab = `pin:${pin.id}`;
         const isActive = configSubTab === tabId;
+        const isEditing = editingPinId === pin.id;
         return (
           <div
             key={pin.id}
@@ -119,25 +168,53 @@ export function ConfigPanelTabList({ folder, size = "md" }: ConfigPanelTabListPr
                 : "text-neutral-400 hover:text-neutral-200 hover:bg-hover-overlay"
             }`}
           >
-            <button
-              onClick={() => setConfigSubTab(tabId)}
-              className={`flex items-center gap-1 pl-2 py-1 ${textSize} font-medium`}
-              title={pin.relativePath}
-            >
-              <Pin className={`${iconSize} shrink-0`} />
-              {pin.label}
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleRemovePin(pin.id, pin.label);
-              }}
-              className="p-0.5 pr-1.5 text-neutral-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-              title="Pin entfernen"
-              aria-label={`Pin ${pin.label} entfernen`}
-            >
-              <X className="w-2.5 h-2.5" />
-            </button>
+            {isEditing ? (
+              <div className={`flex items-center gap-1 pl-2 py-1 ${textSize}`}>
+                <Pin className={`${iconSize} shrink-0`} />
+                <input
+                  ref={editInputRef}
+                  type="text"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onBlur={commitRename}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      commitRename();
+                    } else if (e.key === "Escape") {
+                      e.preventDefault();
+                      cancelRename();
+                    }
+                  }}
+                  className={`${textSize} font-medium bg-transparent border border-accent rounded-sm px-1 outline-none min-w-[60px] max-w-[200px]`}
+                  maxLength={64}
+                  aria-label="Pin-Label bearbeiten"
+                />
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfigSubTab(tabId)}
+                onDoubleClick={() => startRename(pin.id, pin.label)}
+                className={`flex items-center gap-1 pl-2 py-1 ${textSize} font-medium`}
+                title={`${pin.relativePath}\n(Doppelklick zum Umbenennen)`}
+              >
+                <Pin className={`${iconSize} shrink-0`} />
+                {pin.label}
+              </button>
+            )}
+            {!isEditing && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRemovePin(pin.id, pin.label);
+                }}
+                className="p-0.5 pr-1.5 text-neutral-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Pin entfernen"
+                aria-label={`Pin ${pin.label} entfernen`}
+              >
+                <X className="w-2.5 h-2.5" />
+              </button>
+            )}
           </div>
         );
       })}
