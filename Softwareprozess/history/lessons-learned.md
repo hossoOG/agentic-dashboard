@@ -1,6 +1,12 @@
-# Lessons Learned — Agentic Dashboard
+# [ARCHIVED] Lessons Learned — Agentic Dashboard (bis 2026-03-16)
 
-Dieses Dokument wird regelmäßig aktualisiert nach jeder Session / jedem Sprint.
+> **Archiviert am:** 2026-04-05
+> **Grund:** Enthaelt historische Lessons aus der Phase vor der Umstellung auf
+>   `tasks/`-Struktur (Pivot zum Session Manager, 2026-03-16). Alle inhaltlich
+>   relevanten Lessons sind in `tasks/lessons.md` uebernommen worden (dortiger
+>   Eintrag "2026-03-16 — Session Manager MVP (aus lessons-learned.md uebernommen)").
+> **Aktive Datei:** `tasks/lessons.md`
+> **Nicht mehr erweitern.** Neue Lessons gehen ausschliesslich in `tasks/lessons.md`.
 
 ---
 

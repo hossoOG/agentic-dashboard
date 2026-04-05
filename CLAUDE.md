@@ -199,7 +199,7 @@ Pflicht-Review fuer jeden neuen Tauri-Command:
 
 - `Softwareprozess/history/Phase.txt` — alte Roadmap + 7-Phasen-Modell (ersetzt durch arc42, 2026-04-05)
 - `Softwareprozess/history/testing-spec-v1.3.1.md` — QA-Sprint-Plan v1.3.1 (abgeschlossen)
-- `Softwareprozess/lessons-learned.md` — Historische Lessons (bis 2026-03-16, Nachfolger: `tasks/lessons.md`)
+- `Softwareprozess/history/lessons-learned.md` — Historische Lessons bis 2026-03-16 (Inhalt in `tasks/lessons.md` migriert)
 - `Softwareprozess/Anforderungsanalyse.md` — [ARCHIVED] Urspruengliche Anforderungen
 - `Softwareprozess/Planung.md` — [ARCHIVED] Urspruenglicher Sprint-Plan
 

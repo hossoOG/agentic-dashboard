@@ -54,7 +54,7 @@
 |-------|------------------------|
 | `Softwareprozess/history/Phase.txt` | 7-Phasen-Modell durch arc42 ersetzt (2026-04-05) |
 | `Softwareprozess/history/testing-spec-v1.3.1.md` | QA-Sprint abgeschlossen; 4-Gates-Regeln in CLAUDE.md migriert (2026-04-05) |
-| `Softwareprozess/lessons-learned.md` | Historische Lessons bis 2026-03-16; Nachfolger: `tasks/lessons.md` |
+| `Softwareprozess/history/lessons-learned.md` | Historische Lessons bis 2026-03-16 (Inhalt in `tasks/lessons.md` migriert, 2026-04-05) |
 | `Softwareprozess/Anforderungsanalyse.md` | Vor Pivot zu Session Manager (2026-03-16) |
 | `Softwareprozess/Planung.md` | Vor Pivot zu Session Manager (2026-03-16) |
 
