@@ -1,7 +1,7 @@
-import { useState } from "react";
 import { X, FolderOpen } from "lucide-react";
-import type { ConfigSubTab } from "../../store/uiStore";
-import { CONFIG_TABS, ConfigPanelContent } from "./configPanelShared";
+import { useUIStore } from "../../store/uiStore";
+import { ConfigPanelContent } from "./configPanelShared";
+import { ConfigPanelTabList } from "./ConfigPanelTabList";
 
 interface FavoritePreviewProps {
   folder: string;
@@ -10,7 +10,7 @@ interface FavoritePreviewProps {
 }
 
 export function FavoritePreview({ folder, onClose, onResumeSession }: FavoritePreviewProps) {
-  const [activeTab, setActiveTab] = useState<ConfigSubTab>("claude-md");
+  const configSubTab = useUIStore((s) => s.configSubTab);
 
   const projectName = folder.split(/[/\\]/).filter(Boolean).pop() ?? folder;
 
@@ -22,27 +22,9 @@ export function FavoritePreview({ folder, onClose, onResumeSession }: FavoritePr
         <span className="text-sm font-bold text-neutral-200 truncate mr-3">{projectName}</span>
         <span className="text-[11px] text-neutral-500 truncate mr-auto" title={folder}>{folder}</span>
 
-        {/* Tabs */}
-        <div className="flex items-center gap-0 mx-4">
-          {CONFIG_TABS.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-sm whitespace-nowrap transition-colors ${
-                  isActive
-                    ? "text-accent bg-accent-a10"
-                    : "text-neutral-400 hover:text-neutral-200 hover:bg-hover-overlay"
-                }`}
-                title={tab.label}
-              >
-                <Icon className="w-3 h-3 shrink-0" />
-                {tab.label}
-              </button>
-            );
-          })}
+        {/* Tabs (shared state with ConfigPanel via uiStore) */}
+        <div className="flex items-center gap-0 mx-4 overflow-x-auto">
+          <ConfigPanelTabList folder={folder} size="sm" />
         </div>
 
         <button
@@ -57,7 +39,7 @@ export function FavoritePreview({ folder, onClose, onResumeSession }: FavoritePr
 
       {/* Content */}
       <div className="flex-1 min-h-0 overflow-auto">
-        <ConfigPanelContent folder={folder} activeTab={activeTab} onResumeSession={onResumeSession} />
+        <ConfigPanelContent folder={folder} activeTab={configSubTab} onResumeSession={onResumeSession} />
       </div>
     </div>
   );
