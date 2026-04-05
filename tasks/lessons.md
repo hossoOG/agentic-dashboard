@@ -147,6 +147,20 @@
 
 ---
 
+## 2026-04-05 — MD-Pinning Feature (v1.5 Stage 2)
+
+### Vor Code-Aenderung an Komponente: Usage checken
+**Kontext:** Beim Feature "MD-Pinning im Config-Panel" habe ich `ContentTabs.tsx` modifiziert (Prop-Type erweitert, neue Icon-Darstellung fuer Pin-Tabs). Erst nach dem Fix eines tsc-Fehlers fiel mir auf: `ContentTabs` wird **nirgendwo importiert** — es ist orphan code aus einer frueheren Iteration. Die Aenderungen waren funktional harmlos, aber sie haben Diff-Umfang produziert ohne Wirkung, und die Fix-Schleife hat Zeit gekostet.
+**Erkenntnis:** Bevor man eine Komponente modifiziert, mit einem kurzen `grep -r "import.*Foo"` pruefen, ob sie ueberhaupt angebunden ist. Das kostet 5 Sekunden, spart aber im Zweifel ein Revert + Lesson. Besonders wichtig bei Projekten mit Pivot-Historie (dead code entsteht dort systemisch — siehe Eintrag 2026-03-25).
+**Regel:** Bei jeder Komponenten-Aenderung: **erst Usage-Check** (`grep -r "ComponentName"`), dann Aenderung. Wenn `found 1 file` = nur die Komponente selbst = **dead code**: nicht modifizieren, sondern separat als "delete candidate" notieren.
+
+### Dead Code ist ein Leck in der Architektur-Intuition
+**Kontext:** Ich hatte aus Phase.txt die alte UI-Architektur rekonstruiert ("ContentTabs ueber dem Terminal") und angenommen, dass das die lebendige Struktur ist. Tatsaechlich war es nur ein historisches Artefakt — die aktuelle Architektur verwendet das separate Split-View-ConfigPanel. Durch die (veraltete) Doku bin ich auf die falsche Komponente gestossen.
+**Erkenntnis:** Doku kann lügen, Code-Usage nicht. Bei jedem architektonischen "das müsste hier liegen"-Gedanken: Annahme gegen `grep` verifizieren, bevor Code geändert wird.
+**Regel:** Bei Unklarheit welche Komponente die aktive ist: `grep -r "<ComponentName"` (JSX-Usage) ist die Wahrheit. Nicht CLAUDE.md, nicht Phase.txt, nicht mein Gedächtnis.
+
+---
+
 ## 2026-04-04 — Markdown Editor Feature (#68)
 
 ### safe_resolve prueft non-existent Pfade nicht

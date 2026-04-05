@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { FileText, Puzzle, Webhook, Github, GitBranch, Columns3, Clock } from "lucide-react";
 import type { ConfigSubTab } from "../../store/uiStore";
+import { isPinTab, getPinIdFromTab } from "../../store/uiStore";
 
 export const ClaudeMdViewer = lazy(() => import("./ClaudeMdViewer").then(m => ({ default: m.ClaudeMdViewer })));
 export const SkillsViewer = lazy(() => import("./SkillsViewer").then(m => ({ default: m.SkillsViewer })));
@@ -9,6 +10,7 @@ export const GitHubViewer = lazy(() => import("./GitHubViewer").then(m => ({ def
 export const WorktreeViewer = lazy(() => import("./WorktreeViewer").then(m => ({ default: m.WorktreeViewer })));
 export const KanbanBoard = lazy(() => import("../kanban/KanbanBoard").then(m => ({ default: m.KanbanBoard })));
 export const SessionHistoryViewer = lazy(() => import("./SessionHistoryViewer"));
+export const PinnedDocViewer = lazy(() => import("./PinnedDocViewer").then(m => ({ default: m.PinnedDocViewer })));
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const CONFIG_TABS: { id: ConfigSubTab; label: string; icon: typeof FileText }[] = [
@@ -28,6 +30,8 @@ interface ConfigPanelContentProps {
 }
 
 export function ConfigPanelContent({ folder, activeTab, onResumeSession }: ConfigPanelContentProps) {
+  const pinId = isPinTab(activeTab) ? getPinIdFromTab(activeTab) : null;
+
   return (
     <Suspense
       fallback={
@@ -36,7 +40,9 @@ export function ConfigPanelContent({ folder, activeTab, onResumeSession }: Confi
         </div>
       }
     >
-      {activeTab === "claude-md" ? (
+      {pinId !== null ? (
+        <PinnedDocViewer folder={folder} pinId={pinId} />
+      ) : activeTab === "claude-md" ? (
         <ClaudeMdViewer folder={folder} />
       ) : activeTab === "skills" ? (
         <SkillsViewer folder={folder} />
