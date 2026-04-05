@@ -54,6 +54,42 @@ export interface ApiKeyMetadataEntry {
   isValid: boolean;
 }
 
+/** User-pinned Markdown document inside a project folder. */
+export interface PinnedDoc {
+  id: string;
+  /** Path relative to the project folder, forward-slashes, no `..`. */
+  relativePath: string;
+  /** Display label — defaults to the filename, user-editable. */
+  label: string;
+  addedAt: number;
+}
+
+/** Normalize a project folder path for use as a Record key. */
+export function normalizeProjectKey(folder: string): string {
+  return folder.replace(/\\/g, "/").toLowerCase().replace(/\/+$/, "");
+}
+
+/** Validate a relative path for a pinned document. Returns null if valid, else an error message. */
+export function validatePinnedPath(relativePath: string): string | null {
+  if (!relativePath || typeof relativePath !== "string") return "Pfad darf nicht leer sein";
+  const trimmed = relativePath.trim();
+  if (!trimmed) return "Pfad darf nicht leer sein";
+  // Reject absolute paths (Windows: C:\, /foo, \\share)
+  if (/^[a-zA-Z]:[\\/]/.test(trimmed) || trimmed.startsWith("/") || trimmed.startsWith("\\")) {
+    return "Pfad muss relativ zum Projektordner sein";
+  }
+  // Reject traversal
+  const normalized = trimmed.replace(/\\/g, "/");
+  if (normalized.split("/").some((seg) => seg === "..")) {
+    return "Path-Traversal nicht erlaubt ('..' im Pfad)";
+  }
+  // Only markdown extensions
+  if (!/\.(md|markdown)$/i.test(normalized)) {
+    return "Nur .md- oder .markdown-Dateien koennen angepinnt werden";
+  }
+  return null;
+}
+
 // ============================================================================
 // State Interface
 // ============================================================================
@@ -70,6 +106,8 @@ export interface SettingsState {
   defaultProjectPath: string;
   globalNotes: string;
   projectNotes: Record<string, string>;
+  /** Pinned docs per project (key: normalized folder path). */
+  pinnedDocs: Record<string, PinnedDoc[]>;
 
   // Actions
   setTheme: (partial: Partial<ThemeSettings>) => void;
@@ -90,6 +128,11 @@ export interface SettingsState {
   removeFavorite: (id: string) => void;
   updateFavoriteLastUsed: (id: string) => void;
   reorderFavorites: (ids: string[]) => void;
+
+  /** Pin a markdown file from a project folder. Returns error message or null on success. */
+  addPinnedDoc: (folder: string, relativePath: string, label?: string) => string | null;
+  removePinnedDoc: (folder: string, pinId: string) => void;
+  renamePinnedDoc: (folder: string, pinId: string, label: string) => void;
 
   resetToDefaults: () => void;
 }
@@ -200,6 +243,7 @@ export const useSettingsStore = create<SettingsState>()(
       defaultProjectPath: "",
       globalNotes: "",
       projectNotes: {},
+      pinnedDocs: {},
 
       setTheme: (partial) =>
         set((state) => ({
@@ -302,6 +346,64 @@ export const useSettingsStore = create<SettingsState>()(
           return { favorites: updated };
         }),
 
+      addPinnedDoc: (folder, relativePath, label) => {
+        const validationError = validatePinnedPath(relativePath);
+        if (validationError) return validationError;
+
+        const normalized = relativePath.replace(/\\/g, "/").trim();
+        const key = normalizeProjectKey(folder);
+        const state = useSettingsStore.getState();
+        const existing = state.pinnedDocs[key] ?? [];
+
+        // Deduplicate by relativePath
+        if (existing.some((p) => p.relativePath === normalized)) {
+          return "Diese Datei ist bereits angepinnt";
+        }
+
+        const filename = normalized.split("/").pop() ?? normalized;
+        const pin: PinnedDoc = {
+          id: `pin-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          relativePath: normalized,
+          label: label?.trim() || filename,
+          addedAt: Date.now(),
+        };
+
+        set((s) => ({
+          pinnedDocs: {
+            ...s.pinnedDocs,
+            [key]: [...existing, pin],
+          },
+        }));
+        return null;
+      },
+
+      removePinnedDoc: (folder, pinId) =>
+        set((state) => {
+          const key = normalizeProjectKey(folder);
+          const existing = state.pinnedDocs[key] ?? [];
+          const filtered = existing.filter((p) => p.id !== pinId);
+          if (filtered.length === existing.length) return state;
+          const next = { ...state.pinnedDocs };
+          if (filtered.length === 0) {
+            delete next[key];
+          } else {
+            next[key] = filtered;
+          }
+          return { pinnedDocs: next };
+        }),
+
+      renamePinnedDoc: (folder, pinId, label) =>
+        set((state) => {
+          const key = normalizeProjectKey(folder);
+          const existing = state.pinnedDocs[key] ?? [];
+          const trimmed = label.trim();
+          if (!trimmed) return state;
+          const updated = existing.map((p) => (p.id === pinId ? { ...p, label: trimmed } : p));
+          return {
+            pinnedDocs: { ...state.pinnedDocs, [key]: updated },
+          };
+        }),
+
       resetToDefaults: () =>
         set((state) => ({
           theme: defaultTheme,
@@ -333,8 +435,9 @@ export const useSettingsStore = create<SettingsState>()(
         defaultProjectPath: state.defaultProjectPath,
         globalNotes: state.globalNotes,
         projectNotes: state.projectNotes,
+        pinnedDocs: state.pinnedDocs,
       }),
-      version: 1,
+      version: 2,
       migrate: (persisted: unknown, _version: number) => {
         // Deep-merge persisted data with defaults so new fields get defaults
         // while existing values are preserved. This prevents undefined fields
@@ -351,9 +454,30 @@ export const useSettingsStore = create<SettingsState>()(
           defaultProjectPath: "",
           globalNotes: "",
           projectNotes: {},
+          pinnedDocs: {} as Record<string, PinnedDoc[]>,
         };
         if (!persisted || typeof persisted !== "object") return defaults as unknown as SettingsState;
         const p = persisted as Record<string, unknown>;
+        // Validate pinnedDocs structure: Record<string, PinnedDoc[]>
+        const validatePinnedDocs = (raw: unknown): Record<string, PinnedDoc[]> => {
+          if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+          const result: Record<string, PinnedDoc[]> = {};
+          for (const [key, val] of Object.entries(raw as Record<string, unknown>)) {
+            if (!Array.isArray(val)) continue;
+            const pins = val.filter((p): p is PinnedDoc =>
+              p != null &&
+              typeof p === "object" &&
+              typeof (p as PinnedDoc).id === "string" &&
+              typeof (p as PinnedDoc).relativePath === "string" &&
+              typeof (p as PinnedDoc).label === "string" &&
+              typeof (p as PinnedDoc).addedAt === "number" &&
+              // Re-validate path at load time (defense in depth)
+              validatePinnedPath((p as PinnedDoc).relativePath) === null
+            );
+            if (pins.length > 0) result[key] = pins;
+          }
+          return result;
+        };
         return {
           theme: { ...defaults.theme, ...(p.theme && typeof p.theme === "object" ? p.theme : {}) },
           notifications: { ...defaults.notifications, ...(p.notifications && typeof p.notifications === "object" ? p.notifications : {}) },
@@ -366,6 +490,7 @@ export const useSettingsStore = create<SettingsState>()(
           defaultProjectPath: typeof p.defaultProjectPath === "string" ? p.defaultProjectPath : defaults.defaultProjectPath,
           globalNotes: typeof p.globalNotes === "string" ? p.globalNotes : defaults.globalNotes,
           projectNotes: p.projectNotes && typeof p.projectNotes === "object" && !Array.isArray(p.projectNotes) ? p.projectNotes : defaults.projectNotes,
+          pinnedDocs: validatePinnedDocs(p.pinnedDocs),
         } as unknown as SettingsState; // Actions are added by Zustand during merge
       },
       onRehydrateStorage: () => (_state, error) => {

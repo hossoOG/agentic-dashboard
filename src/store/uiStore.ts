@@ -2,7 +2,25 @@ import { create } from "zustand";
 
 export type ActiveTab = "sessions" | "pipeline" | "kanban" | "logs" | "library" | "settings" | "editor";
 
-export type ConfigSubTab = "claude-md" | "skills" | "hooks" | "github" | "worktrees" | "kanban" | "history";
+export type ConfigSubTab =
+  | "claude-md"
+  | "skills"
+  | "hooks"
+  | "github"
+  | "worktrees"
+  | "kanban"
+  | "history"
+  | `pin:${string}`;
+
+/** Type guard: true when the active tab is a user-pinned document */
+export function isPinTab(tab: ConfigSubTab): tab is `pin:${string}` {
+  return tab.startsWith("pin:");
+}
+
+/** Extract the pin id from a `pin:${id}` tab value */
+export function getPinIdFromTab(tab: ConfigSubTab): string | null {
+  return isPinTab(tab) ? tab.slice(4) : null;
+}
 
 export type ToastType = "achievement" | "error" | "info" | "success";
 

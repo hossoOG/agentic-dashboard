@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { useSettingsStore, type SettingsState } from "./settingsStore";
+import {
+  useSettingsStore,
+  type SettingsState,
+  normalizeProjectKey,
+  validatePinnedPath,
+} from "./settingsStore";
 
 // ============================================================================
 // Helpers
@@ -15,8 +20,8 @@ function getState(): SettingsState {
 
 beforeEach(() => {
   useSettingsStore.getState().resetToDefaults();
-  // Also clear favorites and apiKeys manually (resetToDefaults preserves them)
-  useSettingsStore.setState({ favorites: [], apiKeys: [] });
+  // Also clear favorites, apiKeys and pinnedDocs manually (resetToDefaults preserves them)
+  useSettingsStore.setState({ favorites: [], apiKeys: [], pinnedDocs: {} });
 });
 
 // ============================================================================
@@ -727,5 +732,219 @@ describe("favorites persistence", () => {
     getState().resetToDefaults();
     expect(getState().favorites).toHaveLength(1);
     expect(getState().apiKeys).toHaveLength(1);
+  });
+});
+
+// ============================================================================
+// Pinned Docs — Path Validation
+// ============================================================================
+
+describe("validatePinnedPath", () => {
+  it("accepts simple .md path", () => {
+    expect(validatePinnedPath("README.md")).toBeNull();
+  });
+
+  it("accepts nested .md path", () => {
+    expect(validatePinnedPath("tasks/todo.md")).toBeNull();
+  });
+
+  it("accepts .markdown extension", () => {
+    expect(validatePinnedPath("notes.markdown")).toBeNull();
+  });
+
+  it("accepts backslash-separated paths (Windows) and normalizes them", () => {
+    expect(validatePinnedPath("tasks\\todo.md")).toBeNull();
+  });
+
+  it("rejects empty path", () => {
+    expect(validatePinnedPath("")).toContain("leer");
+    expect(validatePinnedPath("   ")).toContain("leer");
+  });
+
+  it("rejects absolute Windows path", () => {
+    expect(validatePinnedPath("C:\\Users\\foo.md")).toContain("relativ");
+    expect(validatePinnedPath("C:/Users/foo.md")).toContain("relativ");
+  });
+
+  it("rejects absolute Unix path", () => {
+    expect(validatePinnedPath("/etc/passwd.md")).toContain("relativ");
+  });
+
+  it("rejects UNC path", () => {
+    expect(validatePinnedPath("\\\\share\\foo.md")).toContain("relativ");
+  });
+
+  it("rejects path traversal with leading ..", () => {
+    expect(validatePinnedPath("../secret.md")).toContain("Traversal");
+  });
+
+  it("rejects path traversal in middle", () => {
+    expect(validatePinnedPath("foo/../bar.md")).toContain("Traversal");
+  });
+
+  it("rejects path traversal with nested ..", () => {
+    expect(validatePinnedPath("a/b/../../c/d.md")).toContain("Traversal");
+  });
+
+  it("rejects non-markdown extension", () => {
+    expect(validatePinnedPath("script.sh")).toContain("Nur .md");
+    expect(validatePinnedPath("config.json")).toContain("Nur .md");
+    expect(validatePinnedPath("no-extension")).toContain("Nur .md");
+  });
+});
+
+// ============================================================================
+// normalizeProjectKey
+// ============================================================================
+
+describe("normalizeProjectKey", () => {
+  it("lowercases and replaces backslashes", () => {
+    expect(normalizeProjectKey("C:\\Projects\\MyApp")).toBe("c:/projects/myapp");
+  });
+
+  it("strips trailing slashes", () => {
+    expect(normalizeProjectKey("C:/Projects/MyApp/")).toBe("c:/projects/myapp");
+    expect(normalizeProjectKey("C:/Projects/MyApp///")).toBe("c:/projects/myapp");
+  });
+
+  it("is idempotent", () => {
+    const once = normalizeProjectKey("C:\\Projects\\Foo\\");
+    const twice = normalizeProjectKey(once);
+    expect(twice).toBe(once);
+  });
+});
+
+// ============================================================================
+// Pinned Docs — addPinnedDoc / removePinnedDoc / renamePinnedDoc
+// ============================================================================
+
+describe("addPinnedDoc", () => {
+  const folder = "C:/Projects/agentic-dashboard";
+
+  it("adds a pin with generated id and defaults label to filename", () => {
+    const err = getState().addPinnedDoc(folder, "tasks/todo.md");
+    expect(err).toBeNull();
+    const pins = getState().pinnedDocs[normalizeProjectKey(folder)];
+    expect(pins).toHaveLength(1);
+    expect(pins[0].relativePath).toBe("tasks/todo.md");
+    expect(pins[0].label).toBe("todo.md");
+    expect(pins[0].id).toMatch(/^pin-\d+-[a-z0-9]+$/);
+    expect(pins[0].addedAt).toBeGreaterThan(0);
+  });
+
+  it("uses custom label when provided", () => {
+    getState().addPinnedDoc(folder, "README.md", "Project Intro");
+    const pins = getState().pinnedDocs[normalizeProjectKey(folder)];
+    expect(pins[0].label).toBe("Project Intro");
+  });
+
+  it("normalizes backslashes in relativePath", () => {
+    getState().addPinnedDoc(folder, "tasks\\lessons.md");
+    const pins = getState().pinnedDocs[normalizeProjectKey(folder)];
+    expect(pins[0].relativePath).toBe("tasks/lessons.md");
+  });
+
+  it("rejects duplicate relativePath in same folder", () => {
+    getState().addPinnedDoc(folder, "README.md");
+    const err = getState().addPinnedDoc(folder, "README.md");
+    expect(err).toContain("bereits");
+    expect(getState().pinnedDocs[normalizeProjectKey(folder)]).toHaveLength(1);
+  });
+
+  it("allows same relativePath in different folders", () => {
+    getState().addPinnedDoc(folder, "README.md");
+    getState().addPinnedDoc("C:/Projects/other", "README.md");
+    expect(getState().pinnedDocs[normalizeProjectKey(folder)]).toHaveLength(1);
+    expect(getState().pinnedDocs[normalizeProjectKey("C:/Projects/other")]).toHaveLength(1);
+  });
+
+  it("rejects path traversal attempts", () => {
+    const err = getState().addPinnedDoc(folder, "../../etc/passwd.md");
+    expect(err).toContain("Traversal");
+    expect(getState().pinnedDocs[normalizeProjectKey(folder)] ?? []).toHaveLength(0);
+  });
+
+  it("rejects non-markdown files", () => {
+    const err = getState().addPinnedDoc(folder, "script.ts");
+    expect(err).toContain("Nur .md");
+    expect(getState().pinnedDocs[normalizeProjectKey(folder)] ?? []).toHaveLength(0);
+  });
+
+  it("rejects absolute paths", () => {
+    const err = getState().addPinnedDoc(folder, "C:/Windows/system32.md");
+    expect(err).toContain("relativ");
+  });
+
+  it("same folder with different case uses the same key", () => {
+    getState().addPinnedDoc("C:/Projects/App", "a.md");
+    getState().addPinnedDoc("c:\\projects\\app", "b.md");
+    const pins = getState().pinnedDocs[normalizeProjectKey("C:/Projects/App")];
+    expect(pins).toHaveLength(2);
+  });
+});
+
+describe("removePinnedDoc", () => {
+  const folder = "C:/Projects/test";
+
+  it("removes the pin by id", () => {
+    getState().addPinnedDoc(folder, "a.md");
+    getState().addPinnedDoc(folder, "b.md");
+    const pins = getState().pinnedDocs[normalizeProjectKey(folder)];
+    const firstId = pins[0].id;
+    getState().removePinnedDoc(folder, firstId);
+    const remaining = getState().pinnedDocs[normalizeProjectKey(folder)];
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].relativePath).toBe("b.md");
+  });
+
+  it("deletes the folder key when last pin is removed", () => {
+    getState().addPinnedDoc(folder, "only.md");
+    const pin = getState().pinnedDocs[normalizeProjectKey(folder)][0];
+    getState().removePinnedDoc(folder, pin.id);
+    expect(getState().pinnedDocs[normalizeProjectKey(folder)]).toBeUndefined();
+  });
+
+  it("is a no-op for unknown id", () => {
+    getState().addPinnedDoc(folder, "a.md");
+    getState().removePinnedDoc(folder, "nonexistent-id");
+    expect(getState().pinnedDocs[normalizeProjectKey(folder)]).toHaveLength(1);
+  });
+
+  it("is a no-op for unknown folder", () => {
+    getState().removePinnedDoc("C:/Nowhere", "any-id");
+    expect(getState().pinnedDocs).toEqual({});
+  });
+});
+
+describe("renamePinnedDoc", () => {
+  const folder = "C:/Projects/test";
+
+  it("updates the label", () => {
+    getState().addPinnedDoc(folder, "a.md", "Old Label");
+    const pin = getState().pinnedDocs[normalizeProjectKey(folder)][0];
+    getState().renamePinnedDoc(folder, pin.id, "New Label");
+    expect(getState().pinnedDocs[normalizeProjectKey(folder)][0].label).toBe("New Label");
+  });
+
+  it("trims whitespace from label", () => {
+    getState().addPinnedDoc(folder, "a.md");
+    const pin = getState().pinnedDocs[normalizeProjectKey(folder)][0];
+    getState().renamePinnedDoc(folder, pin.id, "   Trimmed   ");
+    expect(getState().pinnedDocs[normalizeProjectKey(folder)][0].label).toBe("Trimmed");
+  });
+
+  it("ignores empty label (keeps old value)", () => {
+    getState().addPinnedDoc(folder, "a.md", "Keep Me");
+    const pin = getState().pinnedDocs[normalizeProjectKey(folder)][0];
+    getState().renamePinnedDoc(folder, pin.id, "   ");
+    expect(getState().pinnedDocs[normalizeProjectKey(folder)][0].label).toBe("Keep Me");
+  });
+
+  it("does not affect pins in other folders", () => {
+    getState().addPinnedDoc(folder, "shared.md", "Here");
+    getState().addPinnedDoc("C:/Projects/other", "shared.md", "Over There");
+    const pin = getState().pinnedDocs[normalizeProjectKey(folder)][0];
+    getState().renamePinnedDoc(folder, pin.id, "Renamed");
+    expect(getState().pinnedDocs[normalizeProjectKey("C:/Projects/other")][0].label).toBe("Over There");
   });
 });
