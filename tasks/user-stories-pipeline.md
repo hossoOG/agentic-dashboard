@@ -1,7 +1,7 @@
 # User Stories — Pipeline-Ueberwachung
 
 > Erstellt: 2026-03-28 (Issue #16)
-> Bezug: `tasks/ideas.md`, `Softwareprozess/Phase.txt`
+> Bezug: `tasks/ideas.md`, `Softwareprozess/arc42-specification.md` (Roadmap-Kapitel)
 
 ---
 

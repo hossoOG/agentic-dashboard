@@ -8,6 +8,61 @@ Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
 
 
+## [1.4.1] — 2026-04-04
+
+### Features
+- In-App Markdown-Editor mit CodeMirror (#68) — CLAUDE.md, Skills, Hooks direkt im Dashboard bearbeiten
+- Zentrales Input-Validierungs-Modul fuer konsistente Security
+
+### Security
+- Path-Traversal-Protection gehaertet (safe_resolve auch fuer nicht-existente Pfade) + Tests
+- DOMPurify-Config gehaertet (ALLOWED_ATTR/FORBID_ATTR explizit) + XSS-Prevention-Tests
+
+### Refactoring
+- `rawLogs` aus `logParser` und `pipelineStore` entfernt (#85)
+- DashboardMap Legacy-Code + dead components entfernt
+
+### Docs
+- arc42 v2.1 Spezifikation hinzugefuegt
+- Sprint-Plan v1.5–v2.0 dokumentiert
+- Sprint-Review-Skill (`/sprint-review`) dokumentiert
+
+## [1.4.0] — 2026-04-03
+
+### Features
+- Agent-Detection-Rewrite: Claude-Code-spezifische Regex-Patterns (Unicode ●■□✓✗), Hierarchie-Tracking, Token-Erfassung (36 Rust-Tests)
+- Task-Tree-Visualisierung (`TaskTreeView` + `TaskTreeNode`) ersetzt DashboardMap in der Pipeline-View
+- AgentMetricsPanel erweitert (Token-Card), AgentBottomPanel mit Hierarchie-Darstellung
+- Neue Events: `agent-status-update`, `task-summary`
+
+### Coverage & QA
+- Coverage-Schwellen hochgezogen (24/32/58/24)
+- Pure-Function-Tests (pathUtils, parseSkillFrontmatter, statusConfig, activityLevel)
+- Store-Tests: errorLogger, agentStore, sessionHistoryStore, libraryStore, workflowStore
+- perfLogger mit 24 Instrumentierungs-Punkten
+
+## [1.3.0] — 2026-04-01
+
+### Features
+- Kanban-Board-Integration (GitHub Projects) — im Dashboard und pro Session (#17, #24)
+- Split-View: Terminal + Kontext-Panel (#28), Config-Tabs neben Terminal (#42)
+- Library als eigener SideNav-Tab (#11)
+- Pipeline-View mit echten Daten: Agenten + Worktrees aus `agentStore` (#12)
+- Workflow-Erkennung aus Projekt-Konfiguration (#13)
+- Session-History pro Projekt (#29)
+
+### Bug Fixes
+- Log-Anzeige: Zeiten korrigiert (#40), Backend-Log-Errors behoben (#41)
+- Log-Ansicht als eigenes Fenster (#26)
+- Settings-Persistenz: Datenverlust bei App-Start/Update verhindert (#23) — Backup-Rotation, Atomic Write, Schema-Version
+
+### Security (v1.3.1-Milestone, in v1.3.0 Release gebundelt)
+- Shell-Injection in Session-Resume validiert (#55)
+- CSP-Policy gehaertet — `unsafe-eval` entfernt (#56)
+- Subprocess-Timeouts fuer gh/git/claude Commands (#64)
+- Pre-Commit-Hooks via Husky + lint-staged (#61, #70)
+- CI Coverage Gate aktiviert (#71)
+
 ## [1.2.5] — 2026-03-28
 
 ### Features

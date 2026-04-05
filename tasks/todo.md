@@ -1,6 +1,9 @@
 # AgenticExplorer — Sprint Backlog
 
 > **Kanban Board**: https://github.com/users/hossoOG/projects/3
+> **Langfristige Roadmap**: `Softwareprozess/arc42-specification.md`, Abschnitt 1.1 "Roadmap-Vision"
+> **Release-Historie**: `CHANGELOG.md`
+> **Doku-Orientierung**: `tasks/docs-inventory.md`
 > Alle neuen Tasks werden als GitHub Issues erfasst und ueber das Board getrackt.
 
 ## Abgeschlossen: Konsolidierungs-Sprint (2026-03-25)
@@ -140,6 +143,47 @@
 - [x] B2: perfLogger Initialisierung in main.tsx
 - [x] B3: IPC/Event/Store/Render Instrumentierung (24 Punkte)
 - [x] Coverage-Schwellen hochgezogen (24/32/58/24)
+
+## Abgeschlossen: v1.4.1 — Security, Editor & Cleanup (2026-04-04)
+
+> Release getaggt 2026-04-04, Changelog-Eintrag in `CHANGELOG.md`.
+
+- [x] feat(editor): In-App Markdown-Editor mit CodeMirror (#68)
+- [x] fix(security): Path-Traversal-Protection gehaertet (safe_resolve auch fuer non-existente Pfade) + Tests
+- [x] fix(security): DOMPurify-Config gehaertet (ALLOWED_ATTR/FORBID_ATTR) + XSS-Prevention-Tests
+- [x] feat(security): zentrales Input-Validierungs-Modul
+- [x] refactor(store): `rawLogs` aus logParser/pipelineStore entfernt (#85)
+- [x] refactor(ui): DashboardMap Legacy-Code entfernt
+- [x] docs: arc42 v2.1 + sprint-plan v1.5-v2.0 + sprint-review Skill
+
+## Aktueller Sprint: v1.4.2 — Kompass (Doku-Housekeeping)
+
+> **Ziel:** Doku-Drift beheben, Navigation wiederherstellen. Kein neues Feature.
+> **Plan:** Nach User-Feedback 2026-04-05, Details siehe Commit `chore(docs): v1.4.2 housekeeping`.
+> **Folge-Sprint:** v1.5 "Kompass II" bringt MD-Pinning im Config-Panel.
+
+### Stage 1: Doku-Housekeeping (Session 2026-04-05)
+
+- [x] `testing-spec.md` archivieren nach `Softwareprozess/history/` (4-Gates in CLAUDE.md migriert)
+- [x] `Phase.txt` archivieren nach `Softwareprozess/history/` (Rolle durch arc42 + CHANGELOG ersetzt)
+- [x] CLAUDE.md: Test-Zahlen entfernt, Testing-Abschnitt durch 4-Gates-Struktur ersetzt
+- [x] CLAUDE.md: Prozess-Dokumentation-Abschnitt aktualisiert (arc42, docs-inventory ergaenzt)
+- [x] CHANGELOG.md: v1.3.0, v1.4.0, v1.4.1 nachgetragen
+- [x] `tasks/docs-inventory.md` neu angelegt
+- [x] `tasks/todo.md` Roadmap-Verweise auf arc42 + CHANGELOG
+- [x] `README.md` + `CONTRIBUTING.md`: Phase.txt-Referenzen durch arc42 + CHANGELOG ersetzt
+- [x] `tasks/lessons.md`: neue Lesson zur Sprint-Plan-Archivierungs-Regel
+
+### Stage 2: MD-Pinning im Config-Panel (naechste Session → v1.5)
+
+> Geplante Umsetzung im v1.5-Sprint.
+
+- [ ] `settingsStore`: `pinnedDocs: Record<projectPath, string[]>` mit Actions + Persistenz
+- [ ] `ContentTabs`: "+" Button fuer neue Pins, X-Button zum Entfernen
+- [ ] Pin-Dialog: File-Picker fuer .md-Dateien im Projektordner
+- [ ] Editor-Integration: Klick auf Pin-Tab oeffnet im Markdown-Editor
+- [ ] Tests: Store-Actions, Persistenz, Path-Traversal-Guard
+- [ ] Security-Review (5-Fragen-Checkliste)
 
 ## Backlog (Future)
 

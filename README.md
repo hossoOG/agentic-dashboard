@@ -69,7 +69,9 @@ npm run lint         # Run ESLint
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Setup, code style, PR workflow |
 | [tasks/todo.md](tasks/todo.md) | Sprint backlog with current plan |
 | [tasks/lessons.md](tasks/lessons.md) | Lessons learned from past sprints |
-| [Softwareprozess/Phase.txt](Softwareprozess/Phase.txt) | Roadmap & release status |
+| [Softwareprozess/arc42-specification.md](Softwareprozess/arc42-specification.md) | Architecture & roadmap (single source of truth, updated each sprint) |
+| [CHANGELOG.md](CHANGELOG.md) | Release history (Keep-a-Changelog format) |
+| [tasks/docs-inventory.md](tasks/docs-inventory.md) | Inventory of active project docs |
 
 ## Contributing
 

@@ -77,32 +77,49 @@ npm run format:check     # Prettier Format pruefen
 - Run `npm run build` to verify the full build pipeline
 - Tauri-Backend testen: `cd src-tauri && cargo check`
 
-## Testing & Quality Requirements
+## Testing & Quality Gates
 
-### Test-Infrastruktur
+Vier Gates sichern Qualitaet. Gates 1-2 sind automatisiert/blockierend. Gates 3-4 sind Pflicht-Checklisten vor "Done".
 
-- **Framework**: Vitest 2.1.9 + jsdom + @testing-library/react
-- **Stand**: 281 Tests in 8 Test-Dateien (Sprint v1.3.1)
-- **Test-Dateien**: Neben der Source-Datei (`*.test.ts`), Setup in `src/test/setup.ts`
-- **Coverage-Schwellen** (in `vitest.config.ts`): 60% Statements/Functions/Lines, 50% Branches
-- **CI Coverage Gate**: Coverage-Schwellen werden in CI erzwungen (`npm run test:coverage`)
-
-### Pre-Commit Hooks
+### Gate 1: Pre-Commit (automatisch, blockierend)
 
 - **Husky + lint-staged**: Bei jedem Commit laufen automatisch:
   - `.ts`/`.tsx` Dateien: `tsc --noEmit` + `eslint --max-warnings=0`
   - `.rs` Dateien: `cargo fmt --check` + `cargo check --quiet`
 - Konfiguration in `package.json` (`lint-staged`) und `.husky/pre-commit`
-- **Regel:** Jede Pruefung die in CI laeuft, MUSS auch lokal im Hook laufen (CI/Local-Paritaet)
+- **Regel: CI/Local-Paritaet** — jede Pruefung die in CI laeuft, MUSS auch lokal im Hook laufen
 
-### Qualitaets-Regeln
+### Gate 2: CI (automatisch, blockierend)
 
-- **Build-Verifizierung vor "Done"**: `npx tsc --noEmit && npm run build` muessen gruen sein.
-- **Visuelles Testen**: Dashboard im Dev-Modus (`npm run tauri dev`) pruefen.
-- **Rust-Aenderungen**: `cargo check` im `src-tauri/` Verzeichnis ausfuehren.
-- **Tests sind Teil jedes Features** — kein Feature ist "fertig" ohne mindestens 1 Test der bricht wenn das Feature entfernt wird. "Wir testen spaeter" ist nicht akzeptabel.
-- **Tests nach Risiko priorisieren**: Persistenz-Verlust > Security > UI-Regression > Store-Logik. Teuerste Failures zuerst testen.
-- **Security-Review pro neuem Tauri-Command**: 5-Fragen-Checkliste: (1) Input validiert? (2) Path Traversal geprueft? (3) Shell-Injection moeglich? (4) Timeout vorhanden? (5) Fehler strukturiert?
+- `npm run test:coverage` — Coverage-Schwellen aus `vitest.config.ts` werden erzwungen (Ratchet-Prinzip: Schwellen duerfen nicht sinken)
+- Rust: `cargo test` + `cargo clippy` + `cargo fmt --check`
+- CI-Workflows: `.github/workflows/ci.yml` + `release.yml`
+
+### Gate 3: Feature-Checkliste (vor "Done")
+
+- [ ] Mindestens **1 Happy-Path-Test** + **1 Error-/Edge-Case-Test** pro Feature
+- [ ] Test-Datei im **selben Commit** wie Feature (kein "testen spaeter")
+- [ ] Alle bestehenden Tests gruen (`npm run test` + `cargo test`)
+- [ ] `npx tsc --noEmit && npm run build` erfolgreich
+- [ ] Visuelle Pruefung im Dev-Modus (`npm run tauri dev`) bei UI-Aenderungen
+- **Tests nach Risiko priorisieren**: Persistenz-Verlust > Security > UI-Regression > Store-Logik. Teuerste Failures zuerst.
+
+### Gate 4: Tauri-Command Security (5-Fragen-Checkliste)
+
+Pflicht-Review fuer jeden neuen Tauri-Command:
+- [ ] Input validiert?
+- [ ] Path Traversal geprueft?
+- [ ] Shell-Injection moeglich?
+- [ ] Timeout vorhanden?
+- [ ] Fehler strukturiert?
+
+### Testing-Konventionen
+
+- **Framework**: Vitest 2.1.9 + jsdom + @testing-library/react (Frontend), `#[cfg(test)]` (Rust)
+- **Test-Dateien**: neben Source-Datei (`foo.ts` → `foo.test.ts`), Setup in `src/test/setup.ts`
+- **Live-Status**: aktuelle Testzahl und Coverage via `npm run test` bzw. `npm run test:coverage` — **keine fixen Zahlen in dieser Datei** (driften sonst)
+- **Coverage-Schwellen**: in `vitest.config.ts` (Ratchet — werden schrittweise erhoeht)
+- **Archiv-Referenz**: historischer QA-Plan mit Test-Patterns und Pipeline-Rewrite-Kontext: `Softwareprozess/history/testing-spec-v1.3.1.md`
 
 ## Workflow Compliance
 
@@ -166,10 +183,26 @@ npm run format:check     # Prettier Format pruefen
 
 ## Prozess-Dokumentation
 
-- `Softwareprozess/Phase.txt` — Aktuelle Roadmap und Release-Status
-- `Softwareprozess/lessons-learned.md` — Historische Lessons (bis 2026-03-16)
-- `tasks/todo.md` — Sprint-Backlog
-- `tasks/ideas.md` — Ideen-Sammlung
+### Aktive Prozess-Dokumente (Single Source of Truth je Thema)
+
+- `Softwareprozess/arc42-specification.md` — **Master-Spec**: Architektur, Roadmap, User Stories. Wird nach jedem Sprint-Review erweitert.
+- `CHANGELOG.md` — Release-Historie (Keep-a-Changelog-Format)
+- `tasks/todo.md` — Operativer Sprint-Backlog (aktueller Sprint + Abgeschlossen-Historie)
+- `tasks/docs-inventory.md` — Inventar aller aktiven Projekt-Dokumente (bei Orientierungsverlust zuerst hier schauen)
 - `tasks/lessons.md` — Aktuelle Lessons Learned (ab 2026-03-25)
+- `tasks/ideas.md` — Ideen-Sammlung (roh, kein Filter)
+- `tasks/user-stories-pipeline.md` — User Stories US-P1 bis US-P5 (Pipeline-Feature)
+- `tasks/sprint-plan-v1.5-v2.0.md` — Forecast fuer v1.5 bis v2.0 (wird nach v2.0-Sprint archiviert)
+- `Softwareprozess/Protokoll-Design.md` — ADP-Protokoll-Details
+
+### Archiviert (historische Artefakte)
+
+- `Softwareprozess/history/Phase.txt` — alte Roadmap + 7-Phasen-Modell (ersetzt durch arc42, 2026-04-05)
+- `Softwareprozess/history/testing-spec-v1.3.1.md` — QA-Sprint-Plan v1.3.1 (abgeschlossen)
+- `Softwareprozess/lessons-learned.md` — Historische Lessons (bis 2026-03-16, Nachfolger: `tasks/lessons.md`)
 - `Softwareprozess/Anforderungsanalyse.md` — [ARCHIVED] Urspruengliche Anforderungen
 - `Softwareprozess/Planung.md` — [ARCHIVED] Urspruenglicher Sprint-Plan
+
+### Archivierungs-Regel
+
+> Sprint-Plan-Dokumente (`sprint-plan-vX.md`, `testing-spec.md`, Sprint-Retros etc.) sind **Artefakte**. Nach Sprint-Abschluss wandern sie in `Softwareprozess/history/`. **Zeitlose Regeln/Patterns werden VORHER** nach CLAUDE.md oder arc42 migriert — sie duerfen nicht im Archiv versanden.

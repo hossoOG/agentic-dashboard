@@ -1,5 +1,13 @@
-# QA-Plan: Testing-Strategie & Enforcement
+# [ARCHIVED] QA-Plan: Testing-Strategie & Enforcement (v1.3.1-Sprint)
 
+> **Archiviert am:** 2026-04-05
+> **Grund:** Alle Tickets (QA-1 bis QA-9) wurden im v1.3.1-Sprint umgesetzt und abgeschlossen.
+>   Die **zeitlos relevanten** Teile dieses Dokuments sind migriert:
+>   - 4-Gates-Struktur (Ticket QA-3) → `CLAUDE.md` Abschnitt "Testing & Quality Gates"
+>   - Dauerhaftes QA-Ritual (Teil 4) → `CLAUDE.md` Abschnitt "Testing & Quality Gates"
+> **Bleibt liegen als:** Historisches Artefakt + Referenz fuer Sprint-Planungs-Praxis.
+>
+> Ursprungsdaten:
 > Erstellt: 2026-04-02 | Anlass: Pipeline-Rewrite ohne Tests ausgeliefert
 > Status: Plan steht, Tickets muessen erstellt werden
 > Tracking: GitHub Issues auf [Kanban Board](https://github.com/users/hossoOG/projects/3)

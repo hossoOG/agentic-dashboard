@@ -1,4 +1,30 @@
 ================================================================================
+[ARCHIVED am 2026-04-05] — AGENTIC DASHBOARD — Softwareprozess
+================================================================================
+
+Grund der Archivierung:
+  Die Rolle dieser Datei (Roadmap + Release-Status + Anforderungsanalyse) wird
+  seit Sprint v1.4.0 von drei fokussierten Dokumenten uebernommen:
+
+    - Softwareprozess/arc42-specification.md
+        → Single Source of Truth fuer Architektur, Roadmap, User Stories.
+          Wird nach jedem Sprint-Review erweitert.
+
+    - CHANGELOG.md
+        → Release-Historie (Keep-a-Changelog-Format).
+
+    - tasks/todo.md
+        → Operativer Sprint-Backlog.
+
+  Diese Phase.txt bleibt als historisches Artefakt erhalten — sie dokumentiert,
+  wie die Planung von v1.0.0 bis v1.4.0 organisiert war (klassisches Wasserfall-
+  Phasenmodell). Der Pivot zu arc42 erfolgte, weil die 7-Phasen-Struktur sich
+  in der Praxis nicht bewaehrt hat (Phase 5 "Test" wurde nie erreicht —
+  siehe tasks/lessons.md, Eintrag 2026-04-02).
+
+Urspruenglicher Inhalt folgt unveraendert:
+
+================================================================================
 AGENTIC DASHBOARD — Softwareprozess
 ================================================================================
 
