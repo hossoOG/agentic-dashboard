@@ -160,6 +160,7 @@ Pflicht-Review fuer jeden neuen Tauri-Command:
 | Skill | Beschreibung | Phasen |
 |-------|-------------|--------|
 | `/implement` | Issue → PR Workflow | Lessons → Analyse → Implement → Test → QA → Review → PR |
+| `/parallel-implement` | 2-3 Issues gleichzeitig in Worktrees | Pre-Flight → Worktree-Setup → N Subagents parallel → Summary-Report |
 | `/bugfix` | Bug Investigation + Fix | Lessons → Investigate → Regression-Test → Fix → QA → PR |
 | `/review` | Code Review | Lessons → Changes → Security → Quality → Conventions → Coverage |
 | `/sprint-review` | Sprint-Review PPTX generieren | Sprint ID → Daten sammeln → Aufbereiten → STOPP → PPTX generieren |

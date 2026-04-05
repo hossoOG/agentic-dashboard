@@ -231,9 +231,8 @@
 ### Skill-Infrastruktur (parallel zum Sprint)
 
 - [x] `/implement` Skill: Phase 0.5 Pre-Flight (Working Tree clean) + Phase 7 Post-Merge-Cleanup ergaenzt (2026-04-05)
-- [ ] `/parallel-implement` Skill **designen** — Liste von Issues entgegennehmen, pro Issue einen Worktree + Subagent starten, am Ende PR-Uebersicht liefern. Offene Fragen: Subagent kann `disable-model-invocation` Skills nicht aufrufen — muss Pipeline-Schritte selbst fahren. State-Sync zwischen parallel laufenden Subagents?
-- [ ] `/parallel-implement` Skill **implementieren** (nach Design)
-- [ ] `/parallel-implement` Skill **testen** mit 2–3 gleichzeitigen QA-Issues aus v1.6.0
+- [x] `/parallel-implement` Skill **designen + erstellen** (2026-04-05) — `.claude/skills/parallel-implement/SKILL.md`. Orchestrator-Pattern: max 3 Subagents parallel, je in eigenem worktree, inline Mini-Pipeline (Analyse→Impl→Test→QA→PR), JSON-Return pro Agent.
+- [ ] `/parallel-implement` Skill **testen** mit 2–3 gleichzeitigen QA-Issues aus v1.6.0 (z.B. #88 + #87 oder #88 + #91)
 
 ## Backlog (Future)
 
