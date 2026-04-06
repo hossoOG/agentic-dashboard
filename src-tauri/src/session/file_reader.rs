@@ -497,6 +497,34 @@ pub mod commands {
             .map_err(|e| ADPError::file_io(format!("Failed to read file: {}", e)))
     }
 
+    /// List entries in a subdirectory under ~/.claude/.
+    /// Returns file/dir names sorted alphabetically.
+    #[tauri::command]
+    pub async fn list_user_claude_dir(relative_path: String) -> Result<Vec<String>, ADPError> {
+        let path = safe_resolve_user_claude(&relative_path)?;
+
+        if !path.exists() || !path.is_dir() {
+            return Ok(Vec::new());
+        }
+
+        let mut entries = Vec::new();
+        let read_dir = std::fs::read_dir(&path).map_err(|e| {
+            ADPError::file_io(format!(
+                "Failed to read directory '{}': {}",
+                relative_path, e
+            ))
+        })?;
+
+        for entry in read_dir.flatten() {
+            if let Some(name) = entry.file_name().to_str() {
+                entries.push(name.to_string());
+            }
+        }
+
+        entries.sort();
+        Ok(entries)
+    }
+
     /// List all skill directories under .claude/skills/, returning each skill's
     /// SKILL.md content and whether it has a reference/ subdirectory.
     /// This batches N+1 IPC calls into a single round-trip.

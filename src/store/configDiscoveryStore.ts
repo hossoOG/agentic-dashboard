@@ -1,0 +1,323 @@
+import { create } from "zustand";
+import { invoke } from "@tauri-apps/api/core";
+import { logError } from "../utils/errorLogger";
+import { parseSkillFrontmatter, type ParsedSkill } from "../utils/parseSkillFrontmatter";
+
+// ── Types ──────────────────────────────────────────────────────────────
+
+export type ConfigScope = "global" | "project";
+
+export interface DiscoveredSkill {
+  name: string;
+  dirName: string;
+  description: string;
+  args: { name: string; description: string; required: boolean }[];
+  hasReference: boolean;
+  scope: ConfigScope;
+}
+
+export interface DiscoveredAgent {
+  name: string;
+  model: string;
+  scope: ConfigScope;
+}
+
+export interface DiscoveredHook {
+  event: string;
+  matcher?: string;
+  command: string;
+  scope: ConfigScope;
+  source: string; // e.g. "settings.json", "settings.local.json"
+}
+
+export interface DiscoveredMemoryFile {
+  name: string;
+  relativePath: string;
+}
+
+export interface ScopeConfig {
+  skills: DiscoveredSkill[];
+  agents: DiscoveredAgent[];
+  hooks: DiscoveredHook[];
+  settingsRaw: string;
+  claudeMd: string;
+  memoryFiles: DiscoveredMemoryFile[];
+}
+
+// ── Store ──────────────────────────────────────────────────────────────
+
+interface ConfigDiscoveryState {
+  globalConfig: ScopeConfig | null;
+  projectConfig: ScopeConfig | null;
+  projectPath: string | null;
+  loading: boolean;
+  error: string | null;
+
+  /** Content cache for lazy-loaded files, keyed by "scope:type:identifier" */
+  contentCache: Record<string, string>;
+  contentLoading: Record<string, boolean>;
+
+  discoverGlobal: () => Promise<void>;
+  discoverProject: (folder: string) => Promise<void>;
+  loadContent: (key: string, loader: () => Promise<string>) => Promise<string>;
+  clearProject: () => void;
+}
+
+const EMPTY_SCOPE: ScopeConfig = {
+  skills: [],
+  agents: [],
+  hooks: [],
+  settingsRaw: "",
+  claudeMd: "",
+  memoryFiles: [],
+};
+
+// ── Helpers ────────────────────────────────────────────────────────────
+
+interface SkillDirEntry {
+  dir_name: string;
+  content: string;
+  has_reference_dir: boolean;
+}
+
+interface HookEntry {
+  matcher?: string;
+  command: string;
+}
+
+function parseSkillEntries(
+  dirs: SkillDirEntry[],
+  scope: ConfigScope,
+): DiscoveredSkill[] {
+  return dirs.map((dir) => {
+    const parsed: ParsedSkill = dir.content
+      ? parseSkillFrontmatter(dir.content)
+      : { metadata: { name: dir.dir_name, description: "", userInvokable: false, args: [] }, body: "" };
+    return {
+      name: parsed.metadata.name,
+      dirName: dir.dir_name,
+      description: parsed.metadata.description,
+      args: parsed.metadata.args,
+      hasReference: dir.has_reference_dir,
+      scope,
+    };
+  });
+}
+
+function parseAgentsFromSettings(raw: string, scope: ConfigScope): DiscoveredAgent[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    const agents = parsed?.agents;
+    if (!agents || typeof agents !== "object") return [];
+    return Object.entries(agents).map(([name, config]) => ({
+      name,
+      model: (config as { model?: string })?.model ?? "unknown",
+      scope,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function parseHooksFromSettings(
+  raw: string,
+  scope: ConfigScope,
+  source: string,
+): DiscoveredHook[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    const hooksObj = parsed?.hooks;
+    if (!hooksObj || typeof hooksObj !== "object") return [];
+
+    const result: DiscoveredHook[] = [];
+    for (const [eventName, hookList] of Object.entries(hooksObj)) {
+      const entries = hookList as HookEntry[];
+      if (!Array.isArray(entries)) continue;
+      for (const entry of entries) {
+        result.push({
+          event: eventName,
+          matcher: entry.matcher,
+          command: entry.command,
+          scope,
+          source,
+        });
+      }
+    }
+    return result;
+  } catch {
+    return [];
+  }
+}
+
+// ── Store Implementation ──────────────────────────────────────────────
+
+export const useConfigDiscoveryStore = create<ConfigDiscoveryState>((set, get) => ({
+  globalConfig: null,
+  projectConfig: null,
+  projectPath: null,
+  loading: false,
+  error: null,
+  contentCache: {},
+  contentLoading: {},
+
+  discoverGlobal: async () => {
+    set({ loading: true, error: null });
+    try {
+      const config: ScopeConfig = { ...EMPTY_SCOPE };
+
+      // Read global settings.json
+      const [settingsResult, commandsDirResult] = await Promise.allSettled([
+        invoke<string>("read_user_claude_file", { relativePath: "settings.json" }),
+        invoke<string[]>("list_user_claude_dir", { relativePath: "commands" }),
+      ]);
+
+      // Parse settings
+      if (settingsResult.status === "fulfilled" && settingsResult.value) {
+        config.settingsRaw = settingsResult.value;
+        config.agents = parseAgentsFromSettings(settingsResult.value, "global");
+        config.hooks = parseHooksFromSettings(settingsResult.value, "global", "settings.json");
+      }
+
+      // Global commands (skills) — each subdir is a skill
+      if (commandsDirResult.status === "fulfilled" && commandsDirResult.value.length > 0) {
+        const skillEntries: SkillDirEntry[] = [];
+        // Load SKILL.md for each command dir (lazy approach: just list names)
+        for (const dirName of commandsDirResult.value) {
+          // Try to read the SKILL.md inside the command dir
+          let content = "";
+          try {
+            content = await invoke<string>("read_user_claude_file", {
+              relativePath: `commands/${dirName}/SKILL.md`,
+            });
+          } catch {
+            // Skill may not have SKILL.md
+          }
+          skillEntries.push({ dir_name: dirName, content, has_reference_dir: false });
+        }
+        config.skills = parseSkillEntries(skillEntries, "global");
+      }
+
+      // Discover memory files in projects dir
+      // ~/.claude/projects/ contains per-project memory dirs
+      try {
+        const projectDirs = await invoke<string[]>("list_user_claude_dir", {
+          relativePath: "projects",
+        });
+        const memFiles: DiscoveredMemoryFile[] = [];
+        for (const dir of projectDirs) {
+          // Each project dir may have memory/ subdir and MEMORY.md
+          try {
+            const memoryDir = await invoke<string[]>("list_user_claude_dir", {
+              relativePath: `projects/${dir}/memory`,
+            });
+            for (const file of memoryDir) {
+              memFiles.push({
+                name: `${dir}/${file}`,
+                relativePath: `projects/${dir}/memory/${file}`,
+              });
+            }
+          } catch {
+            // No memory dir
+          }
+        }
+        config.memoryFiles = memFiles;
+      } catch {
+        // No projects dir
+      }
+
+      set({ globalConfig: config, loading: false });
+    } catch (err) {
+      logError("configDiscoveryStore.discoverGlobal", err);
+      set({ error: String(err), loading: false });
+    }
+  },
+
+  discoverProject: async (folder: string) => {
+    if (!folder) return;
+    set({ loading: true, error: null, projectPath: folder });
+    try {
+      const config: ScopeConfig = { ...EMPTY_SCOPE };
+
+      const [claudeMdResult, skillsResult, settingsResult, localSettingsResult] =
+        await Promise.allSettled([
+          invoke<string>("read_project_file", { folder, relativePath: "CLAUDE.md" }),
+          invoke<SkillDirEntry[]>("list_skill_dirs", { folder }),
+          invoke<string>("read_project_file", { folder, relativePath: ".claude/settings.json" }),
+          invoke<string>("read_project_file", { folder, relativePath: ".claude/settings.local.json" }),
+        ]);
+
+      if (claudeMdResult.status === "fulfilled") {
+        config.claudeMd = claudeMdResult.value;
+      }
+
+      if (skillsResult.status === "fulfilled") {
+        config.skills = parseSkillEntries(skillsResult.value, "project");
+      }
+
+      if (settingsResult.status === "fulfilled" && settingsResult.value) {
+        config.settingsRaw = settingsResult.value;
+        config.agents = parseAgentsFromSettings(settingsResult.value, "project");
+        config.hooks = parseHooksFromSettings(settingsResult.value, "project", "settings.json");
+      }
+
+      // Also parse local settings hooks
+      if (localSettingsResult.status === "fulfilled" && localSettingsResult.value) {
+        const localHooks = parseHooksFromSettings(
+          localSettingsResult.value,
+          "project",
+          "settings.local.json",
+        );
+        config.hooks = [...config.hooks, ...localHooks];
+
+        // Merge agents from local settings
+        const localAgents = parseAgentsFromSettings(localSettingsResult.value, "project");
+        config.agents = [...config.agents, ...localAgents];
+      }
+
+      set({ projectConfig: config, loading: false });
+    } catch (err) {
+      logError("configDiscoveryStore.discoverProject", err);
+      set({ error: String(err), loading: false });
+    }
+  },
+
+  loadContent: async (key: string, loader: () => Promise<string>) => {
+    const cached = get().contentCache[key];
+    if (cached !== undefined) return cached;
+
+    const isLoading = get().contentLoading[key];
+    if (isLoading) return "";
+
+    set((s) => ({ contentLoading: { ...s.contentLoading, [key]: true } }));
+
+    try {
+      const content = await loader();
+      set((s) => ({
+        contentCache: { ...s.contentCache, [key]: content },
+        contentLoading: { ...s.contentLoading, [key]: false },
+      }));
+      return content;
+    } catch (err) {
+      logError("configDiscoveryStore.loadContent", err);
+      set((s) => ({
+        contentCache: { ...s.contentCache, [key]: `Fehler beim Laden: ${err}` },
+        contentLoading: { ...s.contentLoading, [key]: false },
+      }));
+      return "";
+    }
+  },
+
+  clearProject: () => {
+    set({ projectConfig: null, projectPath: null, contentCache: {}, contentLoading: {} });
+  },
+}));
+
+// ── Selectors ──────────────────────────────────────────────────────────
+
+export const selectGlobalConfig = (s: ConfigDiscoveryState) => s.globalConfig;
+export const selectProjectConfig = (s: ConfigDiscoveryState) => s.projectConfig;
+export const selectDiscoveryLoading = (s: ConfigDiscoveryState) => s.loading;
+export const selectContentCache = (s: ConfigDiscoveryState) => s.contentCache;
+export const selectContentLoading = (s: ConfigDiscoveryState) => s.contentLoading;
