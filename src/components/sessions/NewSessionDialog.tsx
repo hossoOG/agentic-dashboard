@@ -1,14 +1,15 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { X, FolderOpen, Play } from "lucide-react";
+import { FolderOpen, Play } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { getErrorMessage } from "../../utils/adpError";
 import { useSessionStore } from "../../store/sessionStore";
 import { logError } from "../../utils/errorLogger";
+import { Modal, Button, Input } from "../ui";
 import type { SessionShell } from "../../store/sessionStore";
 
 interface NewSessionDialogProps {
+  open: boolean;
   onClose: () => void;
 }
 
@@ -23,7 +24,7 @@ function extractFolderName(path: string): string {
   return parts[parts.length - 1] ?? "session";
 }
 
-export function NewSessionDialog({ onClose }: NewSessionDialogProps) {
+export function NewSessionDialog({ open: isOpen, onClose }: NewSessionDialogProps) {
   const [folder, setFolder] = useState("");
   const [title, setTitle] = useState("");
   const [selectedShell, setSelectedShell] = useState<SessionShell>("powershell");
@@ -83,140 +84,100 @@ export function NewSessionDialog({ onClose }: NewSessionDialogProps) {
     }
   }
 
+  const headerTitle = (
+    <h2 className="text-neon-green font-bold text-sm tracking-widest">
+      NEUE CLAUDE SESSION
+    </h2>
+  );
+
   return (
-    <AnimatePresence>
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center"
-        onClick={onClose}
-      >
-        {/* Overlay */}
-        <motion.div
-          className="absolute inset-0 bg-black/70"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        />
-
-        {/* Dialog */}
-        <motion.div
-          className="relative w-full max-w-md bg-surface-raised border-2 border-neutral-700 p-6"
-          onClick={(e) => e.stopPropagation()}
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          transition={{ duration: 0.2 }}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-neon-green font-bold text-sm tracking-widest">
-              NEUE CLAUDE SESSION
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-neutral-500 hover:text-neutral-300 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Folder Picker */}
-          <div className="mb-4">
-            <label className="block text-xs text-neutral-400 mb-1.5 tracking-wide">
-              Ordner:
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={folder}
-                readOnly
-                placeholder="Ordner waehlen..."
-                className="flex-1 bg-surface-base border border-neutral-700 px-3 py-2 text-sm text-neutral-300 font-mono placeholder:text-neutral-600 focus:outline-none focus:border-accent"
-              />
-              <button
-                onClick={handlePickFolder}
-                className="flex items-center gap-1.5 px-3 py-2 bg-surface-base border border-neutral-700 text-neutral-400 hover:text-accent hover:border-accent transition-colors text-xs"
-              >
-                <FolderOpen className="w-4 h-4" />
-                Waehlen
-              </button>
-            </div>
-          </div>
-
-          {/* Title Input */}
-          <div className="mb-4">
-            <label className="block text-xs text-neutral-400 mb-1.5 tracking-wide">
-              Titel (optional):
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder={folder ? extractFolderName(folder) : "Session-Titel"}
-              className="w-full bg-surface-base border border-neutral-700 px-3 py-2 text-sm text-neutral-300 font-mono placeholder:text-neutral-600 focus:outline-none focus:border-accent"
+    <Modal open={isOpen} onClose={onClose} title={headerTitle} size="md">
+      <div className="p-6 space-y-4">
+        {/* Folder Picker */}
+        <div className="flex gap-2 items-end">
+          <div className="flex-1">
+            <Input
+              label="Ordner:"
+              value={folder}
+              readOnly
+              placeholder="Ordner waehlen..."
             />
           </div>
+          <Button
+            variant="secondary"
+            size="md"
+            icon={<FolderOpen className="w-4 h-4" />}
+            onClick={handlePickFolder}
+            className="bg-surface-base hover:text-accent hover:border-accent"
+          >
+            Waehlen
+          </Button>
+        </div>
 
-          {/* Shell Selection */}
-          <div className="mb-6">
-            <label className="block text-xs text-neutral-400 mb-2 tracking-wide">
-              Shell:
-            </label>
-            <div className="space-y-2">
-              {SHELL_OPTIONS.map((opt) => (
-                <label
-                  key={opt.value}
-                  className="flex items-center gap-2.5 cursor-pointer group"
-                  onClick={() => setSelectedShell(opt.value)}
+        {/* Title Input */}
+        <Input
+          label="Titel (optional):"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder={folder ? extractFolderName(folder) : "Session-Titel"}
+        />
+
+        {/* Shell Selection */}
+        <div>
+          <span className="text-xs text-neutral-400 tracking-wide">Shell:</span>
+          <div className="space-y-2 mt-2">
+            {SHELL_OPTIONS.map((opt) => (
+              <label
+                key={opt.value}
+                className="flex items-center gap-2.5 cursor-pointer group"
+                onClick={() => setSelectedShell(opt.value)}
+              >
+                <span
+                  className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
+                    selectedShell === opt.value
+                      ? "border-neon-green"
+                      : "border-neutral-600 group-hover:border-neutral-400"
+                  }`}
                 >
-                  <span
-                    className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
-                      selectedShell === opt.value
-                        ? "border-neon-green"
-                        : "border-neutral-600 group-hover:border-neutral-400"
-                    }`}
-                  >
-                    {selectedShell === opt.value && (
-                      <span className="w-2 h-2 rounded-full bg-neon-green" />
-                    )}
-                  </span>
-                  <span
-                    className={`text-sm ${
-                      selectedShell === opt.value ? "text-neutral-200" : "text-neutral-500"
-                    }`}
-                  >
-                    {opt.label}
-                  </span>
-                </label>
-              ))}
-            </div>
+                  {selectedShell === opt.value && (
+                    <span className="w-2 h-2 rounded-full bg-neon-green" />
+                  )}
+                </span>
+                <span
+                  className={`text-sm ${
+                    selectedShell === opt.value ? "text-neutral-200" : "text-neutral-500"
+                  }`}
+                >
+                  {opt.label}
+                </span>
+              </label>
+            ))}
           </div>
+        </div>
 
-          {/* Error message */}
-          {createError && (
-            <div className="mb-4 px-3 py-2 bg-red-900/20 border border-red-700 text-error text-xs font-mono">
-              {createError}
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="flex justify-end gap-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-xs text-neutral-400 hover:text-neutral-200 border border-neutral-700 hover:border-neutral-500 transition-colors"
-            >
-              Abbrechen
-            </button>
-            <button
-              onClick={handleCreate}
-              disabled={!folder || isCreating}
-              className="flex items-center gap-2 px-4 py-2 text-xs font-bold tracking-wider bg-neon-green/10 border border-neon-green text-neon-green hover:bg-neon-green/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <Play className="w-3.5 h-3.5" />
-              {isCreating ? "STARTET..." : "STARTEN"}
-            </button>
+        {/* Error message */}
+        {createError && (
+          <div className="px-3 py-2 bg-red-900/20 border border-red-700 text-error text-xs font-mono">
+            {createError}
           </div>
-        </motion.div>
+        )}
+
+        {/* Actions */}
+        <div className="flex justify-end gap-3 pt-2">
+          <Button variant="secondary" onClick={onClose}>
+            Abbrechen
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleCreate}
+            disabled={!folder || isCreating}
+            loading={isCreating}
+            icon={!isCreating ? <Play className="w-3.5 h-3.5" /> : undefined}
+          >
+            {isCreating ? "STARTET..." : "STARTEN"}
+          </Button>
+        </div>
       </div>
-    </AnimatePresence>
+    </Modal>
   );
 }
