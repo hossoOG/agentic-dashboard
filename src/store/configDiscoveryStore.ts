@@ -50,6 +50,10 @@ interface ConfigDiscoveryState {
   globalConfig: ScopeConfig | null;
   projectConfig: ScopeConfig | null;
   projectPath: string | null;
+  /** Configs for favorite projects, keyed by folder path */
+  favoriteConfigs: Record<string, ScopeConfig>;
+  /** Paths currently being scanned */
+  favoritesLoading: Record<string, boolean>;
   loading: boolean;
   error: string | null;
 
@@ -59,6 +63,7 @@ interface ConfigDiscoveryState {
 
   discoverGlobal: () => Promise<void>;
   discoverProject: (folder: string) => Promise<void>;
+  discoverFavorites: (folders: string[]) => Promise<void>;
   loadContent: (key: string, loader: () => Promise<string>) => Promise<string>;
   clearProject: () => void;
 }
@@ -157,6 +162,8 @@ export const useConfigDiscoveryStore = create<ConfigDiscoveryState>((set, get) =
   globalConfig: null,
   projectConfig: null,
   projectPath: null,
+  favoriteConfigs: {},
+  favoritesLoading: {},
   loading: false,
   error: null,
   contentCache: {},
@@ -283,6 +290,57 @@ export const useConfigDiscoveryStore = create<ConfigDiscoveryState>((set, get) =
     }
   },
 
+  discoverFavorites: async (folders: string[]) => {
+    if (folders.length === 0) return;
+
+    // Mark all as loading
+    const loadingMap: Record<string, boolean> = {};
+    for (const f of folders) loadingMap[f] = true;
+    set({ favoritesLoading: loadingMap });
+
+    const results: Record<string, ScopeConfig> = {};
+
+    await Promise.allSettled(
+      folders.map(async (folder) => {
+        try {
+          const config: ScopeConfig = { ...EMPTY_SCOPE, skills: [], agents: [], hooks: [], memoryFiles: [] };
+
+          const [claudeMdResult, skillsResult, settingsResult, localSettingsResult] =
+            await Promise.allSettled([
+              invoke<string>("read_project_file", { folder, relativePath: "CLAUDE.md" }),
+              invoke<SkillDirEntry[]>("list_skill_dirs", { folder }),
+              invoke<string>("read_project_file", { folder, relativePath: ".claude/settings.json" }),
+              invoke<string>("read_project_file", { folder, relativePath: ".claude/settings.local.json" }),
+            ]);
+
+          if (claudeMdResult.status === "fulfilled") {
+            config.claudeMd = claudeMdResult.value;
+          }
+          if (skillsResult.status === "fulfilled") {
+            config.skills = parseSkillEntries(skillsResult.value, "project");
+          }
+          if (settingsResult.status === "fulfilled" && settingsResult.value) {
+            config.settingsRaw = settingsResult.value;
+            config.agents = parseAgentsFromSettings(settingsResult.value, "project");
+            config.hooks = parseHooksFromSettings(settingsResult.value, "project", "settings.json");
+          }
+          if (localSettingsResult.status === "fulfilled" && localSettingsResult.value) {
+            const localHooks = parseHooksFromSettings(localSettingsResult.value, "project", "settings.local.json");
+            config.hooks = [...config.hooks, ...localHooks];
+            const localAgents = parseAgentsFromSettings(localSettingsResult.value, "project");
+            config.agents = [...config.agents, ...localAgents];
+          }
+
+          results[folder] = config;
+        } catch (err) {
+          logError(`configDiscoveryStore.discoverFavorite(${folder})`, err);
+        }
+      }),
+    );
+
+    set({ favoriteConfigs: results, favoritesLoading: {} });
+  },
+
   loadContent: async (key: string, loader: () => Promise<string>) => {
     const cached = get().contentCache[key];
     if (cached !== undefined) return cached;
@@ -318,6 +376,7 @@ export const useConfigDiscoveryStore = create<ConfigDiscoveryState>((set, get) =
 
 export const selectGlobalConfig = (s: ConfigDiscoveryState) => s.globalConfig;
 export const selectProjectConfig = (s: ConfigDiscoveryState) => s.projectConfig;
+export const selectFavoriteConfigs = (s: ConfigDiscoveryState) => s.favoriteConfigs;
 export const selectDiscoveryLoading = (s: ConfigDiscoveryState) => s.loading;
 export const selectContentCache = (s: ConfigDiscoveryState) => s.contentCache;
 export const selectContentLoading = (s: ConfigDiscoveryState) => s.contentLoading;
