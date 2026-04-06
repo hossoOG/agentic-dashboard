@@ -631,4 +631,360 @@ mod tests {
         // Should succeed (even if ~/.claude doesn't exist — returns non-existent path)
         assert!(result.is_ok());
     }
+
+    // ========================================================================
+    // Tauri Command Integration Tests (Issue #91 / QA-16)
+    // ========================================================================
+    //
+    // Tests the 3 public Tauri commands via `super::commands::*`:
+    //   - read_project_file
+    //   - write_project_file
+    //   - list_project_dir
+    //
+    // Uses tauri::async_runtime::block_on (Option A) to drive the async fns
+    // without requiring a tokio dev-dependency.
+    mod command_tests {
+        use super::super::commands::{list_project_dir, read_project_file, write_project_file};
+        use std::fs;
+        use tempfile::TempDir;
+
+        fn setup() -> TempDir {
+            TempDir::new().expect("create tempdir")
+        }
+
+        fn base_of(tmp: &TempDir) -> String {
+            tmp.path().to_string_lossy().to_string()
+        }
+
+        // --- read_project_file (6 tests) ---
+
+        #[test]
+        fn test_read_project_file_roundtrip() {
+            let tmp = setup();
+            fs::write(tmp.path().join("test.md"), "hello world").expect("write fixture");
+
+            let result = tauri::async_runtime::block_on(read_project_file(
+                base_of(&tmp),
+                "test.md".to_string(),
+            ));
+
+            assert_eq!(result.expect("read should succeed"), "hello world");
+        }
+
+        #[test]
+        fn test_read_project_file_nonexistent_returns_empty() {
+            // Contract: missing file → Ok("") (callers depend on this to handle
+            // missing CLAUDE.md, hooks.json etc. without error plumbing).
+            let tmp = setup();
+
+            let result = tauri::async_runtime::block_on(read_project_file(
+                base_of(&tmp),
+                "does-not-exist.md".to_string(),
+            ));
+
+            assert_eq!(result.expect("missing file must yield Ok"), "");
+        }
+
+        #[test]
+        fn test_read_project_file_blocks_traversal() {
+            let tmp = setup();
+
+            let result = tauri::async_runtime::block_on(read_project_file(
+                base_of(&tmp),
+                "../../etc/passwd".to_string(),
+            ));
+
+            let err = result.unwrap_err();
+            assert!(
+                err.contains("Path traversal detected"),
+                "expected traversal error, got: {err}"
+            );
+        }
+
+        #[test]
+        fn test_read_project_file_utf8_bom() {
+            let tmp = setup();
+            let bom_content = "\u{FEFF}hello";
+            fs::write(tmp.path().join("bom.txt"), bom_content).expect("write fixture");
+
+            let result = tauri::async_runtime::block_on(read_project_file(
+                base_of(&tmp),
+                "bom.txt".to_string(),
+            ));
+
+            let out = result.expect("read should succeed");
+            assert_eq!(out, bom_content);
+            assert!(out.starts_with('\u{FEFF}'), "BOM must be preserved");
+        }
+
+        #[test]
+        fn test_read_project_file_utf8_multibyte() {
+            let tmp = setup();
+            let content = "Schöne Grüße 🚀";
+            fs::write(tmp.path().join("utf8.txt"), content).expect("write fixture");
+
+            let result = tauri::async_runtime::block_on(read_project_file(
+                base_of(&tmp),
+                "utf8.txt".to_string(),
+            ));
+
+            assert_eq!(result.expect("read should succeed"), content);
+        }
+
+        #[test]
+        fn test_read_project_file_invalid_utf8_fails_gracefully() {
+            let tmp = setup();
+            // Invalid UTF-8: lone high bytes that don't form valid sequences.
+            let raw: [u8; 4] = [0xFF, 0xFE, 0x00, 0xFF];
+            fs::write(tmp.path().join("binary.bin"), raw).expect("write fixture");
+
+            let result = tauri::async_runtime::block_on(read_project_file(
+                base_of(&tmp),
+                "binary.bin".to_string(),
+            ));
+
+            // Must return Err (not panic). read_to_string fails on non-UTF-8.
+            let err = result.unwrap_err();
+            assert!(
+                err.contains("Failed to read file"),
+                "expected structured read error, got: {err}"
+            );
+        }
+
+        // --- write_project_file (6 tests) ---
+
+        #[test]
+        fn test_write_project_file_creates_parent_dirs() {
+            let tmp = setup();
+
+            let result = tauri::async_runtime::block_on(write_project_file(
+                base_of(&tmp),
+                "new/nested/deep/file.md".to_string(),
+                "content".to_string(),
+            ));
+
+            result.expect("write should succeed");
+            let target = tmp.path().join("new/nested/deep/file.md");
+            assert!(target.is_file(), "target file must exist");
+            assert_eq!(
+                fs::read_to_string(&target).expect("read back written file"),
+                "content"
+            );
+        }
+
+        #[test]
+        fn test_write_project_file_overwrites_existing() {
+            let tmp = setup();
+            fs::write(tmp.path().join("file.md"), "first").expect("write fixture");
+
+            let result = tauri::async_runtime::block_on(write_project_file(
+                base_of(&tmp),
+                "file.md".to_string(),
+                "second".to_string(),
+            ));
+
+            result.expect("overwrite should succeed");
+            assert_eq!(
+                fs::read_to_string(tmp.path().join("file.md")).expect("read back overwritten file"),
+                "second"
+            );
+            // No backup file created
+            assert!(!tmp.path().join("file.md.bak").exists());
+        }
+
+        #[test]
+        fn test_write_project_file_rejects_oversized() {
+            let tmp = setup();
+            // MAX_WRITE_SIZE = 10 MB → 10 * 1024 * 1024 + 1 byte
+            let oversized = "a".repeat(10 * 1024 * 1024 + 1);
+
+            let result = tauri::async_runtime::block_on(write_project_file(
+                base_of(&tmp),
+                "big.txt".to_string(),
+                oversized,
+            ));
+
+            let err = result.unwrap_err();
+            assert!(
+                err.contains("File too large"),
+                "expected size-limit error, got: {err}"
+            );
+            assert!(
+                !tmp.path().join("big.txt").exists(),
+                "oversized file must not be written"
+            );
+        }
+
+        #[test]
+        fn test_write_project_file_rejects_null_bytes() {
+            let tmp = setup();
+
+            let result = tauri::async_runtime::block_on(write_project_file(
+                base_of(&tmp),
+                "null.txt".to_string(),
+                "hello\0world".to_string(),
+            ));
+
+            let err = result.unwrap_err();
+            assert!(
+                err.contains("null bytes"),
+                "expected null-byte rejection, got: {err}"
+            );
+            assert!(
+                !tmp.path().join("null.txt").exists(),
+                "file with null bytes must not be written"
+            );
+        }
+
+        #[test]
+        fn test_write_project_file_rejects_directory_target() {
+            let tmp = setup();
+            fs::create_dir(tmp.path().join("somedir")).expect("create dir");
+
+            let result = tauri::async_runtime::block_on(write_project_file(
+                base_of(&tmp),
+                "somedir".to_string(),
+                "content".to_string(),
+            ));
+
+            let err = result.unwrap_err();
+            assert!(
+                err.contains("Cannot write to directory"),
+                "expected directory-target rejection, got: {err}"
+            );
+        }
+
+        #[test]
+        fn test_write_project_file_blocks_traversal() {
+            let tmp = setup();
+            // Outer directory (parent of tmp) - we verify nothing escapes into here.
+            let parent_dir = tmp
+                .path()
+                .parent()
+                .expect("tempdir has parent")
+                .to_path_buf();
+            // Unique filename per run to avoid false positives from previous
+            // runs that left state behind (Windows AV-lock race).
+            let unique = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0);
+            let escape_name = format!("escape-test-qa16-{unique}.txt");
+            let escape_target = parent_dir.join(&escape_name);
+
+            let result = tauri::async_runtime::block_on(write_project_file(
+                base_of(&tmp),
+                format!("../{escape_name}"),
+                "pwned".to_string(),
+            ));
+
+            let err = result.unwrap_err();
+            assert!(
+                err.contains("Path traversal detected"),
+                "expected traversal error, got: {err}"
+            );
+            assert!(
+                !escape_target.exists(),
+                "file must NOT have been written outside tmp: {}",
+                escape_target.display()
+            );
+        }
+
+        #[test]
+        fn test_write_project_file_blocks_absolute_windows_path() {
+            // Absolute path as relative_path arg: PathBuf::join replaces base
+            // when rhs is absolute. safe_resolve_with_base canonicalizes and
+            // verifies starts_with(base) — must reject.
+            let tmp = setup();
+
+            // Target must NOT resolve inside tmp. Use a path guaranteed outside.
+            let absolute_rhs = if cfg!(windows) {
+                "C:\\Windows\\System32\\drivers\\etc\\hosts"
+            } else {
+                "/etc/passwd"
+            };
+
+            let result = tauri::async_runtime::block_on(write_project_file(
+                base_of(&tmp),
+                absolute_rhs.to_string(),
+                "pwned".to_string(),
+            ));
+
+            // Must fail — either as traversal, or as write error, but NEVER succeed.
+            assert!(
+                result.is_err(),
+                "absolute path as relative_path must be rejected, got: {result:?}"
+            );
+        }
+
+        #[test]
+        fn test_write_project_file_rejects_null_byte_in_path() {
+            // Null byte in relative_path: Rust's OS layer rejects via InvalidInput.
+            // Test locks that contract — no panic, structured error, no file written.
+            let tmp = setup();
+
+            let result = tauri::async_runtime::block_on(write_project_file(
+                base_of(&tmp),
+                "foo\0bar.txt".to_string(),
+                "content".to_string(),
+            ));
+
+            assert!(
+                result.is_err(),
+                "null-byte in relative_path must be rejected, got: {result:?}"
+            );
+            // No file of any variation should exist
+            assert!(
+                tmp.path().read_dir().expect("read tmp").next().is_none(),
+                "tmp dir must remain empty after null-byte rejection"
+            );
+        }
+
+        // --- list_project_dir (3 tests) ---
+
+        #[test]
+        fn test_list_project_dir_sorted() {
+            let tmp = setup();
+            fs::write(tmp.path().join("c.txt"), "").expect("write c");
+            fs::write(tmp.path().join("a.txt"), "").expect("write a");
+            fs::write(tmp.path().join("b.txt"), "").expect("write b");
+
+            let result =
+                tauri::async_runtime::block_on(list_project_dir(base_of(&tmp), ".".to_string()));
+
+            let entries = result.expect("list should succeed");
+            assert_eq!(entries, vec!["a.txt", "b.txt", "c.txt"]);
+        }
+
+        #[test]
+        fn test_list_project_dir_nonexistent_returns_empty() {
+            // Contract: missing dir → Ok(vec![]) (callers depend on this for
+            // optional directories like .claude/skills).
+            let tmp = setup();
+
+            let result = tauri::async_runtime::block_on(list_project_dir(
+                base_of(&tmp),
+                "no-such-subdir".to_string(),
+            ));
+
+            assert_eq!(
+                result.expect("missing dir must yield Ok"),
+                Vec::<String>::new()
+            );
+        }
+
+        #[test]
+        fn test_list_project_dir_blocks_traversal() {
+            let tmp = setup();
+
+            let result =
+                tauri::async_runtime::block_on(list_project_dir(base_of(&tmp), "../".to_string()));
+
+            let err = result.unwrap_err();
+            assert!(
+                err.contains("Path traversal detected"),
+                "expected traversal error, got: {err}"
+            );
+        }
+    }
 }
