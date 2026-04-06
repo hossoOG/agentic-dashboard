@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
   useLogViewerStore,
   parseBackendLogLine,
+  groupConsecutiveEntries,
   type UnifiedLogEntry,
 } from "./logViewerStore";
 
@@ -230,6 +231,66 @@ describe("noise filtering", () => {
 
     const stored = useLogViewerStore.getState().entries;
     expect(stored[0].severity).toBe("error");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// groupConsecutiveEntries
+// ---------------------------------------------------------------------------
+
+describe("groupConsecutiveEntries", () => {
+  it("returns empty array for empty input", () => {
+    expect(groupConsecutiveEntries([])).toEqual([]);
+  });
+
+  it("groups consecutive identical entries", () => {
+    const entries: UnifiedLogEntry[] = [
+      { id: 1, timestamp: "t1", severity: "error", source: "frontend", message: "fail" },
+      { id: 2, timestamp: "t2", severity: "error", source: "frontend", message: "fail" },
+      { id: 3, timestamp: "t3", severity: "error", source: "frontend", message: "fail" },
+    ];
+    const grouped = groupConsecutiveEntries(entries);
+    expect(grouped).toHaveLength(1);
+    expect(grouped[0].count).toBe(3);
+    expect(grouped[0].id).toBe(1); // keeps first entry's id
+  });
+
+  it("does not group non-consecutive identical entries", () => {
+    const entries: UnifiedLogEntry[] = [
+      { id: 1, timestamp: "t1", severity: "error", source: "frontend", message: "fail" },
+      { id: 2, timestamp: "t2", severity: "info", source: "frontend", message: "ok" },
+      { id: 3, timestamp: "t3", severity: "error", source: "frontend", message: "fail" },
+    ];
+    const grouped = groupConsecutiveEntries(entries);
+    expect(grouped).toHaveLength(3);
+    expect(grouped.every((g) => g.count === 1)).toBe(true);
+  });
+
+  it("does not group entries with different severity", () => {
+    const entries: UnifiedLogEntry[] = [
+      { id: 1, timestamp: "t1", severity: "error", source: "frontend", message: "fail" },
+      { id: 2, timestamp: "t2", severity: "warn", source: "frontend", message: "fail" },
+    ];
+    const grouped = groupConsecutiveEntries(entries);
+    expect(grouped).toHaveLength(2);
+  });
+
+  it("does not group entries with different source", () => {
+    const entries: UnifiedLogEntry[] = [
+      { id: 1, timestamp: "t1", severity: "error", source: "frontend", message: "fail" },
+      { id: 2, timestamp: "t2", severity: "error", source: "backend", message: "fail" },
+    ];
+    const grouped = groupConsecutiveEntries(entries);
+    expect(grouped).toHaveLength(2);
+  });
+
+  it("handles single entry", () => {
+    const entries: UnifiedLogEntry[] = [
+      { id: 1, timestamp: "t1", severity: "info", source: "frontend", message: "hello" },
+    ];
+    const grouped = groupConsecutiveEntries(entries);
+    expect(grouped).toHaveLength(1);
+    expect(grouped[0].count).toBe(1);
   });
 });
 

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { ChevronRight, ChevronDown } from "lucide-react";
-import type { UnifiedLogEntry } from "../../store/logViewerStore";
+import type { GroupedLogEntry } from "../../store/logViewerStore";
 
 const severityColors: Record<string, string> = {
   error: "text-red-400 bg-red-400/10",
@@ -30,22 +30,28 @@ function formatTime(timestamp: string): string {
   }
 }
 
+/** Fixed row height for virtualization (px) */
+export const LOG_ROW_HEIGHT = 32;
+
 interface LogEntryRowProps {
-  entry: UnifiedLogEntry;
+  entry: GroupedLogEntry;
 }
 
-export function LogEntryRow({ entry }: LogEntryRowProps) {
+export const LogEntryRow = memo(function LogEntryRow({
+  entry,
+}: LogEntryRowProps) {
   const [expanded, setExpanded] = useState(false);
   const hasStack = !!entry.stack;
 
   return (
     <div className="group border-b border-neutral-800 hover:bg-neutral-800/30 font-mono text-xs">
       <div
-        className={`flex items-start gap-2 px-3 py-1 ${hasStack ? "cursor-pointer" : ""}`}
+        className={`flex items-center gap-2 px-3 ${hasStack ? "cursor-pointer" : ""}`}
+        style={{ height: LOG_ROW_HEIGHT }}
         onClick={hasStack ? () => setExpanded(!expanded) : undefined}
       >
         {/* Expand icon for stack traces */}
-        <span className="w-3 shrink-0 pt-0.5">
+        <span className="w-3 shrink-0">
           {hasStack &&
             (expanded ? (
               <ChevronDown className="w-3 h-3 text-neutral-500" />
@@ -73,6 +79,13 @@ export function LogEntryRow({ entry }: LogEntryRowProps) {
           {entry.source}
         </span>
 
+        {/* Group count badge */}
+        {entry.count > 1 && (
+          <span className="shrink-0 px-1.5 rounded text-[10px] font-semibold bg-neutral-600/40 text-neutral-300">
+            &times;{entry.count}
+          </span>
+        )}
+
         {/* Module */}
         {entry.module && (
           <span className="text-neutral-500 shrink-0 truncate max-w-[200px]">
@@ -92,4 +105,4 @@ export function LogEntryRow({ entry }: LogEntryRowProps) {
       )}
     </div>
   );
-}
+});

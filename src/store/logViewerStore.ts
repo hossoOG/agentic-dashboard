@@ -13,6 +13,12 @@ export interface UnifiedLogEntry {
   stack?: string;
 }
 
+/** A log entry with a group count for consecutive identical entries */
+export interface GroupedLogEntry extends UnifiedLogEntry {
+  /** Number of consecutive identical entries (same message + source + severity) */
+  count: number;
+}
+
 const MAX_ENTRIES = 1000;
 let entryCounter = 0;
 
@@ -63,8 +69,17 @@ export const useLogViewerStore = create<LogViewerState>((set) => ({
         };
       });
       const merged = [...state.entries, ...processed];
-      // Sort by timestamp to ensure chronological order
-      merged.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+      // Skip sort when a single entry appends chronologically (live-tail).
+      // Sort for batches or when timestamps are out of order.
+      const needsSort =
+        processed.length > 1 ||
+        (state.entries.length > 0 &&
+          processed.length === 1 &&
+          processed[0].timestamp <
+            state.entries[state.entries.length - 1].timestamp);
+      if (needsSort) {
+        merged.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+      }
       return { entries: merged.slice(-MAX_ENTRIES) };
     }),
 
@@ -75,6 +90,35 @@ export const useLogViewerStore = create<LogViewerState>((set) => ({
   setSearchText: (text) => set({ searchText: text }),
   toggleLiveTail: () => set((state) => ({ liveTail: !state.liveTail })),
 }));
+
+/**
+ * Group consecutive entries with the same message, source, and severity.
+ * Reduces e.g. 33 identical errors to 1 entry with count=33.
+ */
+export function groupConsecutiveEntries(
+  entries: UnifiedLogEntry[],
+): GroupedLogEntry[] {
+  if (entries.length === 0) return [];
+
+  const result: GroupedLogEntry[] = [];
+  let current: GroupedLogEntry = { ...entries[0], count: 1 };
+
+  for (let i = 1; i < entries.length; i++) {
+    const e = entries[i];
+    if (
+      e.message === current.message &&
+      e.source === current.source &&
+      e.severity === current.severity
+    ) {
+      current.count++;
+    } else {
+      result.push(current);
+      current = { ...e, count: 1 };
+    }
+  }
+  result.push(current);
+  return result;
+}
 
 /** Parse a Rust backend log line into a UnifiedLogEntry (without id) */
 export function parseBackendLogLine(
