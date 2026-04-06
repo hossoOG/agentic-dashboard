@@ -1,3 +1,4 @@
+use crate::error::{ADPError, ADPErrorCode};
 use std::process::{Command, Output, Stdio};
 use std::time::Duration;
 
@@ -22,13 +23,13 @@ pub fn silent_command(program: &str) -> Command {
 /// Execute a pre-configured Command with a timeout.
 /// Spawns the process, polls `try_wait` in a loop, and kills on timeout.
 /// Pipes stdout/stderr automatically so output can be captured.
-pub fn timed_output(mut cmd: Command, timeout: Duration) -> Result<Output, String> {
+pub fn timed_output(mut cmd: Command, timeout: Duration) -> Result<Output, ADPError> {
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
 
     let mut child = cmd
         .spawn()
-        .map_err(|e| format!("Failed to spawn command: {}", e))?;
+        .map_err(|e| ADPError::command_failed(format!("Failed to spawn command: {}", e)))?;
 
     let start = std::time::Instant::now();
     loop {
@@ -41,17 +42,23 @@ pub fn timed_output(mut cmd: Command, timeout: Duration) -> Result<Output, Strin
                 if start.elapsed() > timeout {
                     let _ = child.kill();
                     let _ = child.wait(); // Reap the process
-                    return Err(format!("Command timed out after {}s", timeout.as_secs()));
+                    return Err(ADPError::new(
+                        ADPErrorCode::ServiceTimeout,
+                        format!("Command timed out after {}s", timeout.as_secs()),
+                    ));
                 }
                 std::thread::sleep(Duration::from_millis(50));
             }
             Err(e) => {
-                return Err(format!("Error waiting for command: {}", e));
+                return Err(ADPError::command_failed(format!(
+                    "Error waiting for command: {}",
+                    e
+                )));
             }
         }
     }
 
     child
         .wait_with_output()
-        .map_err(|e| format!("Failed to collect command output: {}", e))
+        .map_err(|e| ADPError::command_failed(format!("Failed to collect command output: {}", e)))
 }
