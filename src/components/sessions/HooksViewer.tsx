@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { RefreshCw, Webhook, ChevronDown, ChevronRight } from "lucide-react";
+import { RefreshCw, Webhook, Code2 } from "lucide-react";
 import { logError } from "../../utils/errorLogger";
 
 interface HooksViewerProps {
@@ -14,22 +14,42 @@ interface HookEntry {
 
 type HookSource = "project" | "project-local" | "user";
 
-interface HookGroup {
-  eventName: string;
-  hooks: HookEntry[];
+interface ResolvedHook {
+  matcher?: string;
+  command: string;
   source: HookSource;
 }
 
-interface SourceSection {
-  source: HookSource;
-  label: string;
-  path: string;
-  borderColor: string;
-  dotColor: string;
-  groups: HookGroup[];
-  raw: string;
-  exists: boolean;
+interface EventGroup {
+  eventName: string;
+  hooks: ResolvedHook[];
 }
+
+const HOOK_SOURCES: HookSource[] = ["project", "project-local", "user"];
+
+const SOURCE_META: Record<
+  HookSource,
+  { label: string; color: string; dot: string; path: string }
+> = {
+  project: {
+    label: "Projekt",
+    color: "bg-accent/15 text-accent",
+    dot: "bg-accent",
+    path: ".claude/settings.json",
+  },
+  "project-local": {
+    label: "Lokal",
+    color: "bg-yellow-500/15 text-yellow-400",
+    dot: "bg-yellow-500",
+    path: ".claude/settings.local.json",
+  },
+  user: {
+    label: "User",
+    color: "bg-purple-400/15 text-purple-300",
+    dot: "bg-purple-400",
+    path: "~/.claude/settings.json",
+  },
+};
 
 function parseHooks(raw: string): Record<string, HookEntry[]> | null {
   try {
@@ -42,70 +62,38 @@ function parseHooks(raw: string): Record<string, HookEntry[]> | null {
   }
 }
 
-function buildSection(
-  source: HookSource,
-  label: string,
-  path: string,
-  borderColor: string,
-  dotColor: string,
-  raw: string
-): SourceSection {
-  const exists = raw.length > 0;
-  const parsed = exists ? parseHooks(raw) : null;
-  const groups: HookGroup[] = parsed
-    ? Object.entries(parsed).map(([eventName, hooks]) => ({
-        eventName,
-        hooks: Array.isArray(hooks) ? hooks : [],
-        source,
-      }))
-    : [];
+// eslint-disable-next-line react-refresh/only-export-components
+export function buildEventGroups(raws: Record<HookSource, string>): EventGroup[] {
+  const eventMap = new Map<string, ResolvedHook[]>();
 
-  return { source, label, path, borderColor, dotColor, groups, raw, exists };
+  for (const source of HOOK_SOURCES) {
+    const raw = raws[source];
+    if (!raw) continue;
+    const parsed = parseHooks(raw);
+    if (!parsed) continue;
+
+    for (const [eventName, hooks] of Object.entries(parsed)) {
+      const existing = eventMap.get(eventName) ?? [];
+      for (const hook of Array.isArray(hooks) ? hooks : []) {
+        existing.push({ matcher: hook.matcher, command: hook.command, source });
+      }
+      eventMap.set(eventName, existing);
+    }
+  }
+
+  return Array.from(eventMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([eventName, hooks]) => ({ eventName, hooks }));
 }
 
-const SOURCE_DEFS: {
-  source: HookSource;
-  label: string;
-  path: string;
-  borderColor: string;
-  dotColor: string;
-}[] = [
-  {
-    source: "project",
-    label: "Projekt",
-    path: ".claude/settings.json",
-    borderColor: "border-l-accent",
-    dotColor: "bg-accent",
-  },
-  {
-    source: "project-local",
-    label: "Projekt (lokal)",
-    path: ".claude/settings.local.json",
-    borderColor: "border-l-yellow-500",
-    dotColor: "bg-yellow-500",
-  },
-  {
-    source: "user",
-    label: "Benutzer",
-    path: "~/.claude/settings.json",
-    borderColor: "border-l-purple-400",
-    dotColor: "bg-purple-400",
-  },
-];
-
 export function HooksViewer({ folder }: HooksViewerProps) {
-  const [sections, setSections] = useState<SourceSection[]>([]);
+  const [raws, setRaws] = useState<Record<HookSource, string>>({
+    project: "",
+    "project-local": "",
+    user: "",
+  });
   const [loading, setLoading] = useState(true);
-  const [collapsed, setCollapsed] = useState<Record<HookSource, boolean>>({
-    project: false,
-    "project-local": false,
-    user: false,
-  });
-  const [rawView, setRawView] = useState<Record<HookSource, boolean>>({
-    project: false,
-    "project-local": false,
-    user: false,
-  });
+  const [showRaw, setShowRaw] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -124,27 +112,18 @@ export function HooksViewer({ folder }: HooksViewerProps) {
         }),
       ]);
 
-      const raws = results.map((r) =>
-        r.status === "fulfilled" ? (r.value ?? "") : ""
+      const values = results.map((r) =>
+        r.status === "fulfilled" ? (r.value ?? "") : "",
       );
 
-      const built = SOURCE_DEFS.map((def, i) =>
-        buildSection(def.source, def.label, def.path, def.borderColor, def.dotColor, raws[i])
-      );
-
-      setSections(built);
-
-      // Auto-collapse non-existent sources
-      setCollapsed((prev) => {
-        const next = { ...prev };
-        for (const s of built) {
-          if (!s.exists) next[s.source] = true;
-        }
-        return next;
+      setRaws({
+        project: values[0],
+        "project-local": values[1],
+        user: values[2],
       });
     } catch (err) {
       logError("HooksViewer.load", err);
-      setSections([]);
+      setRaws({ project: "", "project-local": "", user: "" });
     } finally {
       setLoading(false);
     }
@@ -154,13 +133,20 @@ export function HooksViewer({ folder }: HooksViewerProps) {
     load();
   }, [load]);
 
-  const toggleCollapse = (source: HookSource) => {
-    setCollapsed((prev) => ({ ...prev, [source]: !prev[source] }));
-  };
+  const eventGroups = useMemo(() => buildEventGroups(raws), [raws]);
 
-  const toggleRaw = (source: HookSource) => {
-    setRawView((prev) => ({ ...prev, [source]: !prev[source] }));
-  };
+  const visibleSources = useMemo(
+    () => new Set(eventGroups.flatMap((g) => g.hooks.map((h) => h.source))),
+    [eventGroups],
+  );
+
+  const activeSources = useMemo(() => {
+    const sources: { source: HookSource; raw: string }[] = [];
+    for (const s of HOOK_SOURCES) {
+      if (raws[s]) sources.push({ source: s, raw: raws[s] });
+    }
+    return sources;
+  }, [raws]);
 
   if (loading) {
     return (
@@ -170,14 +156,18 @@ export function HooksViewer({ folder }: HooksViewerProps) {
     );
   }
 
-  const allEmpty = sections.every((s) => !s.exists || s.groups.length === 0);
-  const noneExist = sections.every((s) => !s.exists);
-
-  if (noneExist) {
+  if (eventGroups.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-3 text-neutral-500">
+      <div className="flex flex-col items-center justify-center h-full gap-3 text-neutral-500 px-6">
         <Webhook className="w-10 h-10 text-neutral-600" />
-        <span className="text-sm">Keine Hooks konfiguriert</span>
+        <span className="text-sm font-medium">Keine Hooks konfiguriert</span>
+        <p className="text-xs text-neutral-600 text-center max-w-xs leading-relaxed">
+          Hooks reagieren auf Events wie{" "}
+          <code className="text-neutral-400">PreToolUse</code> oder{" "}
+          <code className="text-neutral-400">PostToolUse</code>. Konfiguriere
+          sie in <code className="text-neutral-400">.claude/settings.json</code>
+          .
+        </p>
       </div>
     );
   }
@@ -186,151 +176,133 @@ export function HooksViewer({ folder }: HooksViewerProps) {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-700 shrink-0">
-        <span className="text-xs text-neutral-400 font-medium">Hooks</span>
-        <button
-          onClick={load}
-          className="p-1 text-neutral-500 hover:text-neutral-300 transition-colors"
-          title="Neu laden"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-        </button>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-neutral-400 font-medium">
+            {eventGroups.length}{" "}
+            {eventGroups.length === 1 ? "Event" : "Events"}
+          </span>
+          {/* Source legend */}
+          <div className="flex items-center gap-2">
+            {HOOK_SOURCES.map((s) => {
+                const meta = SOURCE_META[s];
+                if (!visibleSources.has(s)) return null;
+                return (
+                  <div
+                    key={s}
+                    className="flex items-center gap-1"
+                    title={meta.path}
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${meta.dot}`}
+                    />
+                    <span className="text-[10px] text-neutral-500">
+                      {meta.label}
+                    </span>
+                  </div>
+                );
+              },
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setShowRaw(!showRaw)}
+            className={`p-1 transition-colors rounded-sm ${
+              showRaw
+                ? "text-accent bg-accent-a10"
+                : "text-neutral-500 hover:text-neutral-300"
+            }`}
+            title={showRaw ? "Strukturierte Ansicht" : "Raw JSON"}
+          >
+            <Code2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={load}
+            className="p-1 text-neutral-500 hover:text-neutral-300 transition-colors"
+            title="Neu laden"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-4 space-y-3">
-        {allEmpty && !noneExist && (
-          <div className="flex flex-col items-center justify-center py-8 gap-3 text-neutral-500">
-            <Webhook className="w-10 h-10 text-neutral-600" />
-            <span className="text-sm">Keine Hooks konfiguriert</span>
+      <div className="flex-1 overflow-auto p-4">
+        {showRaw ? (
+          <div className="space-y-3">
+            {activeSources.map(({ source, raw }) => (
+              <div key={source}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${SOURCE_META[source].dot}`}
+                  />
+                  <span className="text-xs text-neutral-400 font-medium">
+                    {SOURCE_META[source].label}
+                  </span>
+                  <span className="text-[10px] text-neutral-600">
+                    {SOURCE_META[source].path}
+                  </span>
+                </div>
+                <pre className="text-xs text-neutral-200 whitespace-pre-wrap font-mono leading-relaxed bg-surface-raised rounded-sm p-3 border border-neutral-700">
+                  {raw}
+                </pre>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {eventGroups.map((group) => (
+              <EventGroupCard key={group.eventName} group={group} />
+            ))}
           </div>
         )}
-
-        {sections.map((section) => (
-          <SourceSectionCard
-            key={section.source}
-            section={section}
-            isCollapsed={collapsed[section.source]}
-            isRaw={rawView[section.source]}
-            onToggleCollapse={() => toggleCollapse(section.source)}
-            onToggleRaw={() => toggleRaw(section.source)}
-          />
-        ))}
       </div>
     </div>
   );
 }
 
-function SourceSectionCard({
-  section,
-  isCollapsed,
-  isRaw,
-  onToggleCollapse,
-  onToggleRaw,
-}: {
-  section: SourceSection;
-  isCollapsed: boolean;
-  isRaw: boolean;
-  onToggleCollapse: () => void;
-  onToggleRaw: () => void;
-}) {
-  const eventCount = section.groups.length;
-  const ChevronIcon = isCollapsed ? ChevronRight : ChevronDown;
-
+function SourceBadge({ source }: { source: HookSource }) {
+  const meta = SOURCE_META[source];
   return (
-    <div
-      className={`border-l-2 ${section.borderColor} bg-surface-raised rounded-sm border border-neutral-700`}
+    <span
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-sm ${meta.color}`}
+      title={meta.path}
     >
-      {/* Section Header */}
-      <button
-        onClick={onToggleCollapse}
-        className="w-full flex items-center justify-between px-3 py-2 hover:bg-neutral-800/50 transition-colors"
-      >
-        <div className="flex items-center gap-2 min-w-0">
-          <span className={`w-2 h-2 rounded-full shrink-0 ${section.dotColor}`} />
-          <span className="text-sm text-neutral-200 font-medium">
-            {section.label}
-          </span>
-          {section.exists && eventCount > 0 && (
-            <span className="text-xs text-neutral-500">
-              ({eventCount} {eventCount === 1 ? "Event" : "Events"})
-            </span>
-          )}
-          {!section.exists && (
-            <span className="text-xs text-neutral-600">(nicht vorhanden)</span>
-          )}
-          {section.exists && eventCount === 0 && (
-            <span className="text-xs text-neutral-600">
-              (keine Hooks konfiguriert)
-            </span>
-          )}
-          <span className="text-xs text-neutral-600 truncate">{section.path}</span>
-        </div>
-        <ChevronIcon className="w-3.5 h-3.5 text-neutral-500 shrink-0" />
-      </button>
+      <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
+      {meta.label}
+    </span>
+  );
+}
 
-      {/* Section Body */}
-      {!isCollapsed && section.exists && (
-        <div className="px-3 pb-3 border-t border-neutral-700/50">
-          {/* Raw toggle */}
-          {section.raw && (
-            <div className="flex justify-end pt-2 pb-1">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleRaw();
-                }}
-                className={`px-2 py-0.5 text-xs rounded-sm transition-colors ${
-                  isRaw
-                    ? "text-accent bg-accent-a10"
-                    : "text-neutral-500 hover:text-neutral-300"
-                }`}
-              >
-                {isRaw ? "Strukturiert" : "Raw JSON"}
-              </button>
+function EventGroupCard({ group }: { group: EventGroup }) {
+  return (
+    <div>
+      <div className="text-xs text-accent font-bold mb-2">
+        {group.eventName}
+      </div>
+      <div className="space-y-2">
+        {group.hooks.map((hook, i) => (
+          <div
+            key={i}
+            className="bg-surface-raised border border-neutral-700 rounded-sm px-3 py-2.5"
+          >
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <SourceBadge source={hook.source} />
+              {hook.matcher && (
+                <span className="text-[11px] text-neutral-500">
+                  Matcher:{" "}
+                  <code className="text-neutral-300 font-mono">
+                    {hook.matcher}
+                  </code>
+                </span>
+              )}
             </div>
-          )}
-
-          {isRaw ? (
-            <pre className="text-xs text-neutral-200 whitespace-pre-wrap font-mono leading-relaxed">
-              {section.raw}
-            </pre>
-          ) : eventCount > 0 ? (
-            <div className="space-y-3 pt-1">
-              {section.groups.map((group) => (
-                <div key={group.eventName}>
-                  <div className="text-xs text-accent font-bold mb-1.5">
-                    {group.eventName}
-                  </div>
-                  <div className="space-y-1.5">
-                    {group.hooks.map((hook, i) => (
-                      <div
-                        key={i}
-                        className="bg-surface-base border border-neutral-700 rounded-sm px-3 py-2"
-                      >
-                        {hook.matcher && (
-                          <div className="text-xs text-neutral-400 mb-1">
-                            Matcher:{" "}
-                            <code className="text-neutral-300 font-mono">
-                              {hook.matcher}
-                            </code>
-                          </div>
-                        )}
-                        <div className="bg-neutral-900 font-mono text-xs px-3 py-2 rounded-sm text-neutral-200">
-                          {hook.command}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
+            <div className="bg-neutral-900 font-mono text-xs px-3 py-2 rounded-sm text-neutral-200">
+              {hook.command}
             </div>
-          ) : (
-            <div className="text-xs text-neutral-500 pt-1">
-              Keine Hooks konfiguriert.
-            </div>
-          )}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
