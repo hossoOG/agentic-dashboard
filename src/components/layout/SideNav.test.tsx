@@ -13,21 +13,22 @@ describe("SideNav", () => {
     vi.clearAllMocks();
   });
 
-  it("renders all 7 nav items with aria-labels", () => {
+  it("renders all 6 visible nav items with German labels", () => {
     render(<SideNav />);
-    expect(screen.getByLabelText("Sessions")).toBeTruthy();
+    expect(screen.getByLabelText("Sitzungen")).toBeTruthy();
     expect(screen.getByLabelText("Pipeline")).toBeTruthy();
     expect(screen.getByLabelText("Kanban")).toBeTruthy();
-    expect(screen.getByLabelText("Library")).toBeTruthy();
+    expect(screen.getByLabelText("Bibliothek")).toBeTruthy();
     expect(screen.getByLabelText("Editor")).toBeTruthy();
-    expect(screen.getByLabelText("Logs")).toBeTruthy();
-    expect(screen.getByLabelText("Einstellungen")).toBeTruthy();
+    expect(screen.getByLabelText("Protokolle")).toBeTruthy();
+    // Settings tab is hidden (#138)
+    expect(screen.queryByLabelText("Einstellungen")).toBeNull();
   });
 
   it("highlights active tab and calls setActiveTab on click", () => {
     render(<SideNav />);
 
-    const sessionsBtn = screen.getByLabelText("Sessions");
+    const sessionsBtn = screen.getByLabelText("Sitzungen");
     // active tab has "text-accent" class
     expect(sessionsBtn.className).toContain("text-accent");
 
@@ -37,6 +38,14 @@ describe("SideNav", () => {
 
     fireEvent.click(pipelineBtn);
     expect(useUIStore.getState().activeTab).toBe("pipeline");
+  });
+
+  it("shows permanent text labels (not just icon tooltips)", () => {
+    render(<SideNav />);
+    expect(screen.getByText("Sitzungen")).toBeTruthy();
+    expect(screen.getByText("Pipeline")).toBeTruthy();
+    expect(screen.getByText("Bibliothek")).toBeTruthy();
+    expect(screen.getByText("Protokolle")).toBeTruthy();
   });
 
   it("renders badge when count > 0 and hides when 0 or undefined", () => {
