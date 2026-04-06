@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { Terminal } from "@xterm/xterm";
 import { wrapInvoke, markRender } from "../../utils/perfLogger";
@@ -11,12 +11,50 @@ interface SessionTerminalProps {
   sessionId: string;
 }
 
+/** Threshold (in rows) to consider the viewport "at the bottom" */
+const SCROLL_BOTTOM_THRESHOLD = 1;
+
+/**
+ * Debounce helper — returns a debounced version of `fn`.
+ * The returned function also exposes `.cancel()` for cleanup.
+ */
+function debounce<T extends (...args: unknown[]) => void>(fn: T, ms: number) {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const debounced = (...args: Parameters<T>) => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      fn(...args);
+    }, ms);
+  };
+  debounced.cancel = () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  };
+  return debounced;
+}
+
 export function SessionTerminal({ sessionId }: SessionTerminalProps) {
   const renderDone = markRender("SessionTerminal");
-  useEffect(() => { renderDone.done(); });
+  useEffect(() => {
+    renderDone.done();
+  });
 
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
+  /** Tracks whether the user has manually scrolled away from the bottom */
+  const userScrolledUpRef = useRef(false);
+
+  /**
+   * Check if the terminal viewport is at (or near) the bottom of the scrollback buffer.
+   */
+  const isAtBottom = useCallback((term: Terminal): boolean => {
+    const viewportRow = term.buffer.active.viewportY;
+    const baseY = term.buffer.active.baseY;
+    return baseY - viewportRow <= SCROLL_BOTTOM_THRESHOLD;
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -25,6 +63,7 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
       cursorBlink: true,
       fontSize: 13,
       fontFamily: "'Cascadia Code', 'Fira Code', 'Consolas', monospace",
+      scrollback: 5000,
       theme: {
         background: "#0d1117",
         foreground: "#e6edf3",
@@ -41,6 +80,11 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
     fitAddon.fit();
     terminalRef.current = term;
 
+    // Track user scroll: when user scrolls away from bottom, stop auto-scrolling
+    const scrollDisposable = term.onScroll(() => {
+      userScrolledUpRef.current = !isAtBottom(term);
+    });
+
     // Input: User types -> send to backend
     term.onData((data: string) => {
       wrapInvoke("write_session", { id: sessionId, data }).catch((err) => {
@@ -52,38 +96,64 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
     const unlistenPromise = listen<{ id: string; data: string }>(
       "session-output",
       (event) => {
-        if (event?.payload?.id === sessionId && typeof event?.payload?.data === "string") {
-          term.write(event.payload.data);
+        if (
+          event?.payload?.id === sessionId &&
+          typeof event?.payload?.data === "string"
+        ) {
+          term.write(event.payload.data, () => {
+            // After write completes: auto-scroll to bottom unless user scrolled up
+            if (!userScrolledUpRef.current) {
+              term.scrollToBottom();
+            }
+          });
         }
-      }
+      },
     );
 
-    // Resize
+    // Debounced fit — prevents layout thrashing during rapid resizes
+    const debouncedFit = debounce(() => {
+      if (term.element) {
+        fitAddon.fit();
+        wrapInvoke("resize_session", {
+          id: sessionId,
+          cols: term.cols,
+          rows: term.rows,
+        }).catch(() => {});
+      }
+    }, 100);
+
+    // Resize observer with debounced fit
     const resizeObserver = new ResizeObserver(() => {
-      fitAddon.fit();
-      wrapInvoke("resize_session", { id: sessionId, cols: term.cols, rows: term.rows }).catch(() => {});
+      debouncedFit();
     });
     resizeObserver.observe(containerRef.current);
 
-    // Report initial size
-    setTimeout(() => {
+    // Report initial size (slightly delayed so the DOM has settled)
+    const initialTimer = setTimeout(() => {
       fitAddon.fit();
-      wrapInvoke("resize_session", { id: sessionId, cols: term.cols, rows: term.rows }).catch(() => {});
+      wrapInvoke("resize_session", {
+        id: sessionId,
+        cols: term.cols,
+        rows: term.rows,
+      }).catch(() => {});
     }, 50);
 
     return () => {
+      clearTimeout(initialTimer);
+      debouncedFit.cancel();
       unlistenPromise.then((unlisten) => unlisten()).catch(() => {});
+      scrollDisposable.dispose();
       resizeObserver.disconnect();
       term.dispose();
       terminalRef.current = null;
     };
-  }, [sessionId]);
+  }, [sessionId, isAtBottom]);
 
   return (
     <div
       ref={containerRef}
       className="h-full w-full"
-      style={{ padding: "4px", backgroundColor: "#0d1117" }}
+      style={{ padding: "4px", backgroundColor: "#0d1117", overflow: "hidden" }}
     />
   );
 }

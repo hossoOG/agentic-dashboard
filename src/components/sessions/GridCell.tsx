@@ -1,6 +1,8 @@
 import { Maximize2, X } from "lucide-react";
 import { useSessionStore } from "../../store/sessionStore";
+import type { SessionStatus } from "../../store/sessionStore";
 import { SessionTerminal } from "./SessionTerminal";
+import { SessionStatusDot } from "./SessionStatusDot";
 import { getActivityLevel } from "./activityLevel";
 import { useNowTick } from "../../hooks/useNowTick";
 
@@ -10,27 +12,6 @@ interface GridCellProps {
   onFocus: () => void;
   onMaximize: () => void;
   onRemove: () => void;
-}
-
-function StatusDot({ status, isThinking, isIdle }: { status: string; isThinking: boolean; isIdle: boolean }) {
-  switch (status) {
-    case "running":
-    case "starting":
-      if (isIdle) return <span className="w-2 h-2 rounded-full bg-neutral-500 shrink-0" />;
-      return isThinking ? (
-        <span className="w-2 h-2 rounded-full bg-info status-breathe-animation shrink-0" />
-      ) : (
-        <span className="w-2 h-2 rounded-full bg-success status-pulse-animation shrink-0" />
-      );
-    case "waiting":
-      return <span className="w-2 h-2 rounded-full bg-yellow-400 status-pulse-animation shrink-0" />;
-    case "done":
-      return <span className="w-2 h-2 rounded-full bg-neutral-500 shrink-0" />;
-    case "error":
-      return <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />;
-    default:
-      return <span className="w-2 h-2 rounded-full bg-neutral-600 shrink-0" />;
-  }
 }
 
 export function GridCell({
@@ -50,8 +31,6 @@ export function GridCell({
   const isRunning = status === "running" || status === "starting";
 
   const activityLevel = isRunning ? getActivityLevel(lastOutputAt, now, lastOutputSnippet) : null;
-  const isThinking = activityLevel === "thinking";
-  const isIdle = activityLevel === "idle";
 
   return (
     <div
@@ -72,7 +51,7 @@ export function GridCell({
         `}
         style={{ height: "28px", minHeight: "28px" }}
       >
-        <StatusDot status={status} isThinking={isThinking} isIdle={isIdle} />
+        <SessionStatusDot status={status as SessionStatus} activityLevel={activityLevel} size="sm" />
         <span className="text-xs text-neutral-200 font-bold truncate flex-1">
           {title}
         </span>
