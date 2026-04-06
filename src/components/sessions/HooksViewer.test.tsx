@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { buildEventGroups, HooksViewer } from "./HooksViewer";
+import { buildEventGroups, extractHookName, HooksViewer } from "./HooksViewer";
 
 // Mock @tauri-apps/api/core
 vi.mock("@tauri-apps/api/core", () => ({
@@ -89,6 +89,88 @@ describe("buildEventGroups", () => {
   });
 });
 
+// ── Unit tests: extractHookName ──
+
+describe("extractHookName", () => {
+  it("extracts filename from a path-based command", () => {
+    expect(extractHookName("node .claude/hooks/safe-guard.mjs")).toBe("safe-guard.mjs");
+  });
+
+  it("returns short commands as-is", () => {
+    expect(extractHookName("npx tsc --noEmit")).toBe("npx tsc --noEmit");
+  });
+
+  it("handles backslash paths", () => {
+    expect(extractHookName("node C:\\hooks\\check.js")).toBe("check.js");
+  });
+});
+
+// ── Unit tests: buildEventGroups with nested format ──
+
+describe("buildEventGroups (nested hooks format)", () => {
+  it("parses the real Claude settings.json nested format", () => {
+    const raws = {
+      project: JSON.stringify({
+        hooks: {
+          PreToolUse: [
+            {
+              matcher: "Bash",
+              hooks: [
+                { type: "command", command: "node .claude/hooks/safe-guard.mjs", timeout: 5000 },
+              ],
+            },
+          ],
+          PostToolUse: [
+            {
+              matcher: "Edit|Write",
+              hooks: [
+                { type: "command", command: "npx tsc --noEmit --skipLibCheck 2>&1 | head -20" },
+              ],
+            },
+          ],
+        },
+      }),
+      "project-local": "",
+      user: "",
+    };
+
+    const groups = buildEventGroups(raws);
+    expect(groups).toHaveLength(2);
+
+    const postGroup = groups.find((g) => g.eventName === "PostToolUse")!;
+    expect(postGroup.hooks).toHaveLength(1);
+    expect(postGroup.hooks[0].command).toBe("npx tsc --noEmit --skipLibCheck 2>&1 | head -20");
+    expect(postGroup.hooks[0].matcher).toBe("Edit|Write");
+
+    const preGroup = groups.find((g) => g.eventName === "PreToolUse")!;
+    expect(preGroup.hooks).toHaveLength(1);
+    expect(preGroup.hooks[0].command).toBe("node .claude/hooks/safe-guard.mjs");
+    expect(preGroup.hooks[0].timeout).toBe(5000);
+    expect(preGroup.hooks[0].matcher).toBe("Bash");
+  });
+
+  it("handles mixed nested and flat formats", () => {
+    const raws = {
+      project: JSON.stringify({
+        hooks: {
+          PreToolUse: [
+            { matcher: "Bash", hooks: [{ type: "command", command: "nested-cmd" }] },
+            { matcher: "Edit", command: "flat-cmd" },
+          ],
+        },
+      }),
+      "project-local": "",
+      user: "",
+    };
+
+    const groups = buildEventGroups(raws);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].hooks).toHaveLength(2);
+    expect(groups[0].hooks[0].command).toBe("nested-cmd");
+    expect(groups[0].hooks[1].command).toBe("flat-cmd");
+  });
+});
+
 // ── Component tests: HooksViewer ──
 
 describe("HooksViewer", () => {
@@ -107,10 +189,17 @@ describe("HooksViewer", () => {
     expect(screen.getByText(/\.claude\/settings\.json/)).toBeTruthy();
   });
 
-  it("renders event groups with source badges", async () => {
+  it("renders event groups with source badges and hook names", async () => {
     const { invoke } = await import("@tauri-apps/api/core");
     const projectJson = JSON.stringify({
-      hooks: { PreToolUse: [{ matcher: "Bash", command: "node safe-guard.mjs" }] },
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "Bash",
+            hooks: [{ type: "command", command: "node .claude/hooks/safe-guard.mjs", timeout: 5000 }],
+          },
+        ],
+      },
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(invoke).mockImplementation(async (cmd: string, args?: any) => {
@@ -125,13 +214,18 @@ describe("HooksViewer", () => {
     expect(await screen.findByText("PreToolUse")).toBeTruthy();
     // "Projekt" appears in legend and badge — use getAllByText
     expect(screen.getAllByText("Projekt").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("node safe-guard.mjs")).toBeTruthy();
+    // Hook name extracted from command path
+    expect(screen.getByText("safe-guard.mjs")).toBeTruthy();
+    // Full command shown in code block
+    expect(screen.getByText("node .claude/hooks/safe-guard.mjs")).toBeTruthy();
+    // Timeout displayed
+    expect(screen.getByText("5s")).toBeTruthy();
     expect(screen.getByText("1 Event")).toBeTruthy();
   });
 
   it("toggles between structured and raw view", async () => {
     const rawJson = JSON.stringify({
-      hooks: { PostToolUse: [{ command: "tsc --noEmit" }] },
+      hooks: { PostToolUse: [{ hooks: [{ type: "command", command: "tsc --noEmit" }] }] },
     });
     const { invoke } = await import("@tauri-apps/api/core");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

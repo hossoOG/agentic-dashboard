@@ -7,9 +7,16 @@ interface HooksViewerProps {
   folder: string;
 }
 
+interface NestedHookDef {
+  type?: string;
+  command: string;
+  timeout?: number;
+}
+
 interface HookEntry {
   matcher?: string;
-  command: string;
+  command?: string;
+  hooks?: NestedHookDef[];
 }
 
 type HookSource = "project" | "project-local" | "user";
@@ -17,6 +24,7 @@ type HookSource = "project" | "project-local" | "user";
 interface ResolvedHook {
   matcher?: string;
   command: string;
+  timeout?: number;
   source: HookSource;
 }
 
@@ -74,8 +82,25 @@ export function buildEventGroups(raws: Record<HookSource, string>): EventGroup[]
 
     for (const [eventName, hooks] of Object.entries(parsed)) {
       const existing = eventMap.get(eventName) ?? [];
-      for (const hook of Array.isArray(hooks) ? hooks : []) {
-        existing.push({ matcher: hook.matcher, command: hook.command, source });
+      for (const entry of Array.isArray(hooks) ? hooks : []) {
+        if (entry.hooks && Array.isArray(entry.hooks)) {
+          // Nested format: { matcher, hooks: [{ type, command, timeout }] }
+          for (const nested of entry.hooks) {
+            existing.push({
+              matcher: entry.matcher,
+              command: nested.command,
+              timeout: nested.timeout,
+              source,
+            });
+          }
+        } else if (entry.command) {
+          // Flat format: { matcher, command }
+          existing.push({
+            matcher: entry.matcher,
+            command: entry.command,
+            source,
+          });
+        }
       }
       eventMap.set(eventName, existing);
     }
@@ -274,6 +299,20 @@ function SourceBadge({ source }: { source: HookSource }) {
   );
 }
 
+/** Extract a short display name from a command string (e.g. last path segment or first token). */
+// eslint-disable-next-line react-refresh/only-export-components
+export function extractHookName(command: string): string {
+  const trimmed = command.trim();
+  // Try to find a file path (e.g. "node .claude/hooks/safe-guard.mjs" → "safe-guard.mjs")
+  const parts = trimmed.split(/\s+/);
+  for (const part of parts) {
+    const match = part.match(/[/\\]([^/\\]+)$/);
+    if (match) return match[1];
+  }
+  // Fallback: return the whole command if short, or first meaningful token
+  return trimmed.length <= 30 ? trimmed : parts.slice(0, 2).join(" ");
+}
+
 function EventGroupCard({ group }: { group: EventGroup }) {
   return (
     <div>
@@ -287,15 +326,27 @@ function EventGroupCard({ group }: { group: EventGroup }) {
             className="bg-surface-raised border border-neutral-700 rounded-sm px-3 py-2.5"
           >
             <div className="flex items-center justify-between gap-2 mb-1.5">
-              <SourceBadge source={hook.source} />
-              {hook.matcher && (
-                <span className="text-[11px] text-neutral-500">
-                  Matcher:{" "}
-                  <code className="text-neutral-300 font-mono">
-                    {hook.matcher}
-                  </code>
+              <div className="flex items-center gap-2">
+                <SourceBadge source={hook.source} />
+                <span className="text-xs text-neutral-200 font-semibold">
+                  {extractHookName(hook.command)}
                 </span>
-              )}
+              </div>
+              <div className="flex items-center gap-2">
+                {hook.timeout != null && (
+                  <span className="text-[10px] text-neutral-600">
+                    {(hook.timeout / 1000).toFixed(0)}s
+                  </span>
+                )}
+                {hook.matcher && (
+                  <span className="text-[11px] text-neutral-500">
+                    Matcher:{" "}
+                    <code className="text-neutral-300 font-mono">
+                      {hook.matcher}
+                    </code>
+                  </span>
+                )}
+              </div>
             </div>
             <div className="bg-neutral-900 font-mono text-xs px-3 py-2 rounded-sm text-neutral-200">
               {hook.command}
