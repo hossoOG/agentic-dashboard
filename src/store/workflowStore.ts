@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
+import { getErrorMessage } from "../utils/adpError";
 import { parseSkillFrontmatter } from "../utils/parseSkillFrontmatter";
 
 // ============================================================================
@@ -281,7 +282,7 @@ export const useWorkflowStore = create<WorkflowState>((set) => ({
         loading: false,
       }));
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err ?? "Unbekannter Fehler");
+      const message = getErrorMessage(err);
       set({ loading: false, error: message });
     }
   },

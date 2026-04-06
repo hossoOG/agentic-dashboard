@@ -1,5 +1,6 @@
 // src-tauri/src/session/manager.rs
 
+use crate::error::{ADPError, ADPErrorCode};
 use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -67,7 +68,7 @@ impl SessionManager {
         folder: String,
         shell: String,
         resume_session_id: Option<String>,
-    ) -> Result<SessionInfo, String> {
+    ) -> Result<SessionInfo, ADPError> {
         log::info!(
             "Creating session id={}, shell={}, folder={}",
             id,
@@ -83,7 +84,7 @@ impl SessionManager {
                 id, shell_exe
             );
             log::error!("{}", msg);
-            return Err(msg);
+            return Err(ADPError::new(ADPErrorCode::TerminalSpawnFailed, msg));
         }
 
         let pty_system = native_pty_system();
@@ -97,7 +98,10 @@ impl SessionManager {
             })
             .map_err(|e| {
                 log::error!("Failed to open PTY for session {}: {}", id, e);
-                format!("Failed to open PTY for session {id}: {e}")
+                ADPError::new(
+                    ADPErrorCode::TerminalSpawnFailed,
+                    format!("Failed to open PTY for session {id}: {e}"),
+                )
             })?;
 
         let mut cmd = CommandBuilder::new(shell_exe);
@@ -113,7 +117,10 @@ impl SessionManager {
                 id,
                 e
             );
-            format!("Failed to spawn shell for session {id}: {e}")
+            ADPError::new(
+                ADPErrorCode::TerminalSpawnFailed,
+                format!("Failed to spawn shell for session {id}: {e}"),
+            )
         })?;
 
         log::info!(
@@ -124,12 +131,18 @@ impl SessionManager {
 
         let writer = pty_pair.master.take_writer().map_err(|e| {
             log::error!("Failed to acquire PTY writer for session {}: {}", id, e);
-            format!("Failed to acquire PTY writer for session {id}: {e}")
+            ADPError::new(
+                ADPErrorCode::TerminalSpawnFailed,
+                format!("Failed to acquire PTY writer for session {id}: {e}"),
+            )
         })?;
 
         let mut reader = pty_pair.master.try_clone_reader().map_err(|e| {
             log::error!("Failed to acquire PTY reader for session {}: {}", id, e);
-            format!("Failed to acquire PTY reader for session {id}: {e}")
+            ADPError::new(
+                ADPErrorCode::TerminalSpawnFailed,
+                format!("Failed to acquire PTY reader for session {id}: {e}"),
+            )
         })?;
 
         let info = SessionInfo {
@@ -142,10 +155,11 @@ impl SessionManager {
         };
 
         {
-            let mut sessions = self
-                .sessions
-                .lock()
-                .map_err(|e| format!("Failed to lock session manager for create_session: {e}"))?;
+            let mut sessions = self.sessions.lock().map_err(|e| {
+                ADPError::internal(format!(
+                    "Failed to lock session manager for create_session: {e}"
+                ))
+            })?;
             sessions.insert(
                 id.clone(),
                 SessionHandle {
@@ -318,34 +332,41 @@ impl SessionManager {
     }
 
     /// Sendet Daten (User-Input) an eine laufende Session.
-    pub fn write_to_session(&self, id: &str, data: &str) -> Result<(), String> {
-        let mut sessions = self
-            .sessions
-            .lock()
-            .map_err(|e| format!("Failed to lock session manager for write_to_session: {e}"))?;
-        let session = sessions
-            .get_mut(id)
-            .ok_or_else(|| format!("Failed to find session {id}: not found"))?;
+    pub fn write_to_session(&self, id: &str, data: &str) -> Result<(), ADPError> {
+        let mut sessions = self.sessions.lock().map_err(|e| {
+            ADPError::internal(format!(
+                "Failed to lock session manager for write_to_session: {e}"
+            ))
+        })?;
+        let session = sessions.get_mut(id).ok_or_else(|| {
+            ADPError::new(
+                ADPErrorCode::SessionNotFound,
+                format!("Session not found: {id}"),
+            )
+        })?;
         session
             .writer
             .write_all(data.as_bytes())
-            .map_err(|e| format!("Failed to write to session {id}: {e}"))?;
+            .map_err(|e| ADPError::internal(format!("Failed to write to session {id}: {e}")))?;
         session
             .writer
             .flush()
-            .map_err(|e| format!("Failed to flush session {id}: {e}"))?;
+            .map_err(|e| ADPError::internal(format!("Failed to flush session {id}: {e}")))?;
         Ok(())
     }
 
     /// Aendert die Terminal-Groesse einer Session.
-    pub fn resize_session(&self, id: &str, cols: u16, rows: u16) -> Result<(), String> {
+    pub fn resize_session(&self, id: &str, cols: u16, rows: u16) -> Result<(), ADPError> {
         let sessions = self.sessions.lock().unwrap_or_else(|e| {
             log::warn!("SessionManager mutex was poisoned during resize_session, recovering");
             e.into_inner()
         });
-        let session = sessions
-            .get(id)
-            .ok_or_else(|| format!("Failed to find session {id}: not found"))?;
+        let session = sessions.get(id).ok_or_else(|| {
+            ADPError::new(
+                ADPErrorCode::SessionNotFound,
+                format!("Session not found: {id}"),
+            )
+        })?;
         session
             .master
             .resize(PtySize {
@@ -354,19 +375,23 @@ impl SessionManager {
                 pixel_width: 0,
                 pixel_height: 0,
             })
-            .map_err(|e| format!("Failed to resize session {id}: {e}"))
+            .map_err(|e| ADPError::internal(format!("Failed to resize session {id}: {e}")))
     }
 
     /// Schliesst eine Session (killt den Prozess).
-    pub fn close_session(&self, id: &str) -> Result<(), String> {
-        let mut sessions = self
-            .sessions
-            .lock()
-            .map_err(|e| format!("Failed to lock session manager for close_session: {e}"))?;
+    pub fn close_session(&self, id: &str) -> Result<(), ADPError> {
+        let mut sessions = self.sessions.lock().map_err(|e| {
+            ADPError::internal(format!(
+                "Failed to lock session manager for close_session: {e}"
+            ))
+        })?;
         // Drop entfernt den MasterPty, was den Child-Prozess signalisiert
-        sessions
-            .remove(id)
-            .ok_or_else(|| format!("Failed to find session {id}: not found"))?;
+        sessions.remove(id).ok_or_else(|| {
+            ADPError::new(
+                ADPErrorCode::SessionNotFound,
+                format!("Session not found: {id}"),
+            )
+        })?;
         Ok(())
     }
 

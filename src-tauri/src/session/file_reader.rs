@@ -1,28 +1,33 @@
 // src-tauri/src/session/file_reader.rs
 
+use crate::error::ADPError;
 use serde::Serialize;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 
 /// Shared path-traversal protection: resolve `sub` inside `base` and verify
 /// the result stays within `base` after canonicalization.
-fn safe_resolve_with_base(base: &Path, sub: &str) -> Result<PathBuf, String> {
+fn safe_resolve_with_base(base: &Path, sub: &str) -> Result<PathBuf, ADPError> {
     let target = base.join(sub);
 
-    let canon_base = base
-        .canonicalize()
-        .map_err(|e| format!("Failed to resolve base '{}': {}", base.display(), e))?;
+    let canon_base = base.canonicalize().map_err(|e| {
+        ADPError::file_io(format!(
+            "Failed to resolve base '{}': {}",
+            base.display(),
+            e
+        ))
+    })?;
 
     if target.exists() {
         let canon_target = target
             .canonicalize()
-            .map_err(|e| format!("Failed to resolve target '{}': {}", sub, e))?;
+            .map_err(|e| ADPError::file_io(format!("Failed to resolve target '{}': {}", sub, e)))?;
 
         if !canon_target.starts_with(&canon_base) {
-            return Err(format!(
+            return Err(ADPError::validation(format!(
                 "Path traversal detected: target is outside {}",
                 base.display()
-            ));
+            )));
         }
         Ok(canon_target)
     } else {
@@ -31,17 +36,21 @@ fn safe_resolve_with_base(base: &Path, sub: &str) -> Result<PathBuf, String> {
         if let Some(parent) = target.parent() {
             if parent.exists() {
                 let canon_parent = parent.canonicalize().map_err(|e| {
-                    format!("Failed to resolve parent '{}': {}", parent.display(), e)
+                    ADPError::file_io(format!(
+                        "Failed to resolve parent '{}': {}",
+                        parent.display(),
+                        e
+                    ))
                 })?;
                 if !canon_parent.starts_with(&canon_base) {
-                    return Err(format!(
+                    return Err(ADPError::validation(format!(
                         "Path traversal detected: target is outside {}",
                         base.display()
-                    ));
+                    )));
                 }
                 let file_name = target
                     .file_name()
-                    .ok_or_else(|| "Invalid file name".to_string())?;
+                    .ok_or_else(|| ADPError::validation("Invalid file name"))?;
                 Ok(canon_parent.join(file_name))
             } else {
                 // Parent doesn't exist either — validate by collapsing components
@@ -52,52 +61,55 @@ fn safe_resolve_with_base(base: &Path, sub: &str) -> Result<PathBuf, String> {
                         std::path::Component::ParentDir => {
                             resolved.pop();
                             if !resolved.starts_with(&canon_base) {
-                                return Err(format!(
+                                return Err(ADPError::validation(format!(
                                     "Path traversal detected: target is outside {}",
                                     base.display()
-                                ));
+                                )));
                             }
                         }
                         std::path::Component::CurDir => {}
                         _ => {
-                            return Err("Invalid path component".to_string());
+                            return Err(ADPError::validation("Invalid path component"));
                         }
                     }
                 }
                 if !resolved.starts_with(&canon_base) {
-                    return Err(format!(
+                    return Err(ADPError::validation(format!(
                         "Path traversal detected: target is outside {}",
                         base.display()
-                    ));
+                    )));
                 }
                 Ok(resolved)
             }
         } else {
-            Err("Invalid path: no parent directory".to_string())
+            Err(ADPError::validation("Invalid path: no parent directory"))
         }
     }
 }
 
 /// Canonicalize and validate that resolved_path is inside base_folder.
-fn safe_resolve(folder: &str, relative_path: &str) -> Result<PathBuf, String> {
+fn safe_resolve(folder: &str, relative_path: &str) -> Result<PathBuf, ADPError> {
     let base = PathBuf::from(folder);
     if !base.is_dir() {
-        return Err(format!(
+        return Err(ADPError::file_io(format!(
             "Failed to resolve path: folder does not exist: {}",
             folder
-        ));
+        )));
     }
     safe_resolve_with_base(&base, relative_path)
 }
 
 /// Resolve a path inside ~/.claude/ with traversal protection.
-fn safe_resolve_user_claude(relative_path: &str) -> Result<PathBuf, String> {
+fn safe_resolve_user_claude(relative_path: &str) -> Result<PathBuf, ADPError> {
     // Reject traversal attempts even before checking directory existence
     if relative_path.contains("..") {
-        return Err("Path traversal detected: '..' not allowed in relative path".to_string());
+        return Err(ADPError::validation(
+            "Path traversal detected: '..' not allowed in relative path",
+        ));
     }
 
-    let home = dirs::home_dir().ok_or_else(|| "Cannot determine home directory".to_string())?;
+    let home =
+        dirs::home_dir().ok_or_else(|| ADPError::file_io("Cannot determine home directory"))?;
     let claude_dir = home.join(".claude");
 
     if !claude_dir.is_dir() {
@@ -297,7 +309,7 @@ fn parse_session_jsonl(path: &std::path::Path, session_id: &str) -> Option<Claud
 }
 
 /// Scan a project's Claude session history from ~/.claude/projects/.
-fn scan_sessions_for_project(folder: &str) -> Result<Vec<ClaudeSessionSummary>, String> {
+fn scan_sessions_for_project(folder: &str) -> Result<Vec<ClaudeSessionSummary>, ADPError> {
     let project_dir = match find_project_dir(folder) {
         Some(dir) => dir,
         None => return Ok(Vec::new()),
@@ -307,7 +319,7 @@ fn scan_sessions_for_project(folder: &str) -> Result<Vec<ClaudeSessionSummary>, 
     let mut seen_ids = std::collections::HashSet::new();
 
     let read_dir = std::fs::read_dir(&project_dir)
-        .map_err(|e| format!("Failed to read project directory: {}", e))?;
+        .map_err(|e| ADPError::file_io(format!("Failed to read project directory: {}", e)))?;
 
     for entry in read_dir.flatten() {
         let name = match entry.file_name().to_str() {
@@ -376,15 +388,16 @@ pub mod commands {
     pub async fn read_project_file(
         folder: String,
         relative_path: String,
-    ) -> Result<String, String> {
+    ) -> Result<String, ADPError> {
         let path = safe_resolve(&folder, &relative_path)?;
 
         if !path.exists() || !path.is_file() {
             return Ok(String::new());
         }
 
-        std::fs::read_to_string(&path)
-            .map_err(|e| format!("Failed to read file '{}': {}", relative_path, e))
+        std::fs::read_to_string(&path).map_err(|e| {
+            ADPError::file_io(format!("Failed to read file '{}': {}", relative_path, e))
+        })
     }
 
     /// Max file size for write operations (10 MB)
@@ -395,44 +408,50 @@ pub mod commands {
         folder: String,
         relative_path: String,
         content: String,
-    ) -> Result<(), String> {
+    ) -> Result<(), ADPError> {
         // Size limit to prevent OOM / disk exhaustion
         if content.len() > MAX_WRITE_SIZE {
-            return Err(format!(
+            return Err(ADPError::validation(format!(
                 "File too large: {}MB exceeds {}MB limit",
                 content.len() / (1024 * 1024),
                 MAX_WRITE_SIZE / (1024 * 1024)
-            ));
+            )));
         }
 
         // Reject null bytes (binary content)
         if content.contains('\0') {
-            return Err("File contains null bytes — binary files are not supported".to_string());
+            return Err(ADPError::validation(
+                "File contains null bytes — binary files are not supported",
+            ));
         }
 
         let path = safe_resolve(&folder, &relative_path)?;
 
         if path.is_dir() {
-            return Err(format!("Cannot write to directory: {}", relative_path));
+            return Err(ADPError::validation(format!(
+                "Cannot write to directory: {}",
+                relative_path
+            )));
         }
 
         if let Some(parent) = path.parent() {
             if !parent.exists() {
                 log::warn!("Creating directory for write: {}", parent.display());
                 std::fs::create_dir_all(parent)
-                    .map_err(|e| format!("Failed to create directory: {}", e))?;
+                    .map_err(|e| ADPError::file_io(format!("Failed to create directory: {}", e)))?;
             }
         }
 
-        std::fs::write(&path, content)
-            .map_err(|e| format!("Failed to write file '{}': {}", relative_path, e))
+        std::fs::write(&path, content).map_err(|e| {
+            ADPError::file_io(format!("Failed to write file '{}': {}", relative_path, e))
+        })
     }
 
     #[tauri::command]
     pub async fn list_project_dir(
         folder: String,
         relative_path: String,
-    ) -> Result<Vec<String>, String> {
+    ) -> Result<Vec<String>, ADPError> {
         let path = safe_resolve(&folder, &relative_path)?;
 
         if !path.exists() || !path.is_dir() {
@@ -440,8 +459,12 @@ pub mod commands {
         }
 
         let mut entries = Vec::new();
-        let read_dir = std::fs::read_dir(&path)
-            .map_err(|e| format!("Failed to read directory '{}': {}", relative_path, e))?;
+        let read_dir = std::fs::read_dir(&path).map_err(|e| {
+            ADPError::file_io(format!(
+                "Failed to read directory '{}': {}",
+                relative_path, e
+            ))
+        })?;
 
         for entry in read_dir.flatten() {
             if let Some(name) = entry.file_name().to_str() {
@@ -455,27 +478,30 @@ pub mod commands {
 
     /// Scan Claude CLI session history from ~/.claude/projects/ for a given project folder.
     #[tauri::command]
-    pub async fn scan_claude_sessions(folder: String) -> Result<Vec<ClaudeSessionSummary>, String> {
+    pub async fn scan_claude_sessions(
+        folder: String,
+    ) -> Result<Vec<ClaudeSessionSummary>, ADPError> {
         scan_sessions_for_project(&folder)
     }
 
     /// Read a file from the user's ~/.claude/ directory.
     #[tauri::command]
-    pub async fn read_user_claude_file(relative_path: String) -> Result<String, String> {
+    pub async fn read_user_claude_file(relative_path: String) -> Result<String, ADPError> {
         let path = safe_resolve_user_claude(&relative_path)?;
 
         if !path.exists() || !path.is_file() {
             return Ok(String::new());
         }
 
-        std::fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {}", e))
+        std::fs::read_to_string(&path)
+            .map_err(|e| ADPError::file_io(format!("Failed to read file: {}", e)))
     }
 
     /// List all skill directories under .claude/skills/, returning each skill's
     /// SKILL.md content and whether it has a reference/ subdirectory.
     /// This batches N+1 IPC calls into a single round-trip.
     #[tauri::command]
-    pub async fn list_skill_dirs(folder: String) -> Result<Vec<SkillDirEntry>, String> {
+    pub async fn list_skill_dirs(folder: String) -> Result<Vec<SkillDirEntry>, ADPError> {
         let path = safe_resolve(&folder, ".claude/skills")?;
 
         if !path.exists() || !path.is_dir() {
@@ -484,7 +510,7 @@ pub mod commands {
 
         let mut skills = Vec::new();
         let read_dir = std::fs::read_dir(&path)
-            .map_err(|e| format!("Failed to read skills directory: {}", e))?;
+            .map_err(|e| ADPError::file_io(format!("Failed to read skills directory: {}", e)))?;
 
         for entry in read_dir {
             let entry = match entry {
@@ -563,8 +589,8 @@ mod tests {
 
         let result = safe_resolve_with_base(base, "../../../etc/passwd");
         assert!(result.is_err());
-        let err_msg = result.unwrap_err();
-        assert!(err_msg.contains("Path traversal detected"));
+        let err = result.unwrap_err();
+        assert!(err.message.contains("Path traversal detected"));
     }
 
     #[test]
@@ -622,7 +648,7 @@ mod tests {
     fn test_user_claude_blocks_traversal() {
         let result = safe_resolve_user_claude("../../etc/passwd");
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("traversal"));
+        assert!(result.unwrap_err().message.contains("traversal"));
     }
 
     #[test]
@@ -696,8 +722,9 @@ mod tests {
 
             let err = result.unwrap_err();
             assert!(
-                err.contains("Path traversal detected"),
-                "expected traversal error, got: {err}"
+                err.message.contains("Path traversal detected"),
+                "expected traversal error, got: {}",
+                err.message
             );
         }
 
@@ -746,8 +773,9 @@ mod tests {
             // Must return Err (not panic). read_to_string fails on non-UTF-8.
             let err = result.unwrap_err();
             assert!(
-                err.contains("Failed to read file"),
-                "expected structured read error, got: {err}"
+                err.message.contains("Failed to read file"),
+                "expected structured read error, got: {}",
+                err.message
             );
         }
 
@@ -806,8 +834,9 @@ mod tests {
 
             let err = result.unwrap_err();
             assert!(
-                err.contains("File too large"),
-                "expected size-limit error, got: {err}"
+                err.message.contains("File too large"),
+                "expected size-limit error, got: {}",
+                err.message
             );
             assert!(
                 !tmp.path().join("big.txt").exists(),
@@ -827,8 +856,9 @@ mod tests {
 
             let err = result.unwrap_err();
             assert!(
-                err.contains("null bytes"),
-                "expected null-byte rejection, got: {err}"
+                err.message.contains("null bytes"),
+                "expected null-byte rejection, got: {}",
+                err.message
             );
             assert!(
                 !tmp.path().join("null.txt").exists(),
@@ -849,8 +879,9 @@ mod tests {
 
             let err = result.unwrap_err();
             assert!(
-                err.contains("Cannot write to directory"),
-                "expected directory-target rejection, got: {err}"
+                err.message.contains("Cannot write to directory"),
+                "expected directory-target rejection, got: {}",
+                err.message
             );
         }
 
@@ -880,8 +911,9 @@ mod tests {
 
             let err = result.unwrap_err();
             assert!(
-                err.contains("Path traversal detected"),
-                "expected traversal error, got: {err}"
+                err.message.contains("Path traversal detected"),
+                "expected traversal error, got: {}",
+                err.message
             );
             assert!(
                 !escape_target.exists(),
@@ -982,8 +1014,9 @@ mod tests {
 
             let err = result.unwrap_err();
             assert!(
-                err.contains("Path traversal detected"),
-                "expected traversal error, got: {err}"
+                err.message.contains("Path traversal detected"),
+                "expected traversal error, got: {}",
+                err.message
             );
         }
     }

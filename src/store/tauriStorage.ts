@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { StateStorage } from "zustand/middleware";
+import { getErrorMessage } from "../utils/adpError";
 import { logError, logWarn } from "../utils/errorLogger";
 import { wrapInvoke } from "../utils/perfLogger";
 
@@ -70,8 +71,8 @@ export function initTauriStorage(): Promise<void> {
     .then(() => {
       initialized = true;
     })
-    .catch((err) => {
-      logWarn("tauriStorage", `Failed to load settings from disk: ${err}`);
+    .catch((err: unknown) => {
+      logWarn("tauriStorage", `Failed to load settings from disk: ${getErrorMessage(err)}`);
       initialized = true;
     });
 
@@ -128,7 +129,7 @@ export const tauriStorage: StateStorage = {
           wrapInvoke("save_user_settings", { data: cache.get(name) ?? latestValue }).catch((err2) => {
             logError("tauriStorage.saveRetry", err2);
             window.dispatchEvent(new CustomEvent("storage-save-error", {
-              detail: { error: String(err2) },
+              detail: { error: getErrorMessage(err2) },
             }));
           });
         }, 1000);

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { RefreshCw, FileText, Pencil, Eye, Save, Loader2 } from "lucide-react";
+import { getErrorMessage } from "../../utils/adpError";
 import { logError } from "../../utils/errorLogger";
 import { MarkdownPreview } from "../editor/MarkdownPreview";
 import { useUIStore } from "../../store/uiStore";
@@ -59,7 +60,7 @@ export function PinnedDocViewer({ folder, pinId }: PinnedDocViewerProps) {
     } catch (err) {
       logError("PinnedDocViewer.load", err);
       setContent(null);
-      setLoadError(String(err));
+      setLoadError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -95,7 +96,7 @@ export function PinnedDocViewer({ folder, pinId }: PinnedDocViewerProps) {
       addToast({ type: "success", title: `${label} gespeichert` });
     } catch (err) {
       logError("PinnedDocViewer.save", err);
-      addToast({ type: "error", title: "Speichern fehlgeschlagen", message: String(err) });
+      addToast({ type: "error", title: "Speichern fehlgeschlagen", message: getErrorMessage(err) });
     } finally {
       setIsSaving(false);
     }

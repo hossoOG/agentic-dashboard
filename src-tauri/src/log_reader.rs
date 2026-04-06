@@ -1,3 +1,4 @@
+use crate::error::ADPError;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
@@ -16,12 +17,17 @@ pub mod commands {
     use super::*;
 
     #[tauri::command]
-    pub fn read_backend_log(max_lines: Option<usize>) -> Result<Vec<String>, String> {
+    pub fn read_backend_log(max_lines: Option<usize>) -> Result<Vec<String>, ADPError> {
         let path = log_file_path();
         let max = max_lines.unwrap_or(500);
 
-        let file = std::fs::File::open(&path)
-            .map_err(|e| format!("Failed to open log file '{}': {}", path.display(), e))?;
+        let file = std::fs::File::open(&path).map_err(|e| {
+            ADPError::file_io(format!(
+                "Failed to open log file '{}': {}",
+                path.display(),
+                e
+            ))
+        })?;
 
         let reader = BufReader::new(file);
         let all_lines: Vec<String> = reader.lines().map_while(Result::ok).collect();

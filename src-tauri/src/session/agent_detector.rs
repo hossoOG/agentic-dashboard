@@ -797,7 +797,7 @@ fn extract_metrics(line: &str, p: &AgentPatterns) -> (Option<String>, Option<Str
 
 /// Scan a project folder for git worktrees.
 /// Uses `git worktree list --porcelain` for reliable parsing.
-pub fn scan_worktrees_in_folder(folder: &str) -> Result<Vec<WorktreeInfo>, String> {
+pub fn scan_worktrees_in_folder(folder: &str) -> Result<Vec<WorktreeInfo>, crate::error::ADPError> {
     let mut cmd = crate::util::silent_command("git");
     cmd.args(["worktree", "list", "--porcelain"])
         .current_dir(folder);
@@ -805,7 +805,10 @@ pub fn scan_worktrees_in_folder(folder: &str) -> Result<Vec<WorktreeInfo>, Strin
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("git worktree list failed: {}", stderr.trim()));
+        return Err(crate::error::ADPError::command_failed(format!(
+            "git worktree list failed: {}",
+            stderr.trim()
+        )));
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);

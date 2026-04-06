@@ -1,23 +1,24 @@
+use crate::error::ADPError;
 use std::path::{Path, PathBuf};
 
 /// Settings directory: Documents/AgenticExplorer/
-fn settings_dir() -> Result<PathBuf, String> {
+fn settings_dir() -> Result<PathBuf, ADPError> {
     let doc_dir = dirs::document_dir()
-        .ok_or_else(|| "Could not determine Documents directory".to_string())?;
+        .ok_or_else(|| ADPError::file_io("Could not determine Documents directory"))?;
     let dir = doc_dir.join("AgenticExplorer");
     std::fs::create_dir_all(&dir)
-        .map_err(|e| format!("Failed to create settings directory: {}", e))?;
+        .map_err(|e| ADPError::file_io(format!("Failed to create settings directory: {}", e)))?;
     Ok(dir)
 }
 
-fn settings_path() -> Result<PathBuf, String> {
+fn settings_path() -> Result<PathBuf, ADPError> {
     Ok(settings_dir()?.join("settings.json"))
 }
 
-fn notes_dir() -> Result<PathBuf, String> {
+fn notes_dir() -> Result<PathBuf, ADPError> {
     let dir = settings_dir()?.join("notes");
     std::fs::create_dir_all(&dir)
-        .map_err(|e| format!("Failed to create notes directory: {}", e))?;
+        .map_err(|e| ADPError::file_io(format!("Failed to create notes directory: {}", e)))?;
     Ok(dir)
 }
 
@@ -36,13 +37,14 @@ fn sanitize_note_filename(folder_key: &str) -> String {
 
 /// Write data to a file atomically via a temp file + rename.
 /// This prevents corruption if the app crashes mid-write.
-fn atomic_write(path: &Path, data: &str) -> Result<(), String> {
+fn atomic_write(path: &Path, data: &str) -> Result<(), ADPError> {
     let temp = path.with_extension("tmp");
-    std::fs::write(&temp, data).map_err(|e| format!("Failed to write temp file: {}", e))?;
+    std::fs::write(&temp, data)
+        .map_err(|e| ADPError::file_io(format!("Failed to write temp file: {}", e)))?;
     std::fs::rename(&temp, path).map_err(|e| {
         // Clean up temp file on rename failure
         let _ = std::fs::remove_file(&temp);
-        format!("Failed to rename temp to target: {}", e)
+        ADPError::file_io(format!("Failed to rename temp to target: {}", e))
     })
 }
 
@@ -81,7 +83,7 @@ fn create_backup(path: &Path, max_backups: u32) {
 /// Load a JSON file with fallback to backup copies.
 /// If the primary file is missing or contains invalid JSON, tries backup.1, .2, .3.
 /// Returns empty string if nothing is recoverable (fresh start).
-fn load_with_fallback(path: &Path, label: &str) -> Result<String, String> {
+fn load_with_fallback(path: &Path, label: &str) -> Result<String, ADPError> {
     // Try primary file first
     if path.exists() {
         match std::fs::read_to_string(path) {
@@ -148,14 +150,14 @@ pub mod commands {
     /// Returns empty string if file doesn't exist yet (first run).
     /// Falls back to backup files if primary is missing or corrupt.
     #[tauri::command]
-    pub async fn load_user_settings() -> Result<String, String> {
+    pub async fn load_user_settings() -> Result<String, ADPError> {
         let path = settings_path()?;
         load_with_fallback(&path, "settings")
     }
 
     /// Save settings JSON to Documents/AgenticExplorer/settings.json
     #[tauri::command]
-    pub async fn save_user_settings(data: String) -> Result<(), String> {
+    pub async fn save_user_settings(data: String) -> Result<(), ADPError> {
         let path = settings_path()?;
         create_backup(&path, 3);
         atomic_write(&path, &data)
@@ -165,14 +167,14 @@ pub mod commands {
     /// Returns empty string if file doesn't exist yet.
     /// Falls back to backup files if primary is missing or corrupt.
     #[tauri::command]
-    pub async fn load_favorites_file() -> Result<String, String> {
+    pub async fn load_favorites_file() -> Result<String, ADPError> {
         let path = settings_dir()?.join("favorites.json");
         load_with_fallback(&path, "favorites")
     }
 
     /// Save favorites list as JSON to Documents/AgenticExplorer/favorites.json
     #[tauri::command]
-    pub async fn save_favorites_file(data: String) -> Result<(), String> {
+    pub async fn save_favorites_file(data: String) -> Result<(), ADPError> {
         let path = settings_dir()?.join("favorites.json");
         create_backup(&path, 3);
         atomic_write(&path, &data)
@@ -181,12 +183,12 @@ pub mod commands {
     /// Load all notes from Documents/AgenticExplorer/notes/
     /// Returns a JSON object: { "global": "...", "c_/projects/foo": "...", ... }
     #[tauri::command]
-    pub async fn load_notes() -> Result<String, String> {
+    pub async fn load_notes() -> Result<String, ADPError> {
         let dir = notes_dir()?;
         let mut notes = serde_json::Map::new();
 
         let entries = std::fs::read_dir(&dir)
-            .map_err(|e| format!("Failed to read notes directory: {}", e))?;
+            .map_err(|e| ADPError::file_io(format!("Failed to read notes directory: {}", e)))?;
 
         for entry in entries.flatten() {
             let path = entry.path();
@@ -196,19 +198,21 @@ pub mod commands {
                     .and_then(|s| s.to_str())
                     .unwrap_or_default()
                     .to_string();
-                let content = std::fs::read_to_string(&path)
-                    .map_err(|e| format!("Failed to read note {}: {}", stem, e))?;
+                let content = std::fs::read_to_string(&path).map_err(|e| {
+                    ADPError::file_io(format!("Failed to read note {}: {}", stem, e))
+                })?;
                 notes.insert(stem, serde_json::Value::String(content));
             }
         }
 
-        serde_json::to_string(&notes).map_err(|e| format!("Failed to serialize notes: {}", e))
+        serde_json::to_string(&notes)
+            .map_err(|e| ADPError::parse(format!("Failed to serialize notes: {}", e)))
     }
 
     /// Save a note as a .md file in Documents/AgenticExplorer/notes/
     /// `note_key` is "global" for global notes, or the sanitized folder path for project notes.
     #[tauri::command]
-    pub async fn save_note_file(note_key: String, content: String) -> Result<(), String> {
+    pub async fn save_note_file(note_key: String, content: String) -> Result<(), ADPError> {
         let dir = notes_dir()?;
         let filename = if note_key == "global" {
             "global.md".to_string()
@@ -220,8 +224,9 @@ pub mod commands {
         if content.trim().is_empty() {
             // Remove empty note files to keep the directory clean
             if path.exists() {
-                std::fs::remove_file(&path)
-                    .map_err(|e| format!("Failed to remove empty note file: {}", e))?;
+                std::fs::remove_file(&path).map_err(|e| {
+                    ADPError::file_io(format!("Failed to remove empty note file: {}", e))
+                })?;
             }
             return Ok(());
         }

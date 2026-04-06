@@ -1,3 +1,4 @@
+use crate::error::ADPError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -44,41 +45,45 @@ pub struct LibraryIndex {
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
-fn library_dir() -> Result<PathBuf, String> {
-    let home = dirs::home_dir().ok_or("Cannot determine home directory")?;
+fn library_dir() -> Result<PathBuf, ADPError> {
+    let home =
+        dirs::home_dir().ok_or_else(|| ADPError::file_io("Cannot determine home directory"))?;
     let dir = home.join(".claude").join("library").join("items");
     if !dir.exists() {
         std::fs::create_dir_all(&dir)
-            .map_err(|e| format!("Failed to create library dir: {}", e))?;
+            .map_err(|e| ADPError::file_io(format!("Failed to create library dir: {}", e)))?;
     }
     Ok(dir)
 }
 
-fn index_path() -> Result<PathBuf, String> {
-    let home = dirs::home_dir().ok_or("Cannot determine home directory")?;
+fn index_path() -> Result<PathBuf, ADPError> {
+    let home =
+        dirs::home_dir().ok_or_else(|| ADPError::file_io("Cannot determine home directory"))?;
     let dir = home.join(".claude").join("library");
     if !dir.exists() {
         std::fs::create_dir_all(&dir)
-            .map_err(|e| format!("Failed to create library dir: {}", e))?;
+            .map_err(|e| ADPError::file_io(format!("Failed to create library dir: {}", e)))?;
     }
     Ok(dir.join("index.json"))
 }
 
-fn read_index() -> Result<LibraryIndex, String> {
+fn read_index() -> Result<LibraryIndex, ADPError> {
     let path = index_path()?;
     if !path.exists() {
         return Ok(LibraryIndex::default());
     }
-    let data =
-        std::fs::read_to_string(&path).map_err(|e| format!("Failed to read index: {}", e))?;
-    serde_json::from_str(&data).map_err(|e| format!("Failed to parse index: {}", e))
+    let data = std::fs::read_to_string(&path)
+        .map_err(|e| ADPError::file_io(format!("Failed to read index: {}", e)))?;
+    serde_json::from_str(&data)
+        .map_err(|e| ADPError::parse(format!("Failed to parse index: {}", e)))
 }
 
-fn write_index(index: &LibraryIndex) -> Result<(), String> {
+fn write_index(index: &LibraryIndex) -> Result<(), ADPError> {
     let path = index_path()?;
     let data = serde_json::to_string_pretty(index)
-        .map_err(|e| format!("Failed to serialize index: {}", e))?;
-    std::fs::write(&path, data).map_err(|e| format!("Failed to write index: {}", e))
+        .map_err(|e| ADPError::parse(format!("Failed to serialize index: {}", e)))?;
+    std::fs::write(&path, data)
+        .map_err(|e| ADPError::file_io(format!("Failed to write index: {}", e)))
 }
 
 fn now_epoch() -> u64 {
@@ -189,15 +194,15 @@ fn extract_body(content: &str) -> String {
 
 /// Scan all .md files in library/items/ and build a fresh index,
 /// preserving existing usage data.
-fn build_index_from_disk() -> Result<LibraryIndex, String> {
+fn build_index_from_disk() -> Result<LibraryIndex, ADPError> {
     let dir = library_dir()?;
     let existing = read_index().unwrap_or_default();
 
     let mut items = Vec::new();
 
     if dir.exists() && dir.is_dir() {
-        let entries =
-            std::fs::read_dir(&dir).map_err(|e| format!("Failed to read library dir: {}", e))?;
+        let entries = std::fs::read_dir(&dir)
+            .map_err(|e| ADPError::file_io(format!("Failed to read library dir: {}", e)))?;
 
         for entry in entries {
             let entry = match entry {
@@ -237,7 +242,7 @@ pub mod commands {
     use super::*;
 
     #[tauri::command]
-    pub async fn list_library_items() -> Result<Vec<LibraryItemMeta>, String> {
+    pub async fn list_library_items() -> Result<Vec<LibraryItemMeta>, ADPError> {
         let index = read_index()?;
         if index.items.is_empty() && index.built_at == 0 {
             // First run or empty index — try to build from disk
@@ -251,18 +256,18 @@ pub mod commands {
     }
 
     #[tauri::command]
-    pub async fn read_library_item(id: String) -> Result<LibraryItemFull, String> {
+    pub async fn read_library_item(id: String) -> Result<LibraryItemFull, ADPError> {
         crate::validation::validate_library_id(&id)?;
         let dir = library_dir()?;
         let file_name = format!("{}.md", id);
         let path = dir.join(&file_name);
 
         if !path.exists() || !path.is_file() {
-            return Err(format!("Library item not found: {}", id));
+            return Err(ADPError::file_io(format!("Library item not found: {}", id)));
         }
 
-        let content =
-            std::fs::read_to_string(&path).map_err(|e| format!("Failed to read item: {}", e))?;
+        let content = std::fs::read_to_string(&path)
+            .map_err(|e| ADPError::file_io(format!("Failed to read item: {}", e)))?;
 
         let meta = parse_frontmatter(&content, &file_name);
         let body = extract_body(&content);
@@ -275,13 +280,17 @@ pub mod commands {
     }
 
     #[tauri::command]
-    pub async fn save_library_item(id: String, content: String) -> Result<LibraryItemMeta, String> {
+    pub async fn save_library_item(
+        id: String,
+        content: String,
+    ) -> Result<LibraryItemMeta, ADPError> {
         crate::validation::validate_library_id(&id)?;
         let dir = library_dir()?;
         let file_name = format!("{}.md", id);
         let path = dir.join(&file_name);
 
-        std::fs::write(&path, &content).map_err(|e| format!("Failed to write item: {}", e))?;
+        std::fs::write(&path, &content)
+            .map_err(|e| ADPError::file_io(format!("Failed to write item: {}", e)))?;
 
         let meta = parse_frontmatter(&content, &file_name);
 
@@ -302,13 +311,14 @@ pub mod commands {
     }
 
     #[tauri::command]
-    pub async fn delete_library_item(id: String) -> Result<(), String> {
+    pub async fn delete_library_item(id: String) -> Result<(), ADPError> {
         crate::validation::validate_library_id(&id)?;
         let dir = library_dir()?;
         let path = dir.join(format!("{}.md", id));
 
         if path.exists() {
-            std::fs::remove_file(&path).map_err(|e| format!("Failed to delete item: {}", e))?;
+            std::fs::remove_file(&path)
+                .map_err(|e| ADPError::file_io(format!("Failed to delete item: {}", e)))?;
         }
 
         let mut index = read_index()?;
@@ -321,14 +331,14 @@ pub mod commands {
     }
 
     #[tauri::command]
-    pub async fn rebuild_library_index() -> Result<LibraryIndex, String> {
+    pub async fn rebuild_library_index() -> Result<LibraryIndex, ADPError> {
         let index = build_index_from_disk()?;
         write_index(&index)?;
         Ok(index)
     }
 
     #[tauri::command]
-    pub async fn attach_library_item(id: String, project_path: String) -> Result<(), String> {
+    pub async fn attach_library_item(id: String, project_path: String) -> Result<(), ADPError> {
         crate::validation::validate_library_id(&id)?;
         let normalized = normalize_path(&project_path);
         let mut index = read_index()?;
@@ -343,7 +353,7 @@ pub mod commands {
     }
 
     #[tauri::command]
-    pub async fn detach_library_item(id: String, project_path: String) -> Result<(), String> {
+    pub async fn detach_library_item(id: String, project_path: String) -> Result<(), ADPError> {
         crate::validation::validate_library_id(&id)?;
         let normalized = normalize_path(&project_path);
         let mut index = read_index()?;
@@ -360,7 +370,7 @@ pub mod commands {
     }
 
     #[tauri::command]
-    pub async fn get_library_item_path(id: String) -> Result<String, String> {
+    pub async fn get_library_item_path(id: String) -> Result<String, ADPError> {
         crate::validation::validate_library_id(&id)?;
         let dir = library_dir()?;
         let path = dir.join(format!("{}.md", id));
