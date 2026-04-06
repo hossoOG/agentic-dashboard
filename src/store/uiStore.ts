@@ -6,6 +6,7 @@ export type ConfigSubTab =
   | "claude-md"
   | "skills"
   | "hooks"
+  | "settings"
   | "github"
   | "worktrees"
   | "kanban"
