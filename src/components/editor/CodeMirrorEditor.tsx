@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { markdown } from "@codemirror/lang-markdown";
-import { languages } from "@codemirror/language-data";
+import { codeLanguages } from "./languageSupport";
 import { keymap } from "@codemirror/view";
 import { neonEditorTheme } from "./editorTheme";
 
@@ -25,7 +25,7 @@ export function CodeMirrorEditor({
 
   const extensions = useMemo(() => {
     const ext = [
-      markdown({ codeLanguages: languages }),
+      markdown({ codeLanguages }),
       neonEditorTheme,
     ];
 
