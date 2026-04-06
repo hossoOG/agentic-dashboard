@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { PipelineView } from "./PipelineView";
 import { AgentMetricsPanel } from "./AgentMetricsPanel";
 import { useAgentStore } from "../../store/agentStore";
+import { useSessionStore } from "../../store/sessionStore";
 import type { DetectedAgent } from "../../store/agentStore";
 
 // ---------------------------------------------------------------------------
@@ -53,6 +54,24 @@ beforeEach(() => {
     selectedAgentId: null,
     bottomPanelCollapsed: true,
     taskSummary: null,
+    detectionQuality: {},
+  });
+  useSessionStore.setState({
+    sessions: [
+      {
+        id: "sess-1",
+        title: "Test Session",
+        folder: "/tmp/test",
+        shell: "powershell",
+        status: "running",
+        createdAt: Date.now(),
+        finishedAt: null,
+        exitCode: null,
+        lastOutputAt: Date.now(),
+        lastOutputSnippet: "",
+      },
+    ] as never[],
+    activeSessionId: "sess-1",
   });
 });
 
@@ -67,6 +86,7 @@ describe("PipelineView", () => {
   });
 
   it("shows WorkflowLauncher empty state when no session is active", () => {
+    useSessionStore.setState({ sessions: [], activeSessionId: null });
     render(<PipelineView />);
     expect(
       screen.getByText(/Waehle ein Projekt um Workflows zu erkennen/)
@@ -120,6 +140,45 @@ describe("AgentMetricsPanel", () => {
     // Should show active/completed labels
     expect(screen.getByText("Aktiv")).toBeInTheDocument();
     expect(screen.getByText("Fertig")).toBeInTheDocument();
+  });
+
+  it("shows detection quality warning when quality is 'none' for active session", () => {
+    // detectionQuality defaults to "none" when no entry exists for the session
+    render(<PipelineView />);
+
+    expect(
+      screen.getByText(/Agent-Erkennung hat noch keine Agents erkannt/)
+    ).toBeInTheDocument();
+  });
+
+  it("hides detection quality warning when quality is 'good'", () => {
+    useAgentStore.getState().setDetectionQuality("sess-1", "good");
+
+    render(<PipelineView />);
+
+    expect(
+      screen.queryByText(/Agent-Erkennung hat noch keine Agents erkannt/)
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides detection quality warning when quality is 'degraded'", () => {
+    useAgentStore.getState().setDetectionQuality("sess-1", "degraded");
+
+    render(<PipelineView />);
+
+    expect(
+      screen.queryByText(/Agent-Erkennung hat noch keine Agents erkannt/)
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides detection quality warning when no active session exists", () => {
+    useSessionStore.setState({ activeSessionId: null });
+
+    render(<PipelineView />);
+
+    expect(
+      screen.queryByText(/Agent-Erkennung hat noch keine Agents erkannt/)
+    ).not.toBeInTheDocument();
   });
 
   it("shows worktree usage bar when worktrees are detected", () => {

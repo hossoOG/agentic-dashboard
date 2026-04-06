@@ -40,7 +40,7 @@ npm run format:check     # Prettier Format pruefen
 - `src/store/sessionStore.ts` — Session-Management (ephemerer State)
 - `src/store/settingsStore.ts` — Persistierter State (Favorites, Notes, Theme)
 - `src/store/uiStore.ts` — UI-State (Tabs, Toasts)
-- `src/store/pipelineStore.ts` — Pipeline-State (Orchestrator, Worktrees, QA-Gate)
+- `src/store/agentStore.ts` — Agent-Detection-State (erkannte Agents, Tasks, Worktrees)
 - `src-tauri/src/session/` — Rust Session Manager (PTY, Commands)
 - `src/components/sessions/SessionManagerView.tsx` — Haupt-View
 
@@ -153,7 +153,7 @@ Pflicht-Review fuer jeden neuen Tauri-Command:
 - **Session-basiert**: Die App dreht sich um Claude CLI Sessions mit PTY. Jede Session hat einen Ordner, ein Terminal, und Kontext-Tabs (CLAUDE.md, Skills, Hooks, GitHub).
 - **Pipeline-View**: Isometrische 2.5D-Ansicht existiert als Sekundaer-View (`DashboardMap.tsx`). Laeuft nur im Mock-Modus, Real-Modus nicht implementiert.
 - **Tauri v2**: API-Imports immer aus `@tauri-apps/api` (v2), nicht v1-Syntax.
-- **Protokoll-Schema**: `src/protocols/schema.ts` definiert das ADP-Protokoll und wird von `pipelineStore.ts` aktiv importiert (`ADPError`). Nicht loeschen.
+- **Protokoll-Schema**: `src/protocols/schema.ts` definiert das ADP-Protokoll und wird von `adpError.ts` aktiv importiert (`ADPError`). Nicht loeschen.
 
 ## Agent-Pipeline Skills
 

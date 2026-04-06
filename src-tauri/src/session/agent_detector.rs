@@ -364,7 +364,7 @@ impl AgentDetector {
                     }
                 });
 
-                if let Some(event) = self.try_spawn_agent(name, None, None) {
+                if let Some(event) = self.try_spawn_tool_agent(name) {
                     events.push(event);
                 }
                 continue;
@@ -602,11 +602,31 @@ impl AgentDetector {
 
     /// Try to spawn a new agent, returning a Detected event if successful.
     /// Handles deduplication, ID generation, hierarchy tracking.
+    ///
+    /// `is_tool_call`: true for `● Agent(…)` / `● Explore(…)` spawns which create
+    /// hierarchy nesting. Tasks/phases are siblings — they use the stack for
+    /// parent lookup but don't push themselves onto it.
     fn try_spawn_agent(
         &mut self,
         name: Option<String>,
         task_number: Option<u32>,
         phase_number: Option<u32>,
+    ) -> Option<AgentEvent> {
+        self.try_spawn_agent_inner(name, task_number, phase_number, false)
+    }
+
+    /// Spawn an agent from a `● Agent(…)` / `● Explore(…)` tool call.
+    /// These push onto the hierarchy stack (creating parent-child nesting).
+    fn try_spawn_tool_agent(&mut self, name: Option<String>) -> Option<AgentEvent> {
+        self.try_spawn_agent_inner(name, None, None, true)
+    }
+
+    fn try_spawn_agent_inner(
+        &mut self,
+        name: Option<String>,
+        task_number: Option<u32>,
+        phase_number: Option<u32>,
+        is_tool_call: bool,
     ) -> Option<AgentEvent> {
         let now = chrono::Utc::now().timestamp_millis();
 
@@ -638,10 +658,11 @@ impl AgentDetector {
         let parent_agent_id = self.agent_stack.last().cloned();
         let depth = self.agent_stack.len() as u32;
 
-        // Push onto stack (Agent tool calls create hierarchy)
-        self.agent_stack.push(agent_id.clone());
-
-        // Update parent's children (not tracked in AgentInfo for now, managed via parent_agent_id)
+        // Only tool calls (● Agent/Explore) push onto the hierarchy stack.
+        // Tasks and phases are siblings under the current parent.
+        if is_tool_call {
+            self.agent_stack.push(agent_id.clone());
+        }
 
         let info = AgentInfo {
             id: agent_id.clone(),
@@ -689,6 +710,8 @@ impl AgentDetector {
             info.blocked_by = blocked_by;
             if is_terminal_status(effective_status) {
                 info.completed_at = Some(chrono::Utc::now().timestamp_millis());
+                // Pop from hierarchy stack so subsequent agents don't get wrong parent
+                self.agent_stack.retain(|aid| aid != agent_id);
             }
 
             if old_status != effective_status {
