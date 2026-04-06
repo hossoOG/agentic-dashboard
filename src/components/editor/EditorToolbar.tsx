@@ -42,15 +42,15 @@ export function EditorToolbar() {
             {isDirty && (
               <span
                 className="w-2 h-2 rounded-full bg-warning shrink-0"
-                title="Ungespeicherte Aenderungen"
-                aria-label="Ungespeicherte Aenderungen"
+                title="Ungespeicherte Änderungen"
+                aria-label="Ungespeicherte Änderungen"
                 role="img"
               />
             )}
           </>
         ) : (
           <span className="text-sm text-neutral-500">
-            Keine Datei geoeffnet
+            Keine Datei geöffnet
           </span>
         )}
       </div>
@@ -60,11 +60,11 @@ export function EditorToolbar() {
         <button
           onClick={openFileFromDialog}
           className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-neutral-300 hover:text-neutral-100 hover:bg-hover-overlay rounded transition-colors"
-          title="Datei oeffnen"
-          aria-label="Markdown-Datei oeffnen"
+          title="Datei öffnen"
+          aria-label="Markdown-Datei öffnen"
         >
           <FolderOpen className="w-3.5 h-3.5" aria-hidden="true" />
-          <span className="hidden sm:inline">Oeffnen</span>
+          <span className="hidden sm:inline">Öffnen</span>
         </button>
 
         <button
@@ -101,8 +101,8 @@ export function EditorToolbar() {
           <button
             onClick={closeFile}
             className="flex items-center px-1.5 py-1.5 text-neutral-400 hover:text-neutral-100 hover:bg-hover-overlay rounded transition-colors"
-            title="Datei schliessen"
-            aria-label="Datei schliessen"
+            title="Datei schließen"
+            aria-label="Datei schließen"
           >
             <X className="w-3.5 h-3.5" aria-hidden="true" />
           </button>

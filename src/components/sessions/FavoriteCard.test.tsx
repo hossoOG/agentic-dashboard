@@ -65,7 +65,7 @@ describe("FavoriteCard", () => {
       <FavoriteCard favorite={fav} onStart={vi.fn()} onRemove={vi.fn()} />,
     );
 
-    fireEvent.click(screen.getByLabelText("Ordner im Explorer oeffnen"));
+    fireEvent.click(screen.getByLabelText("Ordner im Explorer öffnen"));
     expect(mockInvoke).toHaveBeenCalledWith("open_folder_in_explorer", { path: "/test/path" });
   });
 
@@ -75,7 +75,7 @@ describe("FavoriteCard", () => {
       <FavoriteCard favorite={fav} onStart={vi.fn()} onRemove={vi.fn()} />,
     );
 
-    fireEvent.click(screen.getByLabelText("Terminal im Ordner oeffnen"));
+    fireEvent.click(screen.getByLabelText("Terminal im Ordner öffnen"));
     expect(mockInvoke).toHaveBeenCalledWith("open_terminal_in_folder", { path: "/test/path" });
   });
 

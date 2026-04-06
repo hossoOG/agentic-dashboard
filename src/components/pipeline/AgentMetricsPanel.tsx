@@ -169,7 +169,7 @@ export function AgentMetricsPanel({ sessionId }: AgentMetricsPanelProps) {
       <div className="border-t border-neutral-700 px-4 py-3">
         <div className="flex items-center gap-2 text-neutral-500 text-xs">
           <Activity className="w-3.5 h-3.5" />
-          <span>Keine Agent-Metriken verfuegbar — noch keine Agenten erkannt.</span>
+          <span>Keine Agent-Metriken verfügbar — noch keine Agenten erkannt.</span>
         </div>
       </div>
     );

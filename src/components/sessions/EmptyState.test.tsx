@@ -7,7 +7,7 @@ describe("EmptyState", () => {
     render(<EmptyState onNewSession={vi.fn()} />);
 
     expect(screen.getByText("NEUE SESSION STARTEN")).toBeTruthy();
-    expect(screen.getByText(/Waehle einen Ordner/)).toBeTruthy();
+    expect(screen.getByText(/Wähle einen Ordner/)).toBeTruthy();
   });
 
   it("calls onNewSession when button is clicked", () => {

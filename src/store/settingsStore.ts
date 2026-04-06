@@ -85,7 +85,7 @@ export function validatePinnedPath(relativePath: string): string | null {
   }
   // Only markdown extensions
   if (!/\.(md|markdown)$/i.test(normalized)) {
-    return "Nur .md- oder .markdown-Dateien koennen angepinnt werden";
+    return "Nur .md- oder .markdown-Dateien können angepinnt werden";
   }
   return null;
 }

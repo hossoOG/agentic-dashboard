@@ -20,13 +20,13 @@ function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center h-full gap-4 text-neutral-400">
       <FileEdit className="w-12 h-12 text-neutral-600" />
-      <p className="text-sm">Keine Datei geoeffnet</p>
+      <p className="text-sm">Keine Datei geöffnet</p>
       <Button
         variant="primary"
         onClick={openFileFromDialog}
-        aria-label="Markdown-Datei oeffnen"
+        aria-label="Markdown-Datei öffnen"
       >
-        Markdown-Datei oeffnen
+        Markdown-Datei öffnen
       </Button>
     </div>
   );

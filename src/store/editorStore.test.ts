@@ -105,7 +105,7 @@ describe("editorStore", () => {
       const toasts = useUIStore.getState().toasts;
       expect(toasts).toHaveLength(1);
       expect(toasts[0].type).toBe("error");
-      expect(toasts[0].title).toBe("Fehler beim Oeffnen");
+      expect(toasts[0].title).toBe("Fehler beim Öffnen");
     });
   });
 
@@ -361,7 +361,7 @@ describe("editorStore", () => {
       const toasts = useUIStore.getState().toasts;
       expect(toasts).toHaveLength(1);
       expect(toasts[0].type).toBe("error");
-      expect(toasts[0].title).toBe("Fehler beim Oeffnen");
+      expect(toasts[0].title).toBe("Fehler beim Öffnen");
     });
   });
 

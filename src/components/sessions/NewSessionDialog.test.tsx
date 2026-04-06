@@ -36,7 +36,7 @@ describe("NewSessionDialog", () => {
     render(<NewSessionDialog open={true} onClose={vi.fn()} />);
 
     expect(screen.getByText("NEUE CLAUDE SESSION")).toBeTruthy();
-    expect(screen.getByText("Waehlen")).toBeTruthy();
+    expect(screen.getByText("Wählen")).toBeTruthy();
     expect(screen.getByText("STARTEN")).toBeTruthy();
     expect(screen.getByText("Abbrechen")).toBeTruthy();
   });

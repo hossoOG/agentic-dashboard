@@ -58,9 +58,9 @@ describe("Header", () => {
     expect(screen.getByText("v1.0.0-test")).toBeTruthy();
   });
 
-  it("shows 'Keine Session ausgewaehlt' when no active session", () => {
+  it("shows 'Keine Session ausgewählt' when no active session", () => {
     render(<Header />);
-    expect(screen.getByText("Keine Session ausgewaehlt")).toBeTruthy();
+    expect(screen.getByText("Keine Session ausgewählt")).toBeTruthy();
   });
 
   it("toggles theme between dark and light on button click", () => {

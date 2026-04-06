@@ -39,10 +39,10 @@ describe("KanbanDashboardView", () => {
   it("shows empty state when no folder and no favorites", () => {
     render(<KanbanDashboardView />);
 
-    expect(screen.getByText("Kein Projekt verfuegbar")).toBeTruthy();
+    expect(screen.getByText("Kein Projekt verfügbar")).toBeTruthy();
     expect(
       screen.getByText(
-        "Erstelle eine Session oder fuege einen Favoriten hinzu.",
+        "Erstelle eine Session oder füge einen Favoriten hinzu.",
       ),
     ).toBeTruthy();
   });
@@ -123,7 +123,7 @@ describe("KanbanDashboardView", () => {
     expect(board.textContent).toBe("/projects/beta");
   });
 
-  it("shows 'Projekt auswaehlen' when favorites exist but none selected and no session", () => {
+  it("shows 'Projekt auswählen' when favorites exist but none selected and no session", () => {
     useSettingsStore.setState({
       favorites: [
         {
@@ -143,6 +143,6 @@ describe("KanbanDashboardView", () => {
     const select = screen.getByRole("combobox");
     fireEvent.change(select, { target: { value: "" } });
 
-    expect(screen.getByText("Projekt auswaehlen")).toBeTruthy();
+    expect(screen.getByText("Projekt auswählen")).toBeTruthy();
   });
 });

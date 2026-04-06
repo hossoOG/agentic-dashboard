@@ -26,8 +26,8 @@ export function ConfigPanel({ folder, width, onResumeSession }: ConfigPanelProps
         <button
           onClick={() => setConfigPanelOpen(false)}
           className="p-1.5 mr-1 text-neutral-500 hover:text-neutral-300 transition-colors"
-          title="Panel schliessen"
-          aria-label="Konfig-Panel schliessen"
+          title="Panel schließen"
+          aria-label="Konfig-Panel schließen"
         >
           <X className="w-3.5 h-3.5" />
         </button>

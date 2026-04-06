@@ -92,7 +92,7 @@ export function Header() {
             </span>
           </div>
         ) : (
-          <span className="text-sm text-neutral-500">Keine Session ausgewaehlt</span>
+          <span className="text-sm text-neutral-500">Keine Session ausgewählt</span>
         )}
 
         {/* Divider */}

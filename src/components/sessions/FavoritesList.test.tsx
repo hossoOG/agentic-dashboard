@@ -32,7 +32,7 @@ describe("FavoritesList", () => {
 
   it("renders empty state text when no favorites", () => {
     render(<FavoritesList onQuickStart={vi.fn()} />);
-    expect(screen.getByText("Ordner hinzufuegen fuer Schnellstart")).toBeTruthy();
+    expect(screen.getByText("Ordner hinzufügen für Schnellstart")).toBeTruthy();
   });
 
   it("renders section header with FAVORITEN label", () => {
@@ -70,7 +70,7 @@ describe("FavoritesList", () => {
 
   it("renders add favorite button with correct aria-label", () => {
     render(<FavoritesList onQuickStart={vi.fn()} />);
-    expect(screen.getByLabelText("Ordner als Favorit hinzufuegen")).toBeTruthy();
+    expect(screen.getByLabelText("Ordner als Favorit hinzufügen")).toBeTruthy();
   });
 
   it("does not show empty state when favorites exist", () => {
@@ -79,6 +79,6 @@ describe("FavoritesList", () => {
     });
 
     render(<FavoritesList onQuickStart={vi.fn()} />);
-    expect(screen.queryByText("Ordner hinzufuegen fuer Schnellstart")).toBeNull();
+    expect(screen.queryByText("Ordner hinzufügen für Schnellstart")).toBeNull();
   });
 });

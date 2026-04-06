@@ -68,10 +68,10 @@ describe("SessionCard", () => {
     expect(dot).toBeTruthy();
   });
 
-  it("shows 'Laeuft seit' for running status with recent output", () => {
+  it("shows 'Läuft seit' for running status with recent output", () => {
     renderCard(makeSession({ status: "running" }));
-    // "active" level → "Laeuft seit X:XX"
-    expect(screen.getByText(/Laeuft seit/)).toBeTruthy();
+    // "active" level → "Läuft seit X:XX"
+    expect(screen.getByText(/Läuft seit/)).toBeTruthy();
   });
 
   it("shows check icon and 'Fertig' for done status", () => {
@@ -111,7 +111,7 @@ describe("SessionCard", () => {
 
     // Click close button — should trigger onClose, NOT re-trigger onClick
     // (stopPropagation verified via call count unchanged)
-    const closeBtn = screen.getByLabelText("Session schliessen");
+    const closeBtn = screen.getByLabelText("Session schließen");
     fireEvent.click(closeBtn);
     expect(onClose).toHaveBeenCalledWith("sess-99");
     expect(onClick).toHaveBeenCalledTimes(1); // still 1, not 2

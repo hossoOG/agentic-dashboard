@@ -26,13 +26,13 @@ describe("ConfigPanel", () => {
 
     expect(screen.getByTestId("config-panel-tab-list")).toBeTruthy();
     expect(screen.getByTestId("config-panel-content")).toBeTruthy();
-    expect(screen.getByLabelText("Konfig-Panel schliessen")).toBeTruthy();
+    expect(screen.getByLabelText("Konfig-Panel schließen")).toBeTruthy();
   });
 
   it("calls setConfigPanelOpen(false) when close button is clicked", () => {
     render(<ConfigPanel folder="/test/project" />);
 
-    fireEvent.click(screen.getByLabelText("Konfig-Panel schliessen"));
+    fireEvent.click(screen.getByLabelText("Konfig-Panel schließen"));
     expect(useUIStore.getState().configPanelOpen).toBe(false);
   });
 

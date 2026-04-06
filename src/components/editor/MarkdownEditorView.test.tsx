@@ -69,14 +69,14 @@ describe("MarkdownEditorView", () => {
 
   it("shows EmptyState with open-file CTA when no file is open", () => {
     render(<MarkdownEditorView />);
-    // EmptyState renders CTA button with visible text "Markdown-Datei oeffnen"
-    // EmptyState CTA button has visible text "Markdown-Datei oeffnen"; toolbar's "Oeffnen" button also has that aria-label.
+    // EmptyState renders CTA button with visible text "Markdown-Datei öffnen"
+    // EmptyState CTA button has visible text "Markdown-Datei öffnen"; toolbar's "Öffnen" button also has that aria-label.
     // Find EmptyState specifically via the button that has textContent matching exactly.
-    const buttons = screen.getAllByRole("button", { name: "Markdown-Datei oeffnen" });
-    const emptyStateCta = buttons.find((b) => b.textContent?.trim() === "Markdown-Datei oeffnen");
+    const buttons = screen.getAllByRole("button", { name: "Markdown-Datei öffnen" });
+    const emptyStateCta = buttons.find((b) => b.textContent?.trim() === "Markdown-Datei öffnen");
     expect(emptyStateCta).toBeTruthy();
-    // "Keine Datei geoeffnet" appears twice (toolbar + EmptyState) when no file is open
-    expect(screen.getAllByText("Keine Datei geoeffnet").length).toBeGreaterThanOrEqual(1);
+    // "Keine Datei geöffnet" appears twice (toolbar + EmptyState) when no file is open
+    expect(screen.getAllByText("Keine Datei geöffnet").length).toBeGreaterThanOrEqual(1);
     // No editor textarea in empty state
     expect(screen.queryByTestId("cm-mock")).toBeNull();
   });
@@ -119,10 +119,10 @@ describe("MarkdownEditorView", () => {
     rerender(<MarkdownEditorView />);
 
     expect(screen.queryByTestId("cm-mock")).toBeNull();
-    // EmptyState CTA button has visible text "Markdown-Datei oeffnen"; toolbar's "Oeffnen" button also has that aria-label.
+    // EmptyState CTA button has visible text "Markdown-Datei öffnen"; toolbar's "Öffnen" button also has that aria-label.
     // Find EmptyState specifically via the button that has textContent matching exactly.
-    const buttons = screen.getAllByRole("button", { name: "Markdown-Datei oeffnen" });
-    const emptyStateCta = buttons.find((b) => b.textContent?.trim() === "Markdown-Datei oeffnen");
+    const buttons = screen.getAllByRole("button", { name: "Markdown-Datei öffnen" });
+    const emptyStateCta = buttons.find((b) => b.textContent?.trim() === "Markdown-Datei öffnen");
     expect(emptyStateCta).toBeTruthy();
   });
 

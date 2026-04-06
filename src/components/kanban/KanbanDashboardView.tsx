@@ -19,9 +19,9 @@ export function KanbanDashboardView() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3 text-neutral-500">
         <Columns3 className="w-10 h-10 text-neutral-600" />
-        <span className="text-sm">Kein Projekt verfuegbar</span>
+        <span className="text-sm">Kein Projekt verfügbar</span>
         <span className="text-xs text-neutral-600">
-          Erstelle eine Session oder fuege einen Favoriten hinzu.
+          Erstelle eine Session oder füge einen Favoriten hinzu.
         </span>
       </div>
     );
@@ -62,7 +62,7 @@ export function KanbanDashboardView() {
       ) : (
         <div className="flex flex-col items-center justify-center h-full gap-3 text-neutral-500">
           <Columns3 className="w-10 h-10 text-neutral-600" />
-          <span className="text-sm">Projekt auswaehlen</span>
+          <span className="text-sm">Projekt auswählen</span>
         </div>
       )}
     </div>

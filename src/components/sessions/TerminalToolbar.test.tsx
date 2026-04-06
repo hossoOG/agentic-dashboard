@@ -77,7 +77,7 @@ describe("TerminalToolbar", () => {
       />,
     );
 
-    const btn = screen.getByLabelText("Konfig-Panel oeffnen");
+    const btn = screen.getByLabelText("Konfig-Panel öffnen");
     expect(btn).toBeTruthy();
     fireEvent.click(btn);
     expect(onToggle).toHaveBeenCalledTimes(1);
@@ -94,7 +94,7 @@ describe("TerminalToolbar", () => {
       />,
     );
 
-    expect(screen.queryByLabelText("Konfig-Panel oeffnen")).toBeNull();
+    expect(screen.queryByLabelText("Konfig-Panel öffnen")).toBeNull();
   });
 
   it("shows close label when config panel is open", () => {
@@ -108,6 +108,6 @@ describe("TerminalToolbar", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Konfig-Panel schliessen")).toBeTruthy();
+    expect(screen.getByLabelText("Konfig-Panel schließen")).toBeTruthy();
   });
 });
