@@ -205,7 +205,7 @@ export function SkillsViewer({ folder }: SkillsViewerProps) {
           <SkillDetail entry={selectedSkill} />
         ) : (
           <div className="flex items-center justify-center h-full text-neutral-500 text-sm">
-            Skill auswaehlen
+            Skill auswählen
           </div>
         )}
       </div>

@@ -151,7 +151,7 @@ describe("LibraryViewer", () => {
       fetchItems: vi.fn(),
     });
     render(<LibraryViewer />);
-    expect(screen.getByText("Item auswaehlen")).toBeInTheDocument();
+    expect(screen.getByText("Item auswählen")).toBeInTheDocument();
   });
 
   it("shows 'Keine Items gefunden' when filters match nothing", () => {

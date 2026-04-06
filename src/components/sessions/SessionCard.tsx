@@ -47,7 +47,7 @@ function TimeDisplay({
         </span>
       ) : (
         <span className="text-neutral-500">
-          Laeuft seit {formatDuration(now - session.createdAt)}
+          Läuft seit {formatDuration(now - session.createdAt)}
         </span>
       );
     case "waiting":
@@ -93,8 +93,8 @@ const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: Ses
             invoke("open_folder_in_explorer", { path: session.folder });
           }}
           className="p-0.5 text-neutral-600 hover:text-neutral-300"
-          aria-label="Ordner im Explorer oeffnen"
-          title="Ordner im Explorer oeffnen"
+          aria-label="Ordner im Explorer öffnen"
+          title="Ordner im Explorer öffnen"
         >
           <FolderOpen className="w-3.5 h-3.5" />
         </button>
@@ -104,8 +104,8 @@ const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: Ses
             invoke("open_terminal_in_folder", { path: session.folder });
           }}
           className="p-0.5 text-neutral-600 hover:text-neutral-300"
-          aria-label="Terminal im Ordner oeffnen"
-          title="Terminal im Ordner oeffnen"
+          aria-label="Terminal im Ordner öffnen"
+          title="Terminal im Ordner öffnen"
         >
           <Terminal className="w-3.5 h-3.5" />
         </button>
@@ -115,7 +115,7 @@ const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: Ses
             onClose(session.id);
           }}
           className="p-0.5 text-neutral-600 hover:text-neutral-300"
-          aria-label="Session schliessen"
+          aria-label="Session schließen"
         >
           <X className="w-3.5 h-3.5" />
         </button>

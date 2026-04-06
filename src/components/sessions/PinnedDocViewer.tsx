@@ -180,7 +180,7 @@ export function PinnedDocViewer({ folder, pinId }: PinnedDocViewerProps) {
             </span>
           )}
           {isDirty && (
-            <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0" title="Ungespeicherte Aenderungen" />
+            <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0" title="Ungespeicherte Änderungen" />
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -200,7 +200,7 @@ export function PinnedDocViewer({ folder, pinId }: PinnedDocViewerProps) {
                 onClick={exitEditMode}
                 className="flex items-center gap-1 px-2 py-0.5 text-[11px] text-neutral-400 hover:text-neutral-200 rounded hover:bg-hover-overlay transition-colors"
                 title="Zur Vorschau"
-                aria-label="Zurueck zur Vorschau"
+                aria-label="Zurück zur Vorschau"
               >
                 <Eye className="w-3 h-3" />
                 Vorschau

@@ -207,7 +207,7 @@ export function WorkflowLauncher() {
       <div className="border-b border-neutral-700 px-4 py-4">
         <div className="flex items-center gap-2 text-neutral-500 text-sm">
           <Puzzle className="w-4 h-4" />
-          <span>Waehle ein Projekt um Workflows zu erkennen</span>
+          <span>Wähle ein Projekt um Workflows zu erkennen</span>
         </div>
       </div>
     );

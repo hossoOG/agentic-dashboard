@@ -38,7 +38,7 @@ export function NewSessionDialog({ open: isOpen, onClose }: NewSessionDialogProp
       const selected = await open({
         directory: true,
         multiple: false,
-        title: "Arbeitsordner waehlen",
+        title: "Arbeitsordner wählen",
       });
       if (selected && typeof selected === "string") {
         setFolder(selected);
@@ -100,7 +100,7 @@ export function NewSessionDialog({ open: isOpen, onClose }: NewSessionDialogProp
               label="Ordner:"
               value={folder}
               readOnly
-              placeholder="Ordner waehlen..."
+              placeholder="Ordner wählen..."
             />
           </div>
           <Button
@@ -110,7 +110,7 @@ export function NewSessionDialog({ open: isOpen, onClose }: NewSessionDialogProp
             onClick={handlePickFolder}
             className="bg-surface-base hover:text-accent hover:border-accent"
           >
-            Waehlen
+            Wählen
           </Button>
         </div>
 

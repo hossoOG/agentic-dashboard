@@ -89,14 +89,14 @@ describe("PipelineView", () => {
     useSessionStore.setState({ sessions: [], activeSessionId: null });
     render(<PipelineView />);
     expect(
-      screen.getByText(/Waehle ein Projekt um Workflows zu erkennen/)
+      screen.getByText(/Wähle ein Projekt um Workflows zu erkennen/)
     ).toBeInTheDocument();
   });
 
   it("shows AgentMetricsPanel empty state when no agents exist", () => {
     render(<PipelineView />);
     expect(
-      screen.getByText(/Keine Agent-Metriken verfuegbar/)
+      screen.getByText(/Keine Agent-Metriken verfügbar/)
     ).toBeInTheDocument();
   });
 });
@@ -109,7 +109,7 @@ describe("AgentMetricsPanel", () => {
   it("renders empty state when no agents exist", () => {
     render(<AgentMetricsPanel />);
     expect(
-      screen.getByText(/Keine Agent-Metriken verfuegbar/)
+      screen.getByText(/Keine Agent-Metriken verfügbar/)
     ).toBeInTheDocument();
   });
 

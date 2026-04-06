@@ -274,7 +274,7 @@ export function GitHubViewer({ folder }: GitHubViewerProps) {
                       <button
                         onClick={() => openUrl(pr.url)}
                         className="p-0.5 text-neutral-600 hover:text-neutral-300 opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Im Browser oeffnen"
+                        title="Im Browser öffnen"
                       >
                         <ExternalLink className="w-3 h-3" />
                       </button>
@@ -321,7 +321,7 @@ export function GitHubViewer({ folder }: GitHubViewerProps) {
                       <button
                         onClick={() => openUrl(issue.url)}
                         className="p-0.5 text-neutral-600 hover:text-neutral-300 opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Im Browser oeffnen"
+                        title="Im Browser öffnen"
                       >
                         <ExternalLink className="w-3 h-3" />
                       </button>

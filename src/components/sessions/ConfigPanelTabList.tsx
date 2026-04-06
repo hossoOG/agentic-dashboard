@@ -29,7 +29,7 @@ export function ConfigPanelTabList({ folder, size = "md" }: ConfigPanelTabListPr
   const setConfigSubTab = (newTab: ConfigSubTab) => {
     if (hasDirtyEditor && newTab !== configSubTab) {
       const ok = window.confirm(
-        "Ungespeicherte Aenderungen gehen verloren. Wirklich wechseln?"
+        "Ungespeicherte Änderungen gehen verloren. Wirklich wechseln?"
       );
       if (!ok) return;
     }
@@ -86,7 +86,7 @@ export function ConfigPanelTabList({ folder, size = "md" }: ConfigPanelTabListPr
         filters: [{ name: "Markdown", extensions: ["md", "markdown"] }],
         multiple: false,
         defaultPath: folder,
-        title: "Markdown-Datei zum Anpinnen auswaehlen",
+        title: "Markdown-Datei zum Anpinnen auswählen",
       });
       if (!filePath || typeof filePath !== "string") return;
 
@@ -96,8 +96,8 @@ export function ConfigPanelTabList({ folder, size = "md" }: ConfigPanelTabListPr
       if (!normalizedFile.toLowerCase().startsWith(normalizedFolder.toLowerCase() + "/")) {
         addToast({
           type: "error",
-          title: "Datei ausserhalb des Projekts",
-          message: "Nur Dateien innerhalb des Projektordners koennen angepinnt werden.",
+          title: "Datei außerhalb des Projekts",
+          message: "Nur Dateien innerhalb des Projektordners können angepinnt werden.",
         });
         return;
       }

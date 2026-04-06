@@ -38,8 +38,8 @@ export function TerminalToolbar({
                 ? "text-accent"
                 : "text-neutral-500 hover:text-neutral-300"
             }`}
-            aria-label={configPanelOpen ? "Konfig-Panel schliessen" : "Konfig-Panel oeffnen"}
-            title={configPanelOpen ? "Konfig-Panel schliessen" : "Konfig-Panel oeffnen"}
+            aria-label={configPanelOpen ? "Konfig-Panel schließen" : "Konfig-Panel öffnen"}
+            title={configPanelOpen ? "Konfig-Panel schließen" : "Konfig-Panel öffnen"}
           >
             {configPanelOpen ? (
               <PanelRightClose className="w-4 h-4" />

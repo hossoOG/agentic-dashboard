@@ -266,7 +266,7 @@ export function LibraryViewer({ folder = "" }: LibraryViewerProps) {
           <ItemDetail item={selectedItem} folder={folder} />
         ) : (
           <div className="flex items-center justify-center h-full text-neutral-500 text-sm">
-            Item auswaehlen
+            Item auswählen
           </div>
         )}
       </div>

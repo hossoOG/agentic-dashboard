@@ -119,7 +119,7 @@ describe("NotesPanel", () => {
     fireEvent.click(screen.getByLabelText("Notizen"));
 
     // Should show project tab with project notes textarea
-    const textarea = screen.getByPlaceholderText("Notizen fuer dieses Projekt...");
+    const textarea = screen.getByPlaceholderText("Notizen für dieses Projekt...");
     expect((textarea as HTMLTextAreaElement).value).toBe("Project note content");
   });
 

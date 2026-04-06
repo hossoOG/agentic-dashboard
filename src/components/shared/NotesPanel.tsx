@@ -161,7 +161,7 @@ export function NotesPanel() {
                     <span className="truncate flex-1 text-left">
                       {effectiveFolderKey
                         ? folderLabel(effectiveFolderKey)
-                        : "Projekt waehlen..."}
+                        : "Projekt wählen..."}
                     </span>
                     <ChevronDown className={`w-3.5 h-3.5 text-neutral-500 transition-transform ${folderPickerOpen ? "rotate-180" : ""}`} />
                   </button>
@@ -170,7 +170,7 @@ export function NotesPanel() {
                     <div className="absolute left-0 right-0 top-full z-10 max-h-48 overflow-y-auto bg-surface-overlay border border-neutral-700 rounded-b-sm shadow-lg">
                       {availableFolders.length === 0 ? (
                         <div className="px-3 py-3 text-xs text-neutral-500 text-center">
-                          Keine Projekte vorhanden — starte eine Session oder fuege Favoriten hinzu
+                          Keine Projekte vorhanden — starte eine Session oder füge Favoriten hinzu
                         </div>
                       ) : (
                         availableFolders.map((f) => (
@@ -205,7 +205,7 @@ export function NotesPanel() {
                   <textarea
                     value={currentProjectNotes}
                     onChange={(e) => setProjectNotes(effectiveFolderKey, e.target.value)}
-                    placeholder="Notizen fuer dieses Projekt..."
+                    placeholder="Notizen für dieses Projekt..."
                     className="w-full h-52 p-3 bg-transparent text-sm text-neutral-200 placeholder-neutral-600 outline-none resize-none font-mono"
                     autoFocus
                   />
@@ -217,7 +217,7 @@ export function NotesPanel() {
                 <div className="h-52 flex items-center justify-center text-sm text-neutral-500">
                   {availableFolders.length === 0
                     ? "Keine Projekte vorhanden"
-                    : "Projekt waehlen um Notizen zu sehen"}
+                    : "Projekt wählen um Notizen zu sehen"}
                 </div>
               )}
             </>

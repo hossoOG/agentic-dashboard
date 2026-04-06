@@ -30,8 +30,8 @@ export function FavoritePreview({ folder, onClose, onResumeSession }: FavoritePr
         <button
           onClick={onClose}
           className="p-1.5 text-neutral-500 hover:text-neutral-300 transition-colors ml-2"
-          title="Preview schliessen"
-          aria-label="Preview schliessen"
+          title="Preview schließen"
+          aria-label="Preview schließen"
         >
           <X className="w-3.5 h-3.5" />
         </button>

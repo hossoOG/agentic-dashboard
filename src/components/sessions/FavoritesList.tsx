@@ -26,7 +26,7 @@ export function FavoritesList({ onQuickStart }: FavoritesListProps) {
       const selected = await open({
         directory: true,
         multiple: false,
-        title: "Ordner als Favorit hinzufuegen",
+        title: "Ordner als Favorit hinzufügen",
       });
       if (selected && typeof selected === "string") {
         addFavorite(selected);
@@ -44,7 +44,7 @@ export function FavoritesList({ onQuickStart }: FavoritesListProps) {
         <button
           onClick={handleAddFavorite}
           className="text-neutral-500 hover:text-accent transition-colors"
-          aria-label="Ordner als Favorit hinzufuegen"
+          aria-label="Ordner als Favorit hinzufügen"
         >
           <FolderPlus className="w-3.5 h-3.5" />
         </button>
@@ -65,7 +65,7 @@ export function FavoritesList({ onQuickStart }: FavoritesListProps) {
       {/* Empty state */}
       {favorites.length === 0 && (
         <div className="px-3 py-2 text-xs text-neutral-600">
-          Ordner hinzufuegen fuer Schnellstart
+          Ordner hinzufügen für Schnellstart
         </div>
       )}
     </div>

@@ -94,7 +94,7 @@ describe("KanbanCard", () => {
   it("opens URL in browser when external link button is clicked", async () => {
     render(<KanbanCard issue={makeIssue()} />);
 
-    const linkButton = screen.getByTitle("Im Browser oeffnen");
+    const linkButton = screen.getByTitle("Im Browser öffnen");
     fireEvent.click(linkButton);
 
     expect(mockOpen).toHaveBeenCalledWith(
@@ -105,14 +105,14 @@ describe("KanbanCard", () => {
   it("does not render external link button when url is empty", () => {
     render(<KanbanCard issue={makeIssue({ url: "" })} />);
 
-    expect(screen.queryByTitle("Im Browser oeffnen")).toBeNull();
+    expect(screen.queryByTitle("Im Browser öffnen")).toBeNull();
   });
 
   it("external link click does not propagate to card onClick", () => {
     const onClick = vi.fn();
     render(<KanbanCard issue={makeIssue()} onClick={onClick} />);
 
-    const linkButton = screen.getByTitle("Im Browser oeffnen");
+    const linkButton = screen.getByTitle("Im Browser öffnen");
     fireEvent.click(linkButton);
 
     // stopPropagation prevents onClick on card

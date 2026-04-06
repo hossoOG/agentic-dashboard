@@ -180,7 +180,7 @@ export function AgentsViewer({ folder }: AgentsViewerProps) {
           <AgentDetail entry={selectedAgent} />
         ) : (
           <div className="flex items-center justify-center h-full text-neutral-500 text-sm">
-            Agent auswaehlen
+            Agent auswählen
           </div>
         )}
       </div>

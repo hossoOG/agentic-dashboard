@@ -68,7 +68,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       logError("editorStore.openFileFromProject", err);
       useUIStore.getState().addToast({
         type: "error",
-        title: "Fehler beim Oeffnen",
+        title: "Fehler beim Öffnen",
         message: getErrorMessage(err),
       });
     }
@@ -93,7 +93,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       logError("editorStore.openFileFromDialog", err);
       useUIStore.getState().addToast({
         type: "error",
-        title: "Fehler beim Oeffnen",
+        title: "Fehler beim Öffnen",
         message: getErrorMessage(err),
       });
     }

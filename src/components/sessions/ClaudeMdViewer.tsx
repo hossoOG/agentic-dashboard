@@ -119,7 +119,7 @@ export function ClaudeMdViewer({ folder }: ClaudeMdViewerProps) {
         <div className="flex items-center gap-2">
           <span className="text-xs text-neutral-400 font-medium">CLAUDE.md</span>
           {isDirty && (
-            <span className="w-2 h-2 rounded-full bg-orange-400" title="Ungespeicherte Aenderungen" />
+            <span className="w-2 h-2 rounded-full bg-orange-400" title="Ungespeicherte Änderungen" />
           )}
         </div>
         <div className="flex items-center gap-1">
@@ -139,7 +139,7 @@ export function ClaudeMdViewer({ folder }: ClaudeMdViewerProps) {
                 onClick={exitEditMode}
                 className="flex items-center gap-1 px-2 py-0.5 text-[11px] text-neutral-400 hover:text-neutral-200 rounded hover:bg-hover-overlay transition-colors"
                 title="Zur Vorschau"
-                aria-label="Zurueck zur Vorschau"
+                aria-label="Zurück zur Vorschau"
               >
                 <Eye className="w-3 h-3" />
                 Vorschau

@@ -52,11 +52,11 @@ describe("EditorToolbar", () => {
     resetStore();
   });
 
-  it("shows 'Keine Datei geoeffnet' when no file is open", () => {
+  it("shows 'Keine Datei geöffnet' when no file is open", () => {
     render(<EditorToolbar />);
-    expect(screen.getByText("Keine Datei geoeffnet")).toBeTruthy();
+    expect(screen.getByText("Keine Datei geöffnet")).toBeTruthy();
     // Close button should not exist without open file
-    expect(screen.queryByLabelText("Datei schliessen")).toBeNull();
+    expect(screen.queryByLabelText("Datei schließen")).toBeNull();
   });
 
   it("renders file path and dirty indicator when file is dirty", () => {
@@ -66,7 +66,7 @@ describe("EditorToolbar", () => {
     render(<EditorToolbar />);
     expect(screen.getByText("docs/readme.md")).toBeTruthy();
     // Dirty dot (role=img, aria-label)
-    expect(screen.getByLabelText("Ungespeicherte Aenderungen")).toBeTruthy();
+    expect(screen.getByLabelText("Ungespeicherte Änderungen")).toBeTruthy();
   });
 
   it("calls saveFile action when Save button clicked (and is dirty)", () => {
@@ -90,7 +90,7 @@ describe("EditorToolbar", () => {
     const saveBtn = screen.getByLabelText("Datei speichern") as HTMLButtonElement;
     expect(saveBtn.disabled).toBe(true);
     // No dirty indicator either
-    expect(screen.queryByLabelText("Ungespeicherte Aenderungen")).toBeNull();
+    expect(screen.queryByLabelText("Ungespeicherte Änderungen")).toBeNull();
   });
 
   it("toggles preview and closes file via corresponding buttons", () => {
@@ -108,7 +108,7 @@ describe("EditorToolbar", () => {
     fireEvent.click(previewBtn);
     expect(togglePreviewSpy).toHaveBeenCalledTimes(1);
 
-    const closeBtn = screen.getByLabelText("Datei schliessen");
+    const closeBtn = screen.getByLabelText("Datei schließen");
     fireEvent.click(closeBtn);
     expect(closeFileSpy).toHaveBeenCalledTimes(1);
   });

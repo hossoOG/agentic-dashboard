@@ -128,7 +128,7 @@ describe("AgentBottomPanel", () => {
     render(<AgentBottomPanel sessionId="session-1" />);
 
     // Initially collapsed — no "Agenten" header in tree
-    expect(screen.queryByText("Agent auswaehlen fuer Details")).toBeNull();
+    expect(screen.queryByText("Agent auswählen für Details")).toBeNull();
 
     // Click to expand
     fireEvent.click(screen.getByText(/1 Agent/));
@@ -167,6 +167,6 @@ describe("AgentBottomPanel", () => {
 
     render(<AgentBottomPanel sessionId="session-1" />);
 
-    expect(screen.getByText("Agent auswaehlen fuer Details")).toBeTruthy();
+    expect(screen.getByText("Agent auswählen für Details")).toBeTruthy();
   });
 });

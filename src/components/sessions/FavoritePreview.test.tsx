@@ -42,7 +42,7 @@ describe("FavoritePreview", () => {
       <FavoritePreview folder="/test/project" onClose={onClose} />,
     );
 
-    fireEvent.click(screen.getByLabelText("Preview schliessen"));
+    fireEvent.click(screen.getByLabelText("Preview schließen"));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 

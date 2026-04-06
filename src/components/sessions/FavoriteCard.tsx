@@ -31,8 +31,8 @@ export function FavoriteCard({ favorite, onStart, onRemove }: FavoriteCardProps)
             invoke("open_folder_in_explorer", { path: favorite.path });
           }}
           className="p-0.5 text-neutral-600 hover:text-neutral-300"
-          aria-label="Ordner im Explorer oeffnen"
-          title="Ordner im Explorer oeffnen"
+          aria-label="Ordner im Explorer öffnen"
+          title="Ordner im Explorer öffnen"
         >
           <FolderOpen className="w-3.5 h-3.5" />
         </button>
@@ -42,8 +42,8 @@ export function FavoriteCard({ favorite, onStart, onRemove }: FavoriteCardProps)
             invoke("open_terminal_in_folder", { path: favorite.path });
           }}
           className="p-0.5 text-neutral-600 hover:text-neutral-300"
-          aria-label="Terminal im Ordner oeffnen"
-          title="Terminal im Ordner oeffnen"
+          aria-label="Terminal im Ordner öffnen"
+          title="Terminal im Ordner öffnen"
         >
           <Terminal className="w-3.5 h-3.5" />
         </button>

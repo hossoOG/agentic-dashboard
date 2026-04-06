@@ -142,7 +142,7 @@ export function KanbanDetailModal({
       {detail?.url && (
         <IconButton
           icon={<ExternalLink className="w-4 h-4" />}
-          label="Im Browser oeffnen"
+          label="Im Browser öffnen"
           onClick={() => open(detail.url)}
         />
       )}

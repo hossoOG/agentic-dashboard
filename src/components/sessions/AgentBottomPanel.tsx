@@ -121,7 +121,7 @@ export function AgentBottomPanel({ sessionId }: AgentBottomPanelProps) {
               <AgentDetailCard agent={selectedAgent} worktrees={worktrees} />
             ) : (
               <div className="flex items-center justify-center h-full text-xs text-neutral-500">
-                Agent auswaehlen fuer Details
+                Agent auswählen für Details
               </div>
             )}
           </div>
