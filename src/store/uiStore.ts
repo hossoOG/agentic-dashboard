@@ -7,6 +7,7 @@ export type ConfigSubTab =
   | "skills"
   | "hooks"
   | "settings"
+  | "agents"
   | "github"
   | "worktrees"
   | "kanban"
