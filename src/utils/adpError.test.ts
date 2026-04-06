@@ -84,6 +84,10 @@ describe("getErrorMessage", () => {
   it("returns string errors directly", () => {
     expect(getErrorMessage("plain error")).toBe("plain error");
   });
+
+  it("extracts message from native Error", () => {
+    expect(getErrorMessage(new Error("native error"))).toBe("native error");
+  });
 });
 
 describe("isRetryable", () => {

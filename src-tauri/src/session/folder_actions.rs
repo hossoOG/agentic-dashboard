@@ -12,10 +12,10 @@ pub mod commands {
     pub async fn open_folder_in_explorer(path: String) -> Result<(), ADPError> {
         let folder = std::path::Path::new(&path);
         if !folder.exists() {
-            return Err(ADPError::new(
-                ADPErrorCode::WorktreeNotFound,
-                format!("Path does not exist: {}", path),
-            ));
+            return Err(ADPError::validation(format!(
+                "Path does not exist: {}",
+                path
+            )));
         }
 
         #[cfg(target_os = "windows")]
@@ -47,10 +47,10 @@ pub mod commands {
     pub async fn open_terminal_in_folder(path: String) -> Result<(), ADPError> {
         let folder = std::path::Path::new(&path);
         if !folder.exists() {
-            return Err(ADPError::new(
-                ADPErrorCode::WorktreeNotFound,
-                format!("Path does not exist: {}", path),
-            ));
+            return Err(ADPError::validation(format!(
+                "Path does not exist: {}",
+                path
+            )));
         }
         if !folder.is_dir() {
             return Err(ADPError::validation(format!(
