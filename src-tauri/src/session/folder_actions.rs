@@ -1,5 +1,6 @@
 // src-tauri/src/session/folder_actions.rs
 
+use crate::error::{ADPError, ADPErrorCode};
 use crate::util::silent_command;
 
 // Commands im mod-Block wegen rustc 1.94 E0255 Workaround (siehe CLAUDE.md)
@@ -8,10 +9,13 @@ pub mod commands {
     use super::*;
 
     #[tauri::command]
-    pub async fn open_folder_in_explorer(path: String) -> Result<(), String> {
+    pub async fn open_folder_in_explorer(path: String) -> Result<(), ADPError> {
         let folder = std::path::Path::new(&path);
         if !folder.exists() {
-            return Err(format!("Path does not exist: {}", path));
+            return Err(ADPError::new(
+                ADPErrorCode::WorktreeNotFound,
+                format!("Path does not exist: {}", path),
+            ));
         }
 
         #[cfg(target_os = "windows")]
@@ -19,21 +23,20 @@ pub mod commands {
             silent_command("explorer")
                 .arg(&path)
                 .spawn()
-                .map_err(|e| format!("Failed to open Explorer: {}", e))?;
+                .map_err(|e| ADPError::command_failed(format!("Failed to open Explorer: {}", e)))?;
         }
         #[cfg(target_os = "macos")]
         {
             silent_command("open")
                 .arg(&path)
                 .spawn()
-                .map_err(|e| format!("Failed to open Finder: {}", e))?;
+                .map_err(|e| ADPError::command_failed(format!("Failed to open Finder: {}", e)))?;
         }
         #[cfg(target_os = "linux")]
         {
-            silent_command("xdg-open")
-                .arg(&path)
-                .spawn()
-                .map_err(|e| format!("Failed to open file manager: {}", e))?;
+            silent_command("xdg-open").arg(&path).spawn().map_err(|e| {
+                ADPError::command_failed(format!("Failed to open file manager: {}", e))
+            })?;
         }
 
         log::info!("Opened folder in explorer: {}", path);
@@ -41,13 +44,19 @@ pub mod commands {
     }
 
     #[tauri::command]
-    pub async fn open_terminal_in_folder(path: String) -> Result<(), String> {
+    pub async fn open_terminal_in_folder(path: String) -> Result<(), ADPError> {
         let folder = std::path::Path::new(&path);
         if !folder.exists() {
-            return Err(format!("Path does not exist: {}", path));
+            return Err(ADPError::new(
+                ADPErrorCode::WorktreeNotFound,
+                format!("Path does not exist: {}", path),
+            ));
         }
         if !folder.is_dir() {
-            return Err(format!("Path is not a directory: {}", path));
+            return Err(ADPError::validation(format!(
+                "Path is not a directory: {}",
+                path
+            )));
         }
 
         #[cfg(target_os = "windows")]
@@ -63,21 +72,21 @@ pub mod commands {
                 ])
                 .current_dir(&path)
                 .spawn()
-                .map_err(|e| format!("Failed to open terminal: {}", e))?;
+                .map_err(|e| ADPError::command_failed(format!("Failed to open terminal: {}", e)))?;
         }
         #[cfg(target_os = "macos")]
         {
             silent_command("open")
                 .args(["-a", "Terminal", &path])
                 .spawn()
-                .map_err(|e| format!("Failed to open Terminal: {}", e))?;
+                .map_err(|e| ADPError::command_failed(format!("Failed to open Terminal: {}", e)))?;
         }
         #[cfg(target_os = "linux")]
         {
             silent_command("x-terminal-emulator")
                 .current_dir(&path)
                 .spawn()
-                .map_err(|e| format!("Failed to open terminal: {}", e))?;
+                .map_err(|e| ADPError::command_failed(format!("Failed to open terminal: {}", e)))?;
         }
 
         log::info!("Opened terminal in folder: {}", path);

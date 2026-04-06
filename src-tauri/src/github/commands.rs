@@ -1,3 +1,4 @@
+use crate::error::{ADPError, ADPErrorCode};
 use crate::util::silent_command;
 use serde::Serialize;
 
@@ -98,7 +99,7 @@ const LANE_LABELS: &[&str] = &[
     "done",
 ];
 
-fn run_command(folder: &str, program: &str, args: &[&str]) -> Result<String, String> {
+fn run_command(folder: &str, program: &str, args: &[&str]) -> Result<String, ADPError> {
     let mut cmd = silent_command(program);
     cmd.args(args).current_dir(folder);
     let output = crate::util::timed_output(cmd, crate::util::DEFAULT_COMMAND_TIMEOUT)?;
@@ -107,7 +108,10 @@ fn run_command(folder: &str, program: &str, args: &[&str]) -> Result<String, Str
         Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        Err(format!("{} failed: {}", program, stderr))
+        Err(ADPError::command_failed(format!(
+            "{} failed: {}",
+            program, stderr
+        )))
     }
 }
 
@@ -148,10 +152,10 @@ pub mod commands {
     use super::*;
 
     #[tauri::command]
-    pub async fn get_git_info(folder: String) -> Result<GitInfo, String> {
+    pub async fn get_git_info(folder: String) -> Result<GitInfo, ADPError> {
         let folder_path = std::path::Path::new(&folder);
         if !folder_path.join(".git").exists() {
-            return Err("Not a git repository".to_string());
+            return Err(ADPError::validation("Not a git repository"));
         }
 
         let branch =
@@ -183,9 +187,12 @@ pub mod commands {
     }
 
     #[tauri::command]
-    pub async fn get_github_prs(folder: String) -> Result<Vec<GithubPR>, String> {
+    pub async fn get_github_prs(folder: String) -> Result<Vec<GithubPR>, ADPError> {
         if !is_command_available("gh") {
-            return Err("gh CLI not found. Install from https://cli.github.com".to_string());
+            return Err(ADPError::new(
+                ADPErrorCode::ServiceRequestFailed,
+                "gh CLI not found. Install from https://cli.github.com",
+            ));
         }
 
         let output = run_command(
@@ -208,7 +215,7 @@ pub mod commands {
         }
 
         let parsed: Vec<serde_json::Value> = serde_json::from_str(&output)
-            .map_err(|e| format!("Failed to parse gh output: {}", e))?;
+            .map_err(|e| ADPError::parse(format!("Failed to parse gh output: {}", e)))?;
 
         let prs = parsed
             .iter()
@@ -228,9 +235,12 @@ pub mod commands {
     }
 
     #[tauri::command]
-    pub async fn get_github_issues(folder: String) -> Result<Vec<GithubIssue>, String> {
+    pub async fn get_github_issues(folder: String) -> Result<Vec<GithubIssue>, ADPError> {
         if !is_command_available("gh") {
-            return Err("gh CLI not found. Install from https://cli.github.com".to_string());
+            return Err(ADPError::new(
+                ADPErrorCode::ServiceRequestFailed,
+                "gh CLI not found. Install from https://cli.github.com",
+            ));
         }
 
         let output = run_command(
@@ -253,7 +263,7 @@ pub mod commands {
         }
 
         let parsed: Vec<serde_json::Value> = serde_json::from_str(&output)
-            .map_err(|e| format!("Failed to parse gh output: {}", e))?;
+            .map_err(|e| ADPError::parse(format!("Failed to parse gh output: {}", e)))?;
 
         let issues = parsed
             .iter()
@@ -270,9 +280,12 @@ pub mod commands {
     }
 
     #[tauri::command]
-    pub async fn get_kanban_issues(folder: String) -> Result<Vec<KanbanIssue>, String> {
+    pub async fn get_kanban_issues(folder: String) -> Result<Vec<KanbanIssue>, ADPError> {
         if !is_command_available("gh") {
-            return Err("gh CLI not found. Install from https://cli.github.com".to_string());
+            return Err(ADPError::new(
+                ADPErrorCode::ServiceRequestFailed,
+                "gh CLI not found. Install from https://cli.github.com",
+            ));
         }
 
         // Fetch open and closed issues in parallel
@@ -296,7 +309,7 @@ pub mod commands {
         }
 
         let parsed: Vec<serde_json::Value> = serde_json::from_str(&open_output)
-            .map_err(|e| format!("Failed to parse gh output: {}", e))?;
+            .map_err(|e| ADPError::parse(format!("Failed to parse gh output: {}", e)))?;
 
         let issues = parsed
             .iter()
@@ -335,9 +348,12 @@ pub mod commands {
     }
 
     #[tauri::command]
-    pub async fn get_issue_detail(folder: String, number: u64) -> Result<IssueDetail, String> {
+    pub async fn get_issue_detail(folder: String, number: u64) -> Result<IssueDetail, ADPError> {
         if !is_command_available("gh") {
-            return Err("gh CLI not found".to_string());
+            return Err(ADPError::new(
+                ADPErrorCode::ServiceRequestFailed,
+                "gh CLI not found",
+            ));
         }
 
         let output = run_command(
@@ -353,11 +369,11 @@ pub mod commands {
         )?;
 
         if output.is_empty() {
-            return Err("Empty response from gh".to_string());
+            return Err(ADPError::parse("Empty response from gh"));
         }
 
         let val: serde_json::Value = serde_json::from_str(&output)
-            .map_err(|e| format!("Failed to parse gh output: {}", e))?;
+            .map_err(|e| ADPError::parse(format!("Failed to parse gh output: {}", e)))?;
 
         let labels = val["labels"]
             .as_array()
@@ -407,9 +423,12 @@ pub mod commands {
     }
 
     #[tauri::command]
-    pub async fn get_issue_checks(folder: String, number: u64) -> Result<Vec<LinkedPR>, String> {
+    pub async fn get_issue_checks(folder: String, number: u64) -> Result<Vec<LinkedPR>, ADPError> {
         if !is_command_available("gh") {
-            return Err("gh CLI not found".to_string());
+            return Err(ADPError::new(
+                ADPErrorCode::ServiceRequestFailed,
+                "gh CLI not found",
+            ));
         }
 
         // Search for PRs that reference this issue number
@@ -436,7 +455,7 @@ pub mod commands {
         }
 
         let parsed: Vec<serde_json::Value> = serde_json::from_str(&output)
-            .map_err(|e| format!("Failed to parse gh output: {}", e))?;
+            .map_err(|e| ADPError::parse(format!("Failed to parse gh output: {}", e)))?;
 
         let prs = parsed
             .iter()
@@ -489,9 +508,12 @@ pub mod commands {
         folder: String,
         number: u64,
         target_lane: String,
-    ) -> Result<(), String> {
+    ) -> Result<(), ADPError> {
         if !is_command_available("gh") {
-            return Err("gh CLI not found".to_string());
+            return Err(ADPError::new(
+                ADPErrorCode::ServiceRequestFailed,
+                "gh CLI not found",
+            ));
         }
 
         let num_str = number.to_string();
@@ -503,8 +525,8 @@ pub mod commands {
             &["issue", "view", &num_str, "--json", "labels,state"],
         )?;
 
-        let val: serde_json::Value =
-            serde_json::from_str(&output).map_err(|e| format!("Failed to parse issue: {}", e))?;
+        let val: serde_json::Value = serde_json::from_str(&output)
+            .map_err(|e| ADPError::parse(format!("Failed to parse issue: {}", e)))?;
 
         let current_state = val["state"].as_str().unwrap_or("OPEN");
 
@@ -539,15 +561,13 @@ pub mod commands {
             "done" => {
                 // Close the issue if open
                 if current_state == "OPEN" {
-                    run_command(&folder, "gh", &["issue", "close", &num_str])
-                        .map_err(|e| format!("Failed to close issue: {}", e))?;
+                    run_command(&folder, "gh", &["issue", "close", &num_str])?;
                 }
             }
             lane => {
                 // Reopen if closed
                 if current_state == "CLOSED" {
-                    run_command(&folder, "gh", &["issue", "reopen", &num_str])
-                        .map_err(|e| format!("Failed to reopen issue: {}", e))?;
+                    run_command(&folder, "gh", &["issue", "reopen", &num_str])?;
                 }
 
                 // Add the target lane label
@@ -560,8 +580,7 @@ pub mod commands {
                     &folder,
                     "gh",
                     &["issue", "edit", &num_str, "--add-label", label_name],
-                )
-                .map_err(|e| format!("Failed to add label '{}': {}", label_name, e))?;
+                )?;
             }
         }
 
