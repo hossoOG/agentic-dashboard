@@ -94,8 +94,8 @@ describe("SessionCard", () => {
       makeSession({ status: "error", exitCode: 42 }),
     );
     expect(screen.getByText(/Fehler \(Exit 42\)/)).toBeTruthy();
-    // AlertTriangle icon with text-red-500
-    const alertIcon = container.querySelector("svg.text-red-500");
+    // AlertTriangle icon with text-error (theme token)
+    const alertIcon = container.querySelector("svg.text-error");
     expect(alertIcon).toBeTruthy();
   });
 
