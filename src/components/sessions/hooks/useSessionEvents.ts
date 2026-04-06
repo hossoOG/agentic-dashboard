@@ -2,8 +2,10 @@ import { useEffect, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { createEventTracker } from "../../../utils/perfLogger";
 import { useSessionStore } from "../../../store/sessionStore";
-import { useAgentStore } from "../../../store/agentStore";
+import { useAgentStore, type AgentStatus, type DetectedAgent } from "../../../store/agentStore";
 import { logError } from "../../../utils/errorLogger";
+
+const VALID_AGENT_STATUSES = new Set<string>(["running", "completed", "error", "pending", "blocked"]);
 
 const trackSessionOutput = createEventTracker("session-output");
 
@@ -97,12 +99,13 @@ export function useSessionEvents(): void {
         try {
           const p = event?.payload;
           if (!p?.session_id || !p?.agent_id) return;
-          useAgentStore.getState().addAgent({
+          const store = useAgentStore.getState();
+          store.addAgent({
             id: p.agent_id,
             sessionId: p.session_id,
             parentAgentId: p.parent_agent_id ?? null,
             childrenIds: [],
-            depth: p.depth ?? 0,
+            depth: Math.max(0, p.depth ?? 0),
             name: p.name ?? null,
             task: p.task ?? null,
             taskNumber: p.task_number ?? null,
@@ -116,6 +119,8 @@ export function useSessionEvents(): void {
             blockedBy: null,
             toolUses: null,
           });
+          // Mark detection as working for this session
+          store.setDetectionQuality(p.session_id, "good");
         } catch (err) {
           logError("useSessionEvents.agentDetected", err);
         }
@@ -132,7 +137,7 @@ export function useSessionEvents(): void {
       }>("agent-completed", (event) => {
         try {
           const p = event?.payload;
-          if (!p?.agent_id) return;
+          if (!p?.agent_id || !p?.session_id) return;
           const status = p.status === "error" ? "error" : "completed";
           useAgentStore
             .getState()
@@ -160,14 +165,16 @@ export function useSessionEvents(): void {
         try {
           const p = event?.payload;
           if (!p?.agent_id) return;
-          const updates: Record<string, unknown> = {
-            status: p.status,
+          // Validate status before applying
+          const validatedStatus = VALID_AGENT_STATUSES.has(p.status) ? p.status as AgentStatus : "running";
+          const updates: Partial<DetectedAgent> = {
+            status: validatedStatus,
           };
           if (p.duration_str) updates.durationStr = p.duration_str;
           if (p.token_count) updates.tokenCount = p.token_count;
           if (p.blocked_by !== null && p.blocked_by !== undefined)
             updates.blockedBy = p.blocked_by;
-          if (p.status === "completed" || p.status === "error") {
+          if (validatedStatus === "completed" || validatedStatus === "error") {
             updates.completedAt = Date.now();
           }
           useAgentStore.getState().updateAgentDetails(p.agent_id, updates);

@@ -7,6 +7,9 @@ import { recordPerf } from "../utils/perfLogger";
 
 export type AgentStatus = "running" | "completed" | "error" | "pending" | "blocked";
 
+/** Confidence level of agent detection for a session */
+export type DetectionQuality = "good" | "degraded" | "none";
+
 export interface DetectedAgent {
   id: string;
   sessionId: string;
@@ -45,6 +48,8 @@ export interface AgentState {
   selectedAgentId: string | null;
   bottomPanelCollapsed: boolean;
   taskSummary: { pending: number; completed: number } | null;
+  /** Per-session detection quality — tracks whether agent detection is working */
+  detectionQuality: Record<string, DetectionQuality>;
 
   // Actions
   addAgent: (agent: DetectedAgent) => void;
@@ -56,6 +61,7 @@ export interface AgentState {
   setSelectedAgent: (id: string | null) => void;
   setBottomPanelCollapsed: (collapsed: boolean) => void;
   setTaskSummary: (pending: number, completed: number) => void;
+  setDetectionQuality: (sessionId: string, quality: DetectionQuality) => void;
 }
 
 // ============================================================================
@@ -68,6 +74,7 @@ export const useAgentStore = create<AgentState>((set) => ({
   selectedAgentId: null,
   bottomPanelCollapsed: true,
   taskSummary: null,
+  detectionQuality: {},
 
   addAgent: (agent) =>
     set((state) => {
@@ -159,6 +166,11 @@ export const useAgentStore = create<AgentState>((set) => ({
 
   setTaskSummary: (pending, completed) =>
     set({ taskSummary: { pending, completed } }),
+
+  setDetectionQuality: (sessionId, quality) =>
+    set((state) => ({
+      detectionQuality: { ...state.detectionQuality, [sessionId]: quality },
+    })),
 }));
 
 // ============================================================================
@@ -181,3 +193,7 @@ export const selectAgentTree = (sessionId: string) => (state: AgentState) =>
 /** Get children of a specific agent */
 export const selectChildAgents = (parentId: string) => (state: AgentState) =>
   Object.values(state.agents).filter((a) => a.parentAgentId === parentId);
+
+/** Get detection quality for a session (defaults to "none") */
+export const selectDetectionQuality = (sessionId: string) => (state: AgentState): DetectionQuality =>
+  state.detectionQuality[sessionId] ?? "none";
