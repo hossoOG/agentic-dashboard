@@ -6,6 +6,7 @@ import {
   selectWorktreesForSession,
   selectAgentTree,
   selectChildAgents,
+  selectDetectionQuality,
 } from "./agentStore";
 
 // ---------------------------------------------------------------------------
@@ -57,6 +58,7 @@ beforeEach(() => {
     selectedAgentId: null,
     bottomPanelCollapsed: true,
     taskSummary: null,
+    detectionQuality: {},
   });
 });
 
@@ -277,5 +279,48 @@ describe("selectors", () => {
     const children = selectChildAgents("parent")(useAgentStore.getState());
     expect(children).toHaveLength(2);
     expect(children.map((a) => a.id).sort()).toEqual(["c1", "c2"]);
+  });
+
+  it("selectDetectionQuality returns 'none' when no entry exists", () => {
+    const quality = selectDetectionQuality("unknown-session")(useAgentStore.getState());
+    expect(quality).toBe("none");
+  });
+});
+
+describe("setDetectionQuality", () => {
+  it("sets quality for a session", () => {
+    useAgentStore.getState().setDetectionQuality("sess-1", "good");
+
+    expect(useAgentStore.getState().detectionQuality["sess-1"]).toBe("good");
+  });
+
+  it("overwrites existing value", () => {
+    useAgentStore.getState().setDetectionQuality("sess-1", "good");
+    expect(useAgentStore.getState().detectionQuality["sess-1"]).toBe("good");
+
+    useAgentStore.getState().setDetectionQuality("sess-1", "degraded");
+    expect(useAgentStore.getState().detectionQuality["sess-1"]).toBe("degraded");
+  });
+
+  it("does not affect other sessions", () => {
+    useAgentStore.getState().setDetectionQuality("sess-1", "good");
+    useAgentStore.getState().setDetectionQuality("sess-2", "degraded");
+
+    expect(useAgentStore.getState().detectionQuality["sess-1"]).toBe("good");
+    expect(useAgentStore.getState().detectionQuality["sess-2"]).toBe("degraded");
+  });
+});
+
+describe("removeAgentsBySession does not clear detectionQuality", () => {
+  it("preserves detectionQuality after removing agents for a session", () => {
+    useAgentStore.getState().addAgent(makeAgent({ id: "a1", sessionId: "sess-1" }));
+    useAgentStore.getState().setDetectionQuality("sess-1", "good");
+
+    useAgentStore.getState().removeAgentsBySession("sess-1");
+
+    // Agents should be removed
+    expect(Object.keys(useAgentStore.getState().agents)).toHaveLength(0);
+    // But detectionQuality should persist (metadata survives session clear)
+    expect(useAgentStore.getState().detectionQuality["sess-1"]).toBe("good");
   });
 });

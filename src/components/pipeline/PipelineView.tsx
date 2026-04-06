@@ -3,6 +3,7 @@ import { WorkflowLauncher } from "./WorkflowLauncher";
 import { TaskTreeView } from "./TaskTreeView";
 import { AgentMetricsPanel } from "./AgentMetricsPanel";
 import { useSessionStore } from "../../store/sessionStore";
+import { useAgentStore, selectDetectionQuality } from "../../store/agentStore";
 
 /**
  * PipelineView — Wrapper that combines:
@@ -16,6 +17,7 @@ export function PipelineView() {
   const sessions = useSessionStore((s) => s.sessions);
   const [filterSessionId, setFilterSessionId] = useState<string | null>(null);
   const effectiveSessionId = filterSessionId ?? activeSessionId;
+  const detectionQuality = useAgentStore(selectDetectionQuality(effectiveSessionId ?? ""));
 
   return (
     <div className="flex flex-col h-full">
@@ -39,6 +41,13 @@ export function PipelineView() {
           ))}
         </select>
       </div>
+
+      {/* Detection quality warning */}
+      {effectiveSessionId && detectionQuality === "none" && (
+        <div className="mx-4 mt-2 px-3 py-2 bg-warning/10 border border-warning/30 rounded text-xs text-warning">
+          Agent-Erkennung hat noch keine Agents erkannt. Die Erkennung basiert auf Terminal-Output-Patterns und funktioniert möglicherweise nicht mit allen Claude CLI Versionen.
+        </div>
+      )}
 
       {/* Top: Workflow Launcher */}
       <WorkflowLauncher />
