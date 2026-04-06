@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { RefreshCw, GitBranch, Bot, MessageSquare, Clock, Play } from "lucide-react";
+import { getErrorMessage } from "../../utils/adpError";
 import { logError } from "../../utils/errorLogger";
 
 // ============================================================================
@@ -97,7 +98,7 @@ const SessionHistoryViewer: React.FC<SessionHistoryViewerProps> = ({ folder, onR
       setSessions(result ?? []);
     } catch (err) {
       logError("SessionHistoryViewer.scanSessions", err);
-      setError(String(err));
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }

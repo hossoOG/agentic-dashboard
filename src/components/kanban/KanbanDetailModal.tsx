@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-shell";
+import { getErrorMessage } from "../../utils/adpError";
 import {
   X,
   ExternalLink,
@@ -119,7 +120,7 @@ export function KanbanDetailModal({
           setLinkedPRs(checksResult);
         }
       } catch (err) {
-        if (!cancelled) setError(String(err));
+        if (!cancelled) setError(getErrorMessage(err));
       } finally {
         if (!cancelled) setLoading(false);
       }

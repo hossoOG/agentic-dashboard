@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { RefreshCw, Columns3, AlertCircle } from "lucide-react";
+import { getErrorMessage } from "../../utils/adpError";
 import { wrapInvoke } from "../../utils/perfLogger";
 import { KanbanCard, type KanbanIssue } from "./KanbanCard";
 import { KanbanDetailModal } from "./KanbanDetailModal";
@@ -91,7 +92,7 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
         }
       } catch (err) {
         if (mountedRef.current) {
-          setError(String(err));
+          setError(getErrorMessage(err));
           setLoading(false);
         }
       }
@@ -135,7 +136,7 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
         await load(true);
       } catch (err) {
         logError("KanbanBoard.moveIssue", err);
-        setMoveError(`Verschieben von #${issueNumber} fehlgeschlagen: ${String(err)}`);
+        setMoveError(`Verschieben von #${issueNumber} fehlgeschlagen: ${getErrorMessage(err)}`);
       } finally {
         setMoving(null);
       }

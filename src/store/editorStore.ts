@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { open } from "@tauri-apps/plugin-dialog";
+import { getErrorMessage } from "../utils/adpError";
 import { wrapInvoke } from "../utils/perfLogger";
 import { logError } from "../utils/errorLogger";
 import { useUIStore } from "./uiStore";
@@ -68,7 +69,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       useUIStore.getState().addToast({
         type: "error",
         title: "Fehler beim Oeffnen",
-        message: String(err),
+        message: getErrorMessage(err),
       });
     }
   },
@@ -93,7 +94,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       useUIStore.getState().addToast({
         type: "error",
         title: "Fehler beim Oeffnen",
-        message: String(err),
+        message: getErrorMessage(err),
       });
     }
   },
@@ -135,7 +136,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       useUIStore.getState().addToast({
         type: "error",
         title: "Fehler beim Speichern",
-        message: String(err),
+        message: getErrorMessage(err),
       });
       return false;
     }
