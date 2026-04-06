@@ -12,15 +12,24 @@ export const KanbanBoard = lazy(() => import("../kanban/KanbanBoard").then(m => 
 export const SessionHistoryViewer = lazy(() => import("./SessionHistoryViewer"));
 export const PinnedDocViewer = lazy(() => import("./PinnedDocViewer").then(m => ({ default: m.PinnedDocViewer })));
 
+export type TabGroup = "context" | "project" | "history";
+
+export interface ConfigTab {
+  id: ConfigSubTab;
+  label: string;
+  icon: typeof FileText;
+  group: TabGroup;
+}
+
 // eslint-disable-next-line react-refresh/only-export-components
-export const CONFIG_TABS: { id: ConfigSubTab; label: string; icon: typeof FileText }[] = [
-  { id: "claude-md", label: "CLAUDE.md", icon: FileText },
-  { id: "skills", label: "Skills", icon: Puzzle },
-  { id: "hooks", label: "Hooks", icon: Webhook },
-  { id: "github", label: "GitHub", icon: Github },
-  { id: "worktrees", label: "Worktrees", icon: GitBranch },
-  { id: "kanban", label: "Kanban", icon: Columns3 },
-  { id: "history", label: "History", icon: Clock },
+export const CONFIG_TABS: ConfigTab[] = [
+  { id: "claude-md", label: "CLAUDE.md", icon: FileText, group: "context" },
+  { id: "skills", label: "Skills", icon: Puzzle, group: "context" },
+  { id: "hooks", label: "Hooks", icon: Webhook, group: "context" },
+  { id: "github", label: "GitHub", icon: Github, group: "project" },
+  { id: "worktrees", label: "Worktrees", icon: GitBranch, group: "project" },
+  { id: "kanban", label: "Kanban", icon: Columns3, group: "project" },
+  { id: "history", label: "History", icon: Clock, group: "history" },
 ];
 
 interface ConfigPanelContentProps {
