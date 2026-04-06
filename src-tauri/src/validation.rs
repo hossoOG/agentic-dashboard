@@ -3,63 +3,69 @@
 // Centralized input validation for Tauri commands.
 // All user-supplied IDs, paths, and strings should be validated here.
 
+use crate::error::ADPError;
+
 /// Validate a session ID (used in PTY resume).
 /// Only alphanumeric chars, hyphens, and underscores allowed.
-pub fn validate_session_id(id: &str) -> Result<(), String> {
+pub fn validate_session_id(id: &str) -> Result<(), ADPError> {
     if id.is_empty() {
-        return Err("Session ID must not be empty".to_string());
+        return Err(ADPError::validation("Session ID must not be empty"));
     }
     if id.len() > 256 {
-        return Err("Session ID too long (max 256 chars)".to_string());
+        return Err(ADPError::validation("Session ID too long (max 256 chars)"));
     }
     if !id
         .chars()
         .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
     {
-        return Err(format!(
+        return Err(ADPError::validation(format!(
             "Invalid session ID '{}' — only alphanumeric characters, hyphens, and underscores are allowed",
             id
-        ));
+        )));
     }
     Ok(())
 }
 
 /// Validate a library item ID (used in file path construction).
 /// Only alphanumeric chars, hyphens, underscores, and dots allowed.
-pub fn validate_library_id(id: &str) -> Result<(), String> {
+pub fn validate_library_id(id: &str) -> Result<(), ADPError> {
     if id.is_empty() {
-        return Err("Library item ID must not be empty".to_string());
+        return Err(ADPError::validation("Library item ID must not be empty"));
     }
     if id.len() > 128 {
-        return Err("Library item ID too long (max 128 chars)".to_string());
+        return Err(ADPError::validation(
+            "Library item ID too long (max 128 chars)",
+        ));
     }
     if !id
         .chars()
         .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.')
     {
-        return Err(format!(
+        return Err(ADPError::validation(format!(
             "Invalid library item ID '{}' — only alphanumeric characters, hyphens, underscores, and dots are allowed",
             id
-        ));
+        )));
     }
     // Reject path traversal attempts
     if id.contains("..") {
-        return Err("Library item ID must not contain '..'".to_string());
+        return Err(ADPError::validation(
+            "Library item ID must not contain '..'",
+        ));
     }
     Ok(())
 }
 
 /// Validate a folder path exists and is a directory.
-pub fn validate_folder(folder: &str) -> Result<(), String> {
+pub fn validate_folder(folder: &str) -> Result<(), ADPError> {
     if folder.is_empty() {
-        return Err("Folder path must not be empty".to_string());
+        return Err(ADPError::validation("Folder path must not be empty"));
     }
     let path = std::path::Path::new(folder);
     if !path.is_dir() {
-        return Err(format!(
+        return Err(ADPError::validation(format!(
             "Folder does not exist or is not a directory: {}",
             folder
-        ));
+        )));
     }
     Ok(())
 }

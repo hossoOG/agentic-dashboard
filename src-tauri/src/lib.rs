@@ -96,8 +96,10 @@ pub struct PipelineState {
 }
 
 mod commands {
+    use crate::error::ADPError;
+
     #[tauri::command]
-    pub async fn open_log_window(app: tauri::AppHandle) -> Result<(), String> {
+    pub async fn open_log_window(app: tauri::AppHandle) -> Result<(), ADPError> {
         use tauri::{Manager, WebviewWindowBuilder};
 
         if let Some(win) = app.get_webview_window("log-viewer") {
@@ -114,7 +116,7 @@ mod commands {
         .inner_size(900.0, 600.0)
         .resizable(true)
         .build()
-        .map_err(|e| format!("Failed to create log window: {}", e))?;
+        .map_err(|e| ADPError::internal(format!("Failed to create log window: {}", e)))?;
 
         Ok(())
     }

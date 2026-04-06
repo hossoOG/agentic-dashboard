@@ -1,6 +1,7 @@
 // src-tauri/src/session/commands.rs
 
 use super::manager::SessionManager;
+use crate::error::ADPError;
 use std::sync::Arc;
 use tauri::{AppHandle, State};
 
@@ -18,7 +19,7 @@ pub mod commands {
         title: Option<String>,
         shell: Option<String>,
         resume_session_id: Option<String>,
-    ) -> Result<super::super::manager::SessionInfo, String> {
+    ) -> Result<super::super::manager::SessionInfo, ADPError> {
         log::debug!(
             "create_session called: id={}, folder={}, shell={:?}, resume={:?}",
             id,
@@ -29,17 +30,15 @@ pub mod commands {
 
         // Validate folder exists and is a directory
         crate::validation::validate_folder(&folder).map_err(|e| {
-            let msg = format!("Failed to create session {}: {}", id, e);
-            log::error!("{}", msg);
-            msg
+            log::error!("Failed to create session {}: {}", id, e);
+            e
         })?;
 
         // Validate resume_session_id to prevent shell injection
         if let Some(ref sid) = resume_session_id {
             crate::validation::validate_session_id(sid).map_err(|e| {
-                let msg = format!("Failed to create session {}: {}", id, e);
-                log::error!("{}", msg);
-                msg
+                log::error!("Failed to create session {}: {}", id, e);
+                e
             })?;
         }
 
@@ -59,7 +58,7 @@ pub mod commands {
         manager: State<'_, Arc<SessionManager>>,
         id: String,
         data: String,
-    ) -> Result<(), String> {
+    ) -> Result<(), ADPError> {
         log::debug!("write_session called: id={}, data_len={}", id, data.len());
         manager.write_to_session(&id, &data)
     }
@@ -70,7 +69,7 @@ pub mod commands {
         id: String,
         cols: u16,
         rows: u16,
-    ) -> Result<(), String> {
+    ) -> Result<(), ADPError> {
         log::debug!(
             "resize_session called: id={}, cols={}, rows={}",
             id,
@@ -84,7 +83,7 @@ pub mod commands {
     pub async fn close_session(
         manager: State<'_, Arc<SessionManager>>,
         id: String,
-    ) -> Result<(), String> {
+    ) -> Result<(), ADPError> {
         log::info!("close_session called: id={}", id);
         manager.close_session(&id)
     }
@@ -92,7 +91,7 @@ pub mod commands {
     #[tauri::command]
     pub async fn list_sessions(
         manager: State<'_, Arc<SessionManager>>,
-    ) -> Result<Vec<super::super::manager::SessionInfo>, String> {
+    ) -> Result<Vec<super::super::manager::SessionInfo>, ADPError> {
         log::debug!("list_sessions called");
         Ok(manager.list_sessions())
     }
@@ -101,7 +100,7 @@ pub mod commands {
     #[tauri::command]
     pub async fn scan_worktrees(
         folder: String,
-    ) -> Result<Vec<super::super::agent_detector::WorktreeInfo>, String> {
+    ) -> Result<Vec<super::super::agent_detector::WorktreeInfo>, ADPError> {
         log::debug!("scan_worktrees called: folder={}", folder);
         super::super::agent_detector::scan_worktrees_in_folder(&folder)
     }

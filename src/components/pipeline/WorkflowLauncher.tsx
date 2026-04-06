@@ -10,6 +10,7 @@ import {
   Loader2,
   AlertCircle,
 } from "lucide-react";
+import { getErrorMessage } from "../../utils/adpError";
 import { logError } from "../../utils/errorLogger";
 import { useWorkflowStore, selectWorkflowsForFolder } from "../../store/workflowStore";
 import { useSessionStore, selectActiveSession } from "../../store/sessionStore";
@@ -191,7 +192,7 @@ export function WorkflowLauncher() {
         // Switch to sessions tab
         setActiveTab("sessions");
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err ?? "Unbekannter Fehler");
+        const message = getErrorMessage(err);
         useWorkflowStore.getState().setLaunchError(
           `Workflow "${workflow.name}" konnte nicht gestartet werden: ${message}`
         );

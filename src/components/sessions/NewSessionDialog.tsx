@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, FolderOpen, Play } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { getErrorMessage } from "../../utils/adpError";
 import { useSessionStore } from "../../store/sessionStore";
 import { logError } from "../../utils/errorLogger";
 import type { SessionShell } from "../../store/sessionStore";
@@ -76,7 +77,7 @@ export function NewSessionDialog({ onClose }: NewSessionDialogProps) {
       onClose();
     } catch (err) {
       logError("NewSessionDialog.createSession", err);
-      const message = err instanceof Error ? err.message : String(err ?? "Unbekannter Fehler");
+      const message = getErrorMessage(err);
       setCreateError(`Session konnte nicht erstellt werden: ${message}`);
       setIsCreating(false);
     }

@@ -5,6 +5,7 @@ use std::thread;
 use tauri::{AppHandle, Emitter};
 
 use crate::adp::{ADPEmitter, ADPEventType};
+use crate::error::{ADPError, ADPErrorCode};
 use crate::util::silent_command;
 use crate::{LogEvent, PipelineState};
 
@@ -67,17 +68,22 @@ pub async fn start_pipeline(
     app: AppHandle,
     project_path: String,
     state: tauri::State<'_, Arc<Mutex<PipelineState>>>,
-) -> Result<(), String> {
+) -> Result<(), ADPError> {
     let path = std::path::Path::new(&project_path);
     if !path.exists() {
-        return Err(format!(
-            "Failed to start pipeline: project path does not exist: {}",
-            project_path
+        return Err(ADPError::new(
+            ADPErrorCode::PipelineSpawnFailed,
+            format!(
+                "Failed to start pipeline: project path does not exist: {}",
+                project_path
+            ),
         ));
     }
 
     {
-        let mut s = state.lock().map_err(|e| e.to_string())?;
+        let mut s = state
+            .lock()
+            .map_err(|e| ADPError::internal(e.to_string()))?;
         s.child_pid = None;
     }
 
@@ -110,7 +116,10 @@ pub async fn start_pipeline(
         }
         Err(e) => {
             log::error!("Claude CLI check failed: {}", e);
-            return Err(format!("Claude CLI check failed: {}", e));
+            return Err(ADPError::new(
+                ADPErrorCode::PipelineSpawnFailed,
+                format!("Claude CLI check failed: {}", e),
+            ));
         }
     }
 
@@ -125,30 +134,38 @@ pub async fn start_pipeline(
         .spawn()
         .map_err(|e| {
             log::error!("Failed to spawn claude process for pipeline: {}", e);
-            format!("Failed to spawn claude process for pipeline: {}", e)
+            ADPError::new(
+                ADPErrorCode::PipelineSpawnFailed,
+                format!("Failed to spawn claude process for pipeline: {}", e),
+            )
         })?;
 
     let pid = child.id();
     {
-        let mut s = state.lock().map_err(|e| e.to_string())?;
+        let mut s = state
+            .lock()
+            .map_err(|e| ADPError::internal(e.to_string()))?;
         s.child_pid = Some(pid);
     }
 
     if let Some(mut stdin) = child.stdin.take() {
         use std::io::Write;
-        stdin
-            .write_all(b"/orchestrate-issues\n")
-            .map_err(|e| format!("Failed to write to pipeline stdin: {}", e))?;
+        stdin.write_all(b"/orchestrate-issues\n").map_err(|e| {
+            ADPError::new(
+                ADPErrorCode::PipelineSpawnFailed,
+                format!("Failed to write to pipeline stdin: {}", e),
+            )
+        })?;
     }
 
     let stdout = child
         .stdout
         .take()
-        .ok_or("Failed to capture stdout for pipeline process")?;
+        .ok_or_else(|| ADPError::internal("Failed to capture stdout for pipeline process"))?;
     let stderr = child
         .stderr
         .take()
-        .ok_or("Failed to capture stderr for pipeline process")?;
+        .ok_or_else(|| ADPError::internal("Failed to capture stderr for pipeline process"))?;
 
     // Stream reader threads — dual-write: legacy + ADP
     spawn_stream_reader(app.clone(), stdout, "stdout", "info");
@@ -170,9 +187,11 @@ pub async fn start_pipeline(
 pub async fn stop_pipeline(
     app: AppHandle,
     state: tauri::State<'_, Arc<Mutex<PipelineState>>>,
-) -> Result<(), String> {
+) -> Result<(), ADPError> {
     let pid = {
-        let mut s = state.lock().map_err(|e| e.to_string())?;
+        let mut s = state
+            .lock()
+            .map_err(|e| ADPError::internal(e.to_string()))?;
         s.child_pid.take()
     };
 
@@ -181,16 +200,33 @@ pub async fn stop_pipeline(
         silent_command("kill")
             .args(["-TERM", &pid.to_string()])
             .spawn()
-            .map_err(|e| format!("Failed to send SIGTERM to pipeline process {}: {}", pid, e))?
+            .map_err(|e| {
+                ADPError::command_failed(format!(
+                    "Failed to send SIGTERM to pipeline process {}: {}",
+                    pid, e
+                ))
+            })?
             .wait()
-            .map_err(|e| format!("Failed to wait for kill of pipeline process {}: {}", pid, e))?;
+            .map_err(|e| {
+                ADPError::command_failed(format!(
+                    "Failed to wait for kill of pipeline process {}: {}",
+                    pid, e
+                ))
+            })?;
         #[cfg(windows)]
         silent_command("taskkill")
             .args(["/PID", &pid.to_string(), "/F"])
             .spawn()
-            .map_err(|e| format!("Failed to kill pipeline process {}: {}", pid, e))?
+            .map_err(|e| {
+                ADPError::command_failed(format!("Failed to kill pipeline process {}: {}", pid, e))
+            })?
             .wait()
-            .map_err(|e| format!("Failed to wait for kill of pipeline process {}: {}", pid, e))?;
+            .map_err(|e| {
+                ADPError::command_failed(format!(
+                    "Failed to wait for kill of pipeline process {}: {}",
+                    pid, e
+                ))
+            })?;
     }
 
     log::info!("Pipeline stopped (pid: {:?})", pid);
@@ -215,7 +251,7 @@ pub async fn stop_pipeline(
 
 /// Open a native folder picker dialog and return the selected path.
 #[tauri::command]
-pub async fn pick_project_folder(app: AppHandle) -> Result<Option<String>, String> {
+pub async fn pick_project_folder(app: AppHandle) -> Result<Option<String>, ADPError> {
     use tauri_plugin_dialog::DialogExt;
     let path = app
         .dialog()

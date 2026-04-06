@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { RefreshCw, GitBranch } from "lucide-react";
+import { getErrorMessage } from "../../utils/adpError";
 
 interface WorktreeViewerProps {
   folder: string;
@@ -47,7 +48,7 @@ export function WorktreeViewer({ folder }: WorktreeViewerProps) {
       setWorktrees(result);
     } catch (err) {
       if (!mountedRef.current) return;
-      setError(String(err));
+      setError(getErrorMessage(err));
     } finally {
       if (mountedRef.current) setLoading(false);
     }

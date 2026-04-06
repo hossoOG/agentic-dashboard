@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { RefreshCw, FileText, Pencil, Eye, Save, Loader2 } from "lucide-react";
+import { getErrorMessage } from "../../utils/adpError";
 import { logError } from "../../utils/errorLogger";
 import { MarkdownPreview } from "../editor/MarkdownPreview";
 import { useUIStore } from "../../store/uiStore";
@@ -73,7 +74,7 @@ export function ClaudeMdViewer({ folder }: ClaudeMdViewerProps) {
       addToast({ type: "success", title: "CLAUDE.md gespeichert" });
     } catch (err) {
       logError("ClaudeMdViewer.save", err);
-      addToast({ type: "error", title: "Speichern fehlgeschlagen", message: String(err) });
+      addToast({ type: "error", title: "Speichern fehlgeschlagen", message: getErrorMessage(err) });
     } finally {
       setIsSaving(false);
     }
