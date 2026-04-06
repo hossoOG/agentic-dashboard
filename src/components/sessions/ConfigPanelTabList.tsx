@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Fragment } from "react";
 import { X, Plus, Pin } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useUIStore, type ConfigSubTab } from "../../store/uiStore";
@@ -77,7 +77,7 @@ export function ConfigPanelTabList({ folder, size = "md" }: ConfigPanelTabListPr
   };
 
   const buttonPadding = size === "sm" ? "px-2.5 py-1" : "px-2 py-1";
-  const iconSize = size === "sm" ? "w-3 h-3" : "w-3 h-3";
+  const iconSize = "w-3 h-3";
   const textSize = "text-[11px]";
 
   const handleAddPin = async () => {
@@ -110,7 +110,7 @@ export function ConfigPanelTabList({ folder, size = "md" }: ConfigPanelTabListPr
       }
 
       // Activate the newly created pin
-      const updated = useSettingsStore.getState().pinnedDocs[normalizeProjectKey(folder)] ?? [];
+      const updated = useSettingsStore.getState().pinnedDocs?.[normalizeProjectKey(folder)] ?? [];
       const newPin = updated.find((p) => p.relativePath === relativePath.replace(/\\/g, "/"));
       if (newPin) {
         setConfigSubTab(`pin:${newPin.id}`);
@@ -134,27 +134,36 @@ export function ConfigPanelTabList({ folder, size = "md" }: ConfigPanelTabListPr
 
   return (
     <>
-      {CONFIG_TABS.map((tab) => {
+      {CONFIG_TABS.map((tab, idx) => {
         const Icon = tab.icon;
         const isActive = configSubTab === tab.id;
+        const prevGroup = idx > 0 ? CONFIG_TABS[idx - 1].group : null;
+        const showSeparator = prevGroup !== null && prevGroup !== tab.group;
         return (
-          <button
-            key={tab.id}
-            onClick={() => setConfigSubTab(tab.id)}
-            className={`flex items-center gap-1 ${buttonPadding} ${textSize} font-medium rounded-sm whitespace-nowrap transition-colors ${
-              isActive
-                ? "text-accent bg-accent-a10"
-                : "text-neutral-400 hover:text-neutral-200 hover:bg-hover-overlay"
-            }`}
-            title={tab.label}
-          >
-            <Icon className={`${iconSize} shrink-0`} />
-            {tab.label}
-          </button>
+          <Fragment key={tab.id}>
+            {showSeparator && (
+              <div className="w-px h-4 bg-neutral-700 shrink-0 mx-0.5" />
+            )}
+            <button
+              onClick={() => setConfigSubTab(tab.id)}
+              className={`flex items-center gap-1 ${buttonPadding} ${textSize} font-medium rounded-sm whitespace-nowrap transition-colors ${
+                isActive
+                  ? "text-accent bg-accent-a10"
+                  : "text-neutral-400 hover:text-neutral-200 hover:bg-hover-overlay"
+              }`}
+              title={tab.label}
+            >
+              <Icon className={`${iconSize} shrink-0`} />
+              {tab.label}
+            </button>
+          </Fragment>
         );
       })}
 
       {/* User-pinned docs */}
+      {pins.length > 0 && (
+        <div className="w-px h-4 bg-neutral-700 shrink-0 mx-0.5" />
+      )}
       {pins.map((pin) => {
         const tabId: ConfigSubTab = `pin:${pin.id}`;
         const isActive = configSubTab === tabId;
