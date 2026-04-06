@@ -28,24 +28,36 @@ const SOURCE_OPTIONS: { key: LogSource; label: string; color: string }[] = [
   { key: "pipeline", label: "Pipeline", color: "bg-orange-400/20 text-orange-400 border-orange-400/40" },
 ];
 
+// Granular selectors to avoid full re-renders on every state change
+const selectEntries = (s: ReturnType<typeof useLogViewerStore.getState>) => s.entries;
+const selectSeverityFilter = (s: ReturnType<typeof useLogViewerStore.getState>) => s.severityFilter;
+const selectSourceFilter = (s: ReturnType<typeof useLogViewerStore.getState>) => s.sourceFilter;
+const selectSearchText = (s: ReturnType<typeof useLogViewerStore.getState>) => s.searchText;
+const selectLiveTail = (s: ReturnType<typeof useLogViewerStore.getState>) => s.liveTail;
+const selectAddEntries = (s: ReturnType<typeof useLogViewerStore.getState>) => s.addEntries;
+const selectClearEntries = (s: ReturnType<typeof useLogViewerStore.getState>) => s.clearEntries;
+const selectSetSeverityFilter = (s: ReturnType<typeof useLogViewerStore.getState>) => s.setSeverityFilter;
+const selectSetSourceFilter = (s: ReturnType<typeof useLogViewerStore.getState>) => s.setSourceFilter;
+const selectSetSearchText = (s: ReturnType<typeof useLogViewerStore.getState>) => s.setSearchText;
+const selectToggleLiveTail = (s: ReturnType<typeof useLogViewerStore.getState>) => s.toggleLiveTail;
+
 export function LogViewer() {
-  const {
-    entries,
-    severityFilter,
-    sourceFilter,
-    searchText,
-    liveTail,
-    addEntries,
-    clearEntries,
-    setSeverityFilter,
-    setSourceFilter,
-    setSearchText,
-    toggleLiveTail,
-  } = useLogViewerStore();
+  const entries = useLogViewerStore(selectEntries);
+  const severityFilter = useLogViewerStore(selectSeverityFilter);
+  const sourceFilter = useLogViewerStore(selectSourceFilter);
+  const searchText = useLogViewerStore(selectSearchText);
+  const liveTail = useLogViewerStore(selectLiveTail);
+  const addEntries = useLogViewerStore(selectAddEntries);
+  const clearEntries = useLogViewerStore(selectClearEntries);
+  const setSeverityFilter = useLogViewerStore(selectSetSeverityFilter);
+  const setSourceFilter = useLogViewerStore(selectSetSourceFilter);
+  const setSearchText = useLogViewerStore(selectSetSearchText);
+  const toggleLiveTail = useLogViewerStore(selectToggleLiveTail);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const initializedRef = useRef(false);
 
-  // Load backend logs + existing frontend logs on mount
+  // Load backend logs (can be triggered manually via refresh button)
   const loadBackendLogs = useCallback(() => {
     invoke<string[]>("read_backend_log", { maxLines: 500 })
       .then((lines) => {
@@ -58,27 +70,36 @@ export function LogViewer() {
   }, [addEntries]);
 
   useEffect(() => {
-    // Load existing frontend logs
-    const existing = getRecentLogs();
-    if (existing.length > 0) {
-      addEntries(
-        existing.map((e) => ({
-          timestamp: e.timestamp,
-          severity: e.severity,
-          source: "frontend" as const,
-          module: e.source,
-          message: e.message,
-          stack: e.stack,
-        }))
-      );
-    }
+    // Guard: only load initial logs once to prevent duplicates on re-mount
+    // (e.g., when user switches tabs and LogViewer re-mounts via React.lazy)
+    if (!initializedRef.current) {
+      initializedRef.current = true;
 
-    // Load backend logs
-    loadBackendLogs();
+      // Load existing frontend logs only if store is empty
+      const storeEntries = useLogViewerStore.getState().entries;
+      if (storeEntries.length === 0) {
+        const existing = getRecentLogs();
+        if (existing.length > 0) {
+          addEntries(
+            existing.map((e) => ({
+              timestamp: e.timestamp,
+              severity: e.severity,
+              source: "frontend" as const,
+              module: e.source,
+              message: e.message,
+              stack: e.stack,
+            }))
+          );
+        }
+
+        // Load backend logs only on first mount
+        loadBackendLogs();
+      }
+    }
 
     // Subscribe to live frontend logs
     const unsub = subscribeToLogs((entry) => {
-      addEntries([
+      useLogViewerStore.getState().addEntries([
         {
           timestamp: entry.timestamp,
           severity: entry.severity,

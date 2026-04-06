@@ -10,12 +10,15 @@ export default function LogWindowApp() {
 
   useEffect(() => {
     const addEntries = useLogViewerStore.getState().addEntries;
-    const unlisten = listen<{ message: string; level: string }>("pipeline-log", (event) => {
+    // Payload shape matches App.tsx: { line: string; stream: string }
+    const unlisten = listen<{ line: string; stream: string }>("pipeline-log", (event) => {
+      const line = event?.payload?.line;
+      if (typeof line !== "string") return;
       addEntries([{
         timestamp: new Date().toISOString(),
-        severity: event.payload.level === "stderr" ? "warn" : "info",
+        severity: event.payload.stream === "stderr" ? "warn" : "info",
         source: "pipeline",
-        message: event.payload.message,
+        message: line,
       }]);
     });
     return () => { unlisten.then((fn) => fn()); };
