@@ -30,7 +30,7 @@ export function EditorToolbar() {
 
   return (
     <div className="flex items-center gap-2 px-4 py-2 bg-surface-raised border-b border-neutral-700 min-h-[44px]">
-      <FileEdit className="w-4 h-4 text-accent shrink-0" />
+      <FileEdit className="w-4 h-4 text-accent shrink-0" aria-hidden="true" />
 
       {/* File name */}
       <div className="flex items-center gap-1.5 min-w-0 flex-1">
@@ -63,7 +63,7 @@ export function EditorToolbar() {
           title="Datei oeffnen"
           aria-label="Markdown-Datei oeffnen"
         >
-          <FolderOpen className="w-3.5 h-3.5" />
+          <FolderOpen className="w-3.5 h-3.5" aria-hidden="true" />
           <span className="hidden sm:inline">Oeffnen</span>
         </button>
 
@@ -78,7 +78,7 @@ export function EditorToolbar() {
           title="Speichern (Ctrl+S)"
           aria-label="Datei speichern"
         >
-          <Save className="w-3.5 h-3.5" />
+          <Save className="w-3.5 h-3.5" aria-hidden="true" />
           <span className="hidden sm:inline">
             {isSaving ? "Speichert..." : "Speichern"}
           </span>
@@ -91,9 +91,9 @@ export function EditorToolbar() {
           aria-label={isPreviewVisible ? "Vorschau ausblenden" : "Vorschau einblenden"}
         >
           {isPreviewVisible ? (
-            <EyeOff className="w-3.5 h-3.5" />
+            <EyeOff className="w-3.5 h-3.5" aria-hidden="true" />
           ) : (
-            <Eye className="w-3.5 h-3.5" />
+            <Eye className="w-3.5 h-3.5" aria-hidden="true" />
           )}
         </button>
 
@@ -104,7 +104,7 @@ export function EditorToolbar() {
             title="Datei schliessen"
             aria-label="Datei schliessen"
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
         )}
       </div>
