@@ -186,6 +186,13 @@
 
 ---
 
+## 2026-04-06 — Issue-Status nie aus Gedaechtnis, immer aus GitHub
+
+### Stale Context fuehrt zu falschen Empfehlungen
+**Kontext:** Mehrfach Issues (#62, #63, #65) als "offen" behandelt und zur Parallel-Implementierung vorgeschlagen, obwohl sie laengst CLOSED waren. Ursache: Aus dem Conversation-Context oder der todo.md gelesen statt aus der Single Source of Truth (GitHub API).
+**Erkenntnis:** todo.md driftet, Conversation-Context ist nach Compaction unzuverlaessig. Nur `gh issue list --state all` ist die Wahrheit.
+**Regel:** Vor JEDER Empfehlung die auf Issue-Status basiert: `gh issue list` oder `gh issue view` ausfuehren. Nie aus Gedaechtnis oder todo.md den Status ableiten. Gilt besonders bei Sprint-Planung, Parallel-Implement-Analyse und Cleanup-Phasen.
+
 ## 2026-04-06 — ADPError-Migration (#63)
 
 ### Review-Agent MUSS vor PR abgeschlossen sein �� nie parallel zum PR starten

@@ -224,20 +224,24 @@
 
 ### Welle 3 — Bug Fixes (Prio 1)
 
-- [ ] bug(ui): Session-Status-Farben werden nicht korrekt erkannt (#100)
-- [ ] bug(ui): Scrolling in Sessions funktioniert unzuverlaessig (#101)
-- [ ] bug(ui): Log-Ansicht ist verbuggt (#104)
+- [x] bug(ui): Session-Status-Farben werden nicht korrekt erkannt (#100) — PR #106 merged
+- [x] bug(ui): Scrolling in Sessions funktioniert unzuverlaessig (#101) — PR #107 merged
+- [x] bug(ui): Log-Ansicht ist verbuggt (#104) — PR #108 merged
 
 ### Welle 4 — Refactorings & Reevaluierung
 
-- [ ] refactor(ui): Hooks-Reiter und Konfig-Panel ueberarbeiten (#102)
+- [x] refactor(ui): Hooks-Reiter und Konfig-Panel ueberarbeiten (#102) — erledigt
 - [ ] refactor(pipeline): Pipeline-Funktionalitaet neu evaluieren (#103)
 
-### Welle 5 — Tech-Debt Refactorings (Stretch)
+### Welle 5 — Features
 
-- [ ] refactor(ui): SessionManagerView God-Component zerlegen (#62)
-- [ ] refactor(tauri): ADPError statt String in Tauri-Commands (#63)
-- [ ] refactor(ui): Component-Library formalisieren — Button/Modal/Input (#65)
+- [ ] feat(library): Uebersicht aller Skills, Agents, Hooks, Configs — global + pro Projekt (#110)
+
+### Welle 6 — Tech-Debt Refactorings (erledigt)
+
+- [x] refactor(ui): SessionManagerView God-Component zerlegen (#62) — closed
+- [x] refactor(tauri): ADPError statt String in Tauri-Commands (#63) — closed
+- [x] refactor(ui): Component-Library formalisieren — Button/Modal/Input (#65) — closed
 
 ### Skill-Infrastruktur (parallel zum Sprint)
 
