@@ -68,9 +68,10 @@ export function Toast({ toast, onDismiss }: ToastProps) {
       transition={{ type: "spring", stiffness: 400, damping: 30 }}
       className={`w-80 rounded-none border-2 ${config.border} bg-surface-raised pointer-events-auto`}
       style={{ boxShadow: config.glow }}
+      role="alert"
     >
       <div className="flex items-start gap-3 px-4 py-3">
-        <Icon className={`w-5 h-5 ${config.text} shrink-0 mt-0.5`} />
+        <Icon className={`w-5 h-5 ${config.text} shrink-0 mt-0.5`} aria-hidden="true" />
         <div className="flex-1 min-w-0">
           <p className={`text-sm font-bold tracking-wide ${config.text}`}>
             {toast.title}
@@ -84,8 +85,9 @@ export function Toast({ toast, onDismiss }: ToastProps) {
         <button
           onClick={() => onDismiss(toast.id)}
           className="text-neutral-500 hover:text-neutral-300 transition-colors shrink-0"
+          aria-label="Benachrichtigung schließen"
         >
-          <X className="w-4 h-4" />
+          <X className="w-4 h-4" aria-hidden="true" />
         </button>
       </div>
     </motion.div>
