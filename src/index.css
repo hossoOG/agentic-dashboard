@@ -23,8 +23,8 @@
   --neutral-100: oklch(18% 0.01  250);  /* heading text */
   --neutral-200: oklch(25% 0.01  250);  /* primary text (dark on light) */
   --neutral-300: oklch(32% 0.01  250);
-  --neutral-400: oklch(45% 0.01  250);  /* secondary text */
-  --neutral-500: oklch(55% 0.01  250);  /* muted text */
+  --neutral-400: oklch(40% 0.01  250);  /* secondary text  (WCAG AA ≥ 4.5:1 on white) */
+  --neutral-500: oklch(46% 0.01  250);  /* muted text      (WCAG AA ≥ 4.5:1 on white) */
   --neutral-600: oklch(70% 0.008 250);  /* decorative separators */
   --neutral-700: oklch(82% 0.008 250);  /* borders */
   --neutral-800: oklch(92% 0.005 250);  /* subtle backgrounds */
