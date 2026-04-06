@@ -167,6 +167,7 @@ pub fn run() {
             session::file_reader::commands::write_project_file,
             session::file_reader::commands::list_project_dir,
             session::file_reader::commands::read_user_claude_file,
+            session::file_reader::commands::list_user_claude_dir,
             session::file_reader::commands::list_skill_dirs,
             session::file_reader::commands::scan_claude_sessions,
             // Worktree scanning
