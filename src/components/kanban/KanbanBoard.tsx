@@ -263,6 +263,7 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
       {/* Detail Modal */}
       {selectedIssue !== null && (
         <KanbanDetailModal
+          open
           folder={folder}
           issueNumber={selectedIssue}
           onClose={() => setSelectedIssue(null)}

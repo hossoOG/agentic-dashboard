@@ -1,12 +1,13 @@
-import { motion, AnimatePresence } from "framer-motion";
-import { X, GitCommit, Calendar, Tag } from "lucide-react";
+import { GitCommit, Calendar, Tag } from "lucide-react";
 import { version } from "../../../package.json";
 import changelogRaw from "../../../CHANGELOG.md?raw";
+import { Modal } from "../ui";
 
 declare const __BUILD_DATE__: string;
 declare const __GIT_HASH__: string;
 
 interface ChangelogDialogProps {
+  open: boolean;
   onClose: () => void;
 }
 
@@ -72,88 +73,59 @@ function renderContent(content: string) {
   });
 }
 
-export function ChangelogDialog({ onClose }: ChangelogDialogProps) {
-  const sections = parseChangelog(changelogRaw);
+const PARSED_SECTIONS = parseChangelog(changelogRaw);
+
+export function ChangelogDialog({ open, onClose }: ChangelogDialogProps) {
+  const sections = PARSED_SECTIONS;
+
+  const headerTitle = (
+    <div>
+      <h2 className="text-accent font-bold text-sm tracking-widest font-display">
+        CHANGELOG
+      </h2>
+      <div className="flex items-center gap-3 mt-1.5">
+        <span className="flex items-center gap-1 text-[10px] text-neutral-400">
+          <Tag className="w-3 h-3" /> v{version}
+        </span>
+        <span className="flex items-center gap-1 text-[10px] text-neutral-400">
+          <GitCommit className="w-3 h-3" /> {__GIT_HASH__}
+        </span>
+        <span className="flex items-center gap-1 text-[10px] text-neutral-400">
+          <Calendar className="w-3 h-3" /> {__BUILD_DATE__}
+        </span>
+      </div>
+    </div>
+  );
 
   return (
-    <AnimatePresence>
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center"
-        onClick={onClose}
-      >
-        {/* Overlay */}
-        <motion.div
-          className="absolute inset-0 bg-black/70"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        />
-
-        {/* Dialog */}
-        <motion.div
-          className="relative w-full max-w-lg max-h-[80vh] flex flex-col bg-surface-raised border-2 border-neutral-700"
-          onClick={(e) => e.stopPropagation()}
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          transition={{ duration: 0.2 }}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-700">
-            <div>
-              <h2 className="text-accent font-bold text-sm tracking-widest font-display">
-                CHANGELOG
-              </h2>
-              <div className="flex items-center gap-3 mt-1.5">
-                <span className="flex items-center gap-1 text-[10px] text-neutral-400">
-                  <Tag className="w-3 h-3" /> v{version}
-                </span>
-                <span className="flex items-center gap-1 text-[10px] text-neutral-400">
-                  <GitCommit className="w-3 h-3" /> {__GIT_HASH__}
-                </span>
-                <span className="flex items-center gap-1 text-[10px] text-neutral-400">
-                  <Calendar className="w-3 h-3" /> {__BUILD_DATE__}
-                </span>
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              className="text-neutral-500 hover:text-neutral-300 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Content — scrollable */}
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-            {sections.map((section) => (
-              <div
-                key={section.version}
-                className={`pb-4 border-b border-neutral-800 last:border-0 ${
-                  section.version === version ? "" : "opacity-60"
+    <Modal open={open} onClose={onClose} title={headerTitle} size="lg">
+      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        {sections.map((section) => (
+          <div
+            key={section.version}
+            className={`pb-4 border-b border-neutral-800 last:border-0 ${
+              section.version === version ? "" : "opacity-60"
+            }`}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <span
+                className={`text-sm font-bold font-mono ${
+                  section.version === version ? "text-accent" : "text-neutral-300"
                 }`}
               >
-                <div className="flex items-center gap-2 mb-2">
-                  <span
-                    className={`text-sm font-bold font-mono ${
-                      section.version === version ? "text-accent" : "text-neutral-300"
-                    }`}
-                  >
-                    v{section.version}
-                  </span>
-                  {section.version === version && (
-                    <span className="text-[9px] font-bold tracking-wider bg-accent/15 text-accent px-1.5 py-0.5 border border-accent/30">
-                      AKTUELL
-                    </span>
-                  )}
-                  <span className="text-[10px] text-neutral-500">{section.date}</span>
-                </div>
-                {renderContent(section.content)}
-              </div>
-            ))}
+                v{section.version}
+              </span>
+              {section.version === version && (
+                <span className="text-[9px] font-bold tracking-wider bg-accent/15 text-accent px-1.5 py-0.5 border border-accent/30">
+                  AKTUELL
+                </span>
+              )}
+              <span className="text-[10px] text-neutral-500">{section.date}</span>
+            </div>
+            {renderContent(section.content)}
           </div>
-        </motion.div>
+        ))}
       </div>
-    </AnimatePresence>
+    </Modal>
   );
 }

@@ -126,9 +126,7 @@ export function SessionManagerView() {
       <SessionStatusBar />
 
       {/* Modal */}
-      {showNewDialog && (
-        <NewSessionDialog onClose={() => setShowNewDialog(false)} />
-      )}
+      <NewSessionDialog open={showNewDialog} onClose={() => setShowNewDialog(false)} />
     </div>
   );
 }

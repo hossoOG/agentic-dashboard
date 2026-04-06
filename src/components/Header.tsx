@@ -66,7 +66,7 @@ export function Header() {
           v{version}
           <StatusIcon status={status} />
         </button>
-        {showChangelog && <ChangelogDialog onClose={() => setShowChangelog(false)} />}
+        <ChangelogDialog open={showChangelog} onClose={() => setShowChangelog(false)} />
         <UpdateNotification
           status={status}
           progress={progress}

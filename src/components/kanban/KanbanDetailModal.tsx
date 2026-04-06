@@ -3,7 +3,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-shell";
 import { getErrorMessage } from "../../utils/adpError";
 import {
-  X,
   ExternalLink,
   MessageSquare,
   User,
@@ -16,6 +15,7 @@ import {
   Clock,
   Loader2,
 } from "lucide-react";
+import { Modal, IconButton } from "../ui";
 import type { KanbanLabel } from "./KanbanCard";
 
 // ============================================================================
@@ -61,6 +61,7 @@ interface IssueDetail {
 // ============================================================================
 
 interface KanbanDetailModalProps {
+  open: boolean;
   folder: string;
   issueNumber: number;
   onClose: () => void;
@@ -95,6 +96,7 @@ function labelStyle(color: string): React.CSSProperties {
 // ============================================================================
 
 export function KanbanDetailModal({
+  open: isOpen,
   folder,
   issueNumber,
   onClose,
@@ -132,49 +134,29 @@ export function KanbanDetailModal({
     };
   }, [folder, issueNumber]);
 
-  // Close on Escape
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [onClose]);
+  const headerTitle = (
+    <div className="flex items-center gap-2">
+      <span className="text-sm font-medium text-neutral-200">
+        #{issueNumber}
+      </span>
+      {detail?.url && (
+        <IconButton
+          icon={<ExternalLink className="w-4 h-4" />}
+          label="Im Browser oeffnen"
+          onClick={() => open(detail.url)}
+        />
+      )}
+    </div>
+  );
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      title={headerTitle}
+      className="w-[640px] max-w-[90vw] rounded-md shadow-2xl"
     >
-      <div className="bg-surface-base border border-neutral-700 rounded-md w-[640px] max-w-[90vw] max-h-[80vh] flex flex-col shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-700 shrink-0">
-          <span className="text-sm font-medium text-neutral-200">
-            #{issueNumber}
-          </span>
-          <div className="flex items-center gap-1">
-            {detail?.url && (
-              <button
-                onClick={() => open(detail.url)}
-                className="p-1.5 text-neutral-500 hover:text-neutral-200 transition-colors"
-                title="Im Browser oeffnen"
-              >
-                <ExternalLink className="w-4 h-4" />
-              </button>
-            )}
-            <button
-              onClick={onClose}
-              className="p-1.5 text-neutral-500 hover:text-neutral-200 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto min-h-0">
+      <div className="flex-1 overflow-y-auto min-h-0">
           {loading ? (
             <div className="flex items-center justify-center py-12 text-neutral-500 text-sm">
               <RefreshCw className="w-4 h-4 animate-spin mr-2" />
@@ -362,8 +344,7 @@ export function KanbanDetailModal({
               )}
             </div>
           ) : null}
-        </div>
       </div>
-    </div>
+    </Modal>
   );
 }
