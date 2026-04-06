@@ -458,25 +458,23 @@ impl AgentDetector {
                             blocked_by,
                             &mut events,
                         );
-                    } else {
-                        if let Some(event) = self.try_spawn_agent(task_name, Some(task_n), None) {
-                            if let AgentEvent::Detected(ref e) = event {
-                                self.task_agents.insert(composite_key, e.agent_id.clone());
-                                self.task_number_agents
-                                    .entry(task_n)
-                                    .or_default()
-                                    .push(e.agent_id.clone());
-                                if let Some(info) = self.known_agents.get_mut(&e.agent_id) {
-                                    info.status = effective_status.to_string();
-                                    info.blocked_by = blocked_by;
-                                    if is_terminal_status(effective_status) {
-                                        info.completed_at =
-                                            Some(chrono::Utc::now().timestamp_millis());
-                                    }
+                    } else if let Some(event) = self.try_spawn_agent(task_name, Some(task_n), None)
+                    {
+                        if let AgentEvent::Detected(ref e) = event {
+                            self.task_agents.insert(composite_key, e.agent_id.clone());
+                            self.task_number_agents
+                                .entry(task_n)
+                                .or_default()
+                                .push(e.agent_id.clone());
+                            if let Some(info) = self.known_agents.get_mut(&e.agent_id) {
+                                info.status = effective_status.to_string();
+                                info.blocked_by = blocked_by;
+                                if is_terminal_status(effective_status) {
+                                    info.completed_at = Some(chrono::Utc::now().timestamp_millis());
                                 }
                             }
-                            events.push(event);
                         }
+                        events.push(event);
                     }
                 }
                 continue;
@@ -517,21 +515,20 @@ impl AgentDetector {
                                 blocked_by: info.blocked_by,
                             }));
                         }
-                    } else {
-                        if let Some(event) = self.try_spawn_agent(task_name, Some(task_n), None) {
-                            if let AgentEvent::Detected(ref e) = event {
-                                self.task_agents.insert(composite_key, e.agent_id.clone());
-                                self.task_number_agents
-                                    .entry(task_n)
-                                    .or_default()
-                                    .push(e.agent_id.clone());
-                                if let Some(info) = self.known_agents.get_mut(&e.agent_id) {
-                                    info.duration_str = duration_str;
-                                    info.token_count = token_count;
-                                }
+                    } else if let Some(event) = self.try_spawn_agent(task_name, Some(task_n), None)
+                    {
+                        if let AgentEvent::Detected(ref e) = event {
+                            self.task_agents.insert(composite_key, e.agent_id.clone());
+                            self.task_number_agents
+                                .entry(task_n)
+                                .or_default()
+                                .push(e.agent_id.clone());
+                            if let Some(info) = self.known_agents.get_mut(&e.agent_id) {
+                                info.duration_str = duration_str;
+                                info.token_count = token_count;
                             }
-                            events.push(event);
                         }
+                        events.push(event);
                     }
                 } else if task_name.is_some() {
                     // Main task entry without number (✱ pattern)

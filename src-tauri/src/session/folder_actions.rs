@@ -1,6 +1,6 @@
 // src-tauri/src/session/folder_actions.rs
 
-use crate::error::{ADPError, ADPErrorCode};
+use crate::error::ADPError;
 use crate::util::silent_command;
 
 // Commands im mod-Block wegen rustc 1.94 E0255 Workaround (siehe CLAUDE.md)
