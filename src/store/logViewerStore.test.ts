@@ -144,6 +144,96 @@ describe("filters", () => {
 });
 
 // ---------------------------------------------------------------------------
+// sorting (chronological order)
+// ---------------------------------------------------------------------------
+
+describe("sorting", () => {
+  it("sorts entries by timestamp after addEntries", () => {
+    const entries = [
+      makeEntry({ timestamp: "2025-01-15T10:35:00.000Z", message: "third" }),
+      makeEntry({ timestamp: "2025-01-15T10:30:00.000Z", message: "first" }),
+      makeEntry({ timestamp: "2025-01-15T10:32:00.000Z", message: "second" }),
+    ];
+    useLogViewerStore.getState().addEntries(entries);
+
+    const stored = useLogViewerStore.getState().entries;
+    expect(stored.map((e) => e.message)).toEqual(["first", "second", "third"]);
+  });
+
+  it("sorts mixed historical and live entries chronologically", () => {
+    // Simulate: first add a live entry, then load historical backend logs
+    useLogViewerStore
+      .getState()
+      .addEntries([
+        makeEntry({
+          timestamp: "2025-01-15T12:00:00.000Z",
+          source: "frontend",
+          message: "live",
+        }),
+      ]);
+
+    // Historical logs arrive later but have earlier timestamps
+    useLogViewerStore
+      .getState()
+      .addEntries([
+        makeEntry({
+          timestamp: "2025-01-15T08:00:00.000Z",
+          source: "backend",
+          message: "historical",
+        }),
+      ]);
+
+    const stored = useLogViewerStore.getState().entries;
+    expect(stored[0].message).toBe("historical");
+    expect(stored[1].message).toBe("live");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// noise filtering
+// ---------------------------------------------------------------------------
+
+describe("noise filtering", () => {
+  it("downgrades updater error messages to info severity", () => {
+    useLogViewerStore.getState().addEntries([
+      makeEntry({
+        severity: "error",
+        message:
+          "tauri_plugin_updater::updater — update endpoint did not respond with a successful status code",
+      }),
+    ]);
+
+    const stored = useLogViewerStore.getState().entries;
+    expect(stored[0].severity).toBe("info");
+  });
+
+  it("downgrades Windows Ctrl+C exit code warnings to info", () => {
+    useLogViewerStore.getState().addEntries([
+      makeEntry({
+        severity: "warn",
+        message:
+          "Session abc123 child process exited with unexpected code: -1073741510",
+      }),
+    ]);
+
+    const stored = useLogViewerStore.getState().entries;
+    expect(stored[0].severity).toBe("info");
+  });
+
+  it("does not downgrade genuine error messages", () => {
+    useLogViewerStore.getState().addEntries([
+      makeEntry({
+        severity: "error",
+        message: "Failed to spawn shell for session abc: permission denied",
+      }),
+    ]);
+
+    const stored = useLogViewerStore.getState().entries;
+    expect(stored[0].severity).toBe("error");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // parseBackendLogLine
 // ---------------------------------------------------------------------------
 

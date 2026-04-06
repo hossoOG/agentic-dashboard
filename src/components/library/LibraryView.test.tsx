@@ -3,6 +3,10 @@ import { render, screen } from "@testing-library/react";
 import { LibraryView } from "./LibraryView";
 import { useConfigDiscoveryStore } from "../../store/configDiscoveryStore";
 import type { ScopeConfig } from "../../store/configDiscoveryStore";
+import { useSettingsStore } from "../../store/settingsStore";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockUseSettingsStore = useSettingsStore as any;
 
 // ── Mocks ─────────────────────────────────────────────────────────────
 
@@ -15,6 +19,12 @@ vi.mock("../../store/sessionStore", () => ({
     sel({ sessions: [], activeSessionId: null }),
   ),
   selectActiveSession: () => null,
+}));
+
+vi.mock("../../store/settingsStore", () => ({
+  useSettingsStore: vi.fn((sel: CallableFunction) =>
+    sel({ favorites: [] }),
+  ),
 }));
 
 const makeConfig = (overrides?: Partial<ScopeConfig>): ScopeConfig => ({
@@ -32,6 +42,8 @@ beforeEach(() => {
     globalConfig: null,
     projectConfig: null,
     projectPath: null,
+    favoriteConfigs: {},
+    favoritesLoading: {},
     loading: false,
     error: null,
     contentCache: {},
@@ -132,5 +144,76 @@ describe("LibraryView", () => {
     render(<LibraryView />);
     const refreshBtn = screen.getByTitle("Neu laden");
     expect(refreshBtn).toBeTruthy();
+  });
+
+  it("renders favorite project panels when favorites exist", () => {
+    // Override settingsStore mock to return favorites
+    mockUseSettingsStore.mockImplementation(
+      (sel: CallableFunction) =>
+        sel({
+          favorites: [
+            {
+              id: "fav-1",
+              path: "C:/Projects/my-app",
+              label: "My App",
+              shell: "powershell",
+              addedAt: 1000,
+              lastUsedAt: 2000,
+            },
+          ],
+        }),
+    );
+
+    useConfigDiscoveryStore.setState({
+      globalConfig: makeConfig(),
+      favoriteConfigs: {
+        "C:/Projects/my-app": makeConfig({
+          skills: [
+            {
+              name: "deploy",
+              dirName: "deploy",
+              description: "Deploy app",
+              args: [],
+              hasReference: false,
+              scope: "project",
+            },
+          ],
+          claudeMd: "# My App Config",
+        }),
+      },
+      discoverFavorites: vi.fn(async () => {}),
+    });
+
+    render(<LibraryView />);
+    expect(screen.getByText(/My App/)).toBeTruthy();
+    expect(screen.getByText("deploy")).toBeTruthy();
+  });
+
+  it("does not render favorite panel when config is not yet loaded", () => {
+    mockUseSettingsStore.mockImplementation(
+      (sel: CallableFunction) =>
+        sel({
+          favorites: [
+            {
+              id: "fav-2",
+              path: "C:/Projects/other-app",
+              label: "Other App",
+              shell: "powershell",
+              addedAt: 1000,
+              lastUsedAt: 2000,
+            },
+          ],
+        }),
+    );
+
+    useConfigDiscoveryStore.setState({
+      globalConfig: makeConfig(),
+      favoriteConfigs: {}, // Config not loaded yet
+      discoverFavorites: vi.fn(async () => {}),
+    });
+
+    render(<LibraryView />);
+    // "Other App" should not appear since config is not loaded
+    expect(screen.queryByText(/Other App/)).toBeNull();
   });
 });
