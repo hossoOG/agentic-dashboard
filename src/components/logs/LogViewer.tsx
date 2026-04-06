@@ -1,5 +1,6 @@
 import { useEffect, useRef, useMemo, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   RefreshCw,
   Trash2,
@@ -10,11 +11,12 @@ import {
 import {
   useLogViewerStore,
   parseBackendLogLine,
+  groupConsecutiveEntries,
   type LogSeverity,
   type LogSource,
 } from "../../store/logViewerStore";
 import { getRecentLogs, subscribeToLogs, logError } from "../../utils/errorLogger";
-import { LogEntryRow } from "./LogEntry";
+import { LogEntryRow, LOG_ROW_HEIGHT } from "./LogEntry";
 
 const SEVERITY_OPTIONS: { key: LogSeverity; label: string; color: string }[] = [
   { key: "error", label: "Error", color: "bg-red-400/20 text-red-400 border-red-400/40" },
@@ -114,23 +116,32 @@ export function LogViewer() {
     return unsub;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-scroll when liveTail is on
-  useEffect(() => {
-    if (liveTail && scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [entries.length, liveTail]);
-
-  // Filter entries
-  const filtered = useMemo(() => {
+  // Filter entries, then group consecutive identical ones
+  const grouped = useMemo(() => {
     const lowerSearch = searchText.toLowerCase();
-    return entries.filter((e) => {
+    const filtered = entries.filter((e) => {
       if (!severityFilter.has(e.severity)) return false;
       if (!sourceFilter.has(e.source)) return false;
       if (lowerSearch && !e.message.toLowerCase().includes(lowerSearch)) return false;
       return true;
     });
+    return groupConsecutiveEntries(filtered);
   }, [entries, severityFilter, sourceFilter, searchText]);
+
+  // Virtualizer for performant rendering
+  const virtualizer = useVirtualizer({
+    count: grouped.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => LOG_ROW_HEIGHT,
+    overscan: 20,
+  });
+
+  // Auto-scroll when liveTail is on
+  useEffect(() => {
+    if (liveTail && grouped.length > 0) {
+      virtualizer.scrollToIndex(grouped.length - 1, { align: "end" });
+    }
+  }, [grouped.length, liveTail, virtualizer]);
 
   const toggleSeverity = (key: LogSeverity) => {
     const next = new Set(severityFilter);
@@ -246,18 +257,39 @@ export function LogViewer() {
       {/* Entry count */}
       <div className="flex items-center justify-between px-4 py-1 text-[10px] text-neutral-500 border-b border-neutral-800">
         <span>
-          {filtered.length} von {entries.length} Einträgen
+          {grouped.length} Gruppen von {entries.length} Einträgen
         </span>
       </div>
 
-      {/* Log list */}
+      {/* Virtualized log list */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
-        {filtered.length === 0 ? (
+        {grouped.length === 0 ? (
           <div className="flex items-center justify-center h-32 text-neutral-500 text-sm">
             Keine Logs vorhanden
           </div>
         ) : (
-          filtered.map((entry) => <LogEntryRow key={entry.id} entry={entry} />)
+          <div
+            style={{
+              height: virtualizer.getTotalSize(),
+              width: "100%",
+              position: "relative",
+            }}
+          >
+            {virtualizer.getVirtualItems().map((virtualRow) => (
+              <div
+                key={grouped[virtualRow.index].id}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
+              >
+                <LogEntryRow entry={grouped[virtualRow.index]} />
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>

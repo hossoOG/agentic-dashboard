@@ -17,6 +17,26 @@ vi.mock("../../utils/errorLogger", () => ({
   logError: vi.fn(),
 }));
 
+// Mock @tanstack/react-virtual — jsdom has no layout engine, so the virtualizer
+// would render zero rows. This mock renders all items directly.
+vi.mock("@tanstack/react-virtual", () => ({
+  useVirtualizer: (opts: {
+    count: number;
+    estimateSize: () => number;
+    getScrollElement: () => HTMLElement | null;
+  }) => ({
+    getVirtualItems: () =>
+      Array.from({ length: opts.count }, (_, i) => ({
+        index: i,
+        start: i * opts.estimateSize(),
+        size: opts.estimateSize(),
+        key: i,
+      })),
+    getTotalSize: () => opts.count * opts.estimateSize(),
+    scrollToIndex: vi.fn(),
+  }),
+}));
+
 // ---------------------------------------------------------------------------
 // Setup
 // ---------------------------------------------------------------------------
@@ -106,7 +126,7 @@ describe("LogViewer", () => {
     ]);
 
     render(<LogViewer />);
-    expect(screen.getByText(/2 von 2 Einträgen/)).toBeInTheDocument();
+    expect(screen.getByText(/2 Gruppen von 2 Einträgen/)).toBeInTheDocument();
   });
 
   it("filters entries by severity", () => {
@@ -133,6 +153,36 @@ describe("LogViewer", () => {
     render(<LogViewer />);
     expect(screen.getByText("error msg")).toBeInTheDocument();
     expect(screen.queryByText("info msg")).not.toBeInTheDocument();
-    expect(screen.getByText(/1 von 2 Einträgen/)).toBeInTheDocument();
+    expect(screen.getByText(/1 Gruppen von 2 Einträgen/)).toBeInTheDocument();
+  });
+
+  it("groups consecutive identical entries and shows count badge", () => {
+    // Add 3 identical error entries
+    useLogViewerStore.getState().addEntries([
+      {
+        timestamp: "2025-01-15T10:30:00.000Z",
+        severity: "error",
+        source: "frontend",
+        message: "repeated error",
+      },
+      {
+        timestamp: "2025-01-15T10:30:01.000Z",
+        severity: "error",
+        source: "frontend",
+        message: "repeated error",
+      },
+      {
+        timestamp: "2025-01-15T10:30:02.000Z",
+        severity: "error",
+        source: "frontend",
+        message: "repeated error",
+      },
+    ]);
+
+    render(<LogViewer />);
+    // Should show 1 grouped row, not 3
+    expect(screen.getByText(/1 Gruppen von 3 Einträgen/)).toBeInTheDocument();
+    // The group count badge should show ×3
+    expect(screen.getByText("×3")).toBeInTheDocument();
   });
 });
