@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useSessionStore, selectActiveSession } from "../../store/sessionStore";
+import { useSettingsStore } from "../../store/settingsStore";
 import {
   useConfigDiscoveryStore,
   type ScopeConfig,
@@ -399,9 +400,13 @@ export function LibraryView() {
 
   const globalConfig = useConfigDiscoveryStore((s) => s.globalConfig);
   const projectConfig = useConfigDiscoveryStore((s) => s.projectConfig);
+  const favoriteConfigs = useConfigDiscoveryStore((s) => s.favoriteConfigs);
   const loading = useConfigDiscoveryStore((s) => s.loading);
   const discoverGlobal = useConfigDiscoveryStore((s) => s.discoverGlobal);
   const discoverProject = useConfigDiscoveryStore((s) => s.discoverProject);
+  const discoverFavorites = useConfigDiscoveryStore((s) => s.discoverFavorites);
+
+  const favorites = useSettingsStore((s) => s.favorites);
 
   useEffect(() => {
     discoverGlobal();
@@ -413,12 +418,28 @@ export function LibraryView() {
     }
   }, [folder, discoverProject]);
 
+  // Discover configs for all favorite projects (excluding the active session folder)
+  useEffect(() => {
+    const favPaths = favorites
+      .map((f) => f.path)
+      .filter((p) => p !== folder);
+    if (favPaths.length > 0) {
+      discoverFavorites(favPaths);
+    }
+  }, [favorites, folder, discoverFavorites]);
+
   const handleRefresh = useCallback(() => {
     discoverGlobal();
     if (folder) {
       discoverProject(folder);
     }
-  }, [discoverGlobal, discoverProject, folder]);
+    const favPaths = favorites
+      .map((f) => f.path)
+      .filter((p) => p !== folder);
+    if (favPaths.length > 0) {
+      discoverFavorites(favPaths);
+    }
+  }, [discoverGlobal, discoverProject, discoverFavorites, folder, favorites]);
 
   return (
     <div className="flex flex-col h-full">
@@ -466,7 +487,7 @@ export function LibraryView() {
               />
             )}
 
-            {/* Project scope */}
+            {/* Active session project scope */}
             {projectConfig && folder && (
               <ScopePanel
                 scope="project"
@@ -476,7 +497,24 @@ export function LibraryView() {
               />
             )}
 
-            {!globalConfig && !projectConfig && !loading && (
+            {/* Favorite projects */}
+            {favorites
+              .filter((f) => f.path !== folder)
+              .map((fav) => {
+                const config = favoriteConfigs[fav.path];
+                if (!config) return null;
+                return (
+                  <ScopePanel
+                    key={fav.id}
+                    scope="project"
+                    config={config}
+                    label={`${fav.label} (${fav.path.split(/[\\/]/).pop() ?? fav.path})`}
+                    icon={FolderOpen}
+                  />
+                );
+              })}
+
+            {!globalConfig && !projectConfig && Object.keys(favoriteConfigs).length === 0 && !loading && (
               <div className="flex flex-col items-center justify-center h-64 gap-3 text-neutral-500">
                 <BookOpen className="w-10 h-10 text-neutral-600" />
                 <span className="text-sm">Keine Konfigurationen gefunden</span>
