@@ -16,6 +16,17 @@ export interface UnifiedLogEntry {
 const MAX_ENTRIES = 1000;
 let entryCounter = 0;
 
+/**
+ * Noise patterns that should be downgraded from error/warn to info.
+ * Each pattern is tested against the log message (case-insensitive).
+ */
+const NOISE_PATTERNS: readonly string[] = [
+  "update endpoint did not respond",
+  "updater endpoint did not respond",
+  "exited with unexpected code: -1073741510", // Windows Ctrl+C (0xC000013A)
+  "exited with unexpected code: -1073741509", // Windows Ctrl+Break (0xC000013B)
+];
+
 interface LogViewerState {
   entries: UnifiedLogEntry[];
   severityFilter: Set<LogSeverity>;
@@ -40,8 +51,20 @@ export const useLogViewerStore = create<LogViewerState>((set) => ({
 
   addEntries: (newEntries) =>
     set((state) => {
-      const withIds = newEntries.map((e) => ({ ...e, id: ++entryCounter }));
-      const merged = [...state.entries, ...withIds];
+      const processed = newEntries.map((e) => {
+        // Downgrade noisy log messages to info severity
+        const isNoise = NOISE_PATTERNS.some((p) =>
+          e.message.toLowerCase().includes(p),
+        );
+        return {
+          ...e,
+          severity: isNoise ? ("info" as LogSeverity) : e.severity,
+          id: ++entryCounter,
+        };
+      });
+      const merged = [...state.entries, ...processed];
+      // Sort by timestamp to ensure chronological order
+      merged.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
       return { entries: merged.slice(-MAX_ENTRIES) };
     }),
 
