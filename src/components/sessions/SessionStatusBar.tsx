@@ -14,22 +14,22 @@ export function SessionStatusBar() {
     <div className="flex items-center justify-between px-4 py-1.5 bg-surface-raised border-t border-neutral-700 text-xs font-mono">
       <div className="flex items-center gap-4">
         <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-success status-pulse-animation" />
+          <span className={`w-2 h-2 rounded-full bg-success ${counts.active > 0 ? "status-pulse-animation" : ""}`} />
           <span className="text-neutral-400">{counts.active} aktiv</span>
         </span>
         <span className="text-neutral-600">·</span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-yellow-400 status-pulse-animation" />
+          <span className={`w-2 h-2 rounded-full bg-warning ${counts.waiting > 0 ? "status-pulse-animation" : ""}`} />
           <span className="text-neutral-400">{counts.waiting} wartend</span>
         </span>
         <span className="text-neutral-600">·</span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-success" />
+          <span className="w-2 h-2 rounded-full bg-neutral-500" />
           <span className="text-neutral-400">{counts.done} fertig</span>
         </span>
         <span className="text-neutral-600">·</span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-red-500" />
+          <span className="w-2 h-2 rounded-full bg-error" />
           <span className="text-neutral-400">{counts.error} Fehler</span>
         </span>
       </div>

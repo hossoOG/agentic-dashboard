@@ -1,8 +1,9 @@
 import React from "react";
-import { X, Check, AlertTriangle, LayoutGrid, FolderOpen, Terminal } from "lucide-react";
+import { X, LayoutGrid, FolderOpen, Terminal } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import type { ClaudeSession } from "../../store/sessionStore";
 import { getActivityLevel, type ActivityLevel } from "./activityLevel";
+import { SessionStatusDot } from "./SessionStatusDot";
 import { useNowTick } from "../../hooks/useNowTick";
 import { shortenPath } from "../../utils/pathUtils";
 
@@ -19,39 +20,6 @@ function formatDuration(ms: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-}
-
-function StatusDot({
-  status,
-  activityLevel,
-}: {
-  status: ClaudeSession["status"];
-  activityLevel: ActivityLevel | null;
-}) {
-  switch (status) {
-    case "running":
-    case "starting":
-      if (activityLevel === "idle") {
-        return <span className="w-2.5 h-2.5 rounded-full bg-neutral-500 shrink-0" />;
-      }
-      return activityLevel === "thinking" ? (
-        <span className="w-2.5 h-2.5 rounded-full bg-info status-breathe-animation shrink-0" />
-      ) : (
-        <span className="w-2.5 h-2.5 rounded-full bg-success status-pulse-animation shrink-0" />
-      );
-    case "waiting":
-      return (
-        <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 status-pulse-animation shrink-0" />
-      );
-    case "done":
-      return (
-        <Check className="w-3.5 h-3.5 text-success shrink-0" />
-      );
-    case "error":
-      return (
-        <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
-      );
-  }
 }
 
 function TimeDisplay({
@@ -83,7 +51,7 @@ function TimeDisplay({
         </span>
       );
     case "waiting":
-      return <span className="text-yellow-400">Wartet auf Input</span>;
+      return <span className="text-warning">Wartet auf Input</span>;
     case "done":
       return (
         <span className="text-neutral-500">
@@ -155,7 +123,7 @@ const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: Ses
 
       {/* Title row */}
       <div className="flex items-center gap-2 pr-5">
-        <StatusDot status={session.status} activityLevel={activityLevel} />
+        <SessionStatusDot status={session.status} activityLevel={activityLevel} useIcons />
         <span className="font-bold text-sm text-neutral-200 truncate">
           {session.title}
         </span>
