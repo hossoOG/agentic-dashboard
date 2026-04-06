@@ -216,10 +216,10 @@
 ### Welle 2 — Test-Coverage heben (Reihenfolge beachten)
 
 - [x] QA-12 editorStore Tests verifizieren/erweitern (#89) — PR #94 merged, 14 → 26 Tests
-- [ ] QA-11 Editor-Komponenten Tests — Toolbar/Preview/View (#88)
-- [ ] QA-10 Component-Tests fuer Kern-UI (#87)
-- [ ] QA-16 Rust Integration Tests fuer kritische Tauri-Commands (#91)
-- [ ] QA-15 Coverage-Schwellen auf 60/60/60/50 hochziehen (#90) — **erst nach 1–4**
+- [x] QA-11 Editor-Komponenten Tests — Toolbar/Preview/View (#88) — PR #95 merged, 5+3+5 Tests
+- [x] QA-10 Component-Tests fuer Kern-UI (#87) — PR #96 merged, SessionCard/SideNav/Toast/ErrorBoundary
+- [x] QA-16 Rust Integration Tests fuer kritische Tauri-Commands (#91) — PR #97 merged, 17 Tests
+- [ ] QA-15 Coverage-Schwellen auf 60/60/60/50 hochziehen (#90) — Abhaengigkeiten erledigt, bereit
 - [ ] test(all): Test-Coverage auf 75%+ Langzeit-Ziel (#66)
 
 ### Welle 3 — Tech-Debt Refactorings
@@ -232,7 +232,8 @@
 
 - [x] `/implement` Skill: Phase 0.5 Pre-Flight (Working Tree clean) + Phase 7 Post-Merge-Cleanup ergaenzt (2026-04-05)
 - [x] `/parallel-implement` Skill **designen + erstellen** (2026-04-05) — `.claude/skills/parallel-implement/SKILL.md`. Orchestrator-Pattern: max 3 Subagents parallel, je in eigenem worktree, inline Mini-Pipeline (Analyse→Impl→Test→QA→PR), JSON-Return pro Agent.
-- [ ] `/parallel-implement` Skill **testen** mit 2–3 gleichzeitigen QA-Issues aus v1.6.0 (z.B. #88 + #87 oder #88 + #91)
+- [x] Alle 6 Skills gehaertet (2026-04-06) — Pre-Edit Usage Check, Cross-Cutting Pre+Post-Scan, Lessons Capture, Merge-Order-Empfehlung, Dead-Code-Check in Review
+- [ ] `/parallel-implement` Skill **testen** mit 2–3 gleichzeitigen Issues
 
 ## Backlog (Future)
 
@@ -246,7 +247,7 @@
 - [ ] feat(editor): Projekt-Dateibrowser fuer .md Dateien (#68 follow-up)
 - [ ] feat(editor): Library-Integration (Klick auf Datei → Editor oeffnet) (#68 follow-up)
 - [ ] perf(editor): @codemirror/language-data auf ~20 Sprachen reduzieren (#68 follow-up)
-- [ ] test(editor): Komponenten-Tests (EditorToolbar, MarkdownPreview XSS, MarkdownEditorView) (#68 follow-up)
+- [x] test(editor): Komponenten-Tests (EditorToolbar, MarkdownPreview XSS, MarkdownEditorView) (#68 follow-up) — via #88 PR #95
 - [ ] test(all): Test-Coverage auf 75%+ erhoehen (#66)
 - [ ] Gamification-System (#15)
 
