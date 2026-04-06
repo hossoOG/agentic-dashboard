@@ -222,11 +222,22 @@
 - [ ] QA-15 Coverage-Schwellen auf 60/60/60/50 hochziehen (#90) — Abhaengigkeiten erledigt, bereit
 - [ ] test(all): Test-Coverage auf 75%+ Langzeit-Ziel (#66)
 
-### Welle 3 — Tech-Debt Refactorings
+### Welle 3 — Bug Fixes (Prio 1)
+
+- [ ] bug(ui): Session-Status-Farben werden nicht korrekt erkannt (#100)
+- [ ] bug(ui): Scrolling in Sessions funktioniert unzuverlaessig (#101)
+- [ ] bug(ui): Log-Ansicht ist verbuggt (#104)
+
+### Welle 4 — Refactorings & Reevaluierung
+
+- [ ] refactor(ui): Hooks-Reiter und Konfig-Panel ueberarbeiten (#102)
+- [ ] refactor(pipeline): Pipeline-Funktionalitaet neu evaluieren (#103)
+
+### Welle 5 — Tech-Debt Refactorings (Stretch)
 
 - [ ] refactor(ui): SessionManagerView God-Component zerlegen (#62)
 - [ ] refactor(tauri): ADPError statt String in Tauri-Commands (#63)
-- [ ] refactor(ui): Component-Library formalisieren — Button/Modal/Input (#65) — Stretch
+- [ ] refactor(ui): Component-Library formalisieren — Button/Modal/Input (#65)
 
 ### Skill-Infrastruktur (parallel zum Sprint)
 
