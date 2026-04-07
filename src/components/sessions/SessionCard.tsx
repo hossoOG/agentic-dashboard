@@ -41,11 +41,7 @@ function TimeDisplay({
           </span>
         );
       }
-      return activityLevel === "thinking" ? (
-        <span className="text-info">
-          Denkt... (seit {formatDuration(now - session.lastOutputAt)})
-        </span>
-      ) : (
+      return (
         <span className="text-neutral-500">
           Läuft seit {formatDuration(now - session.createdAt)}
         </span>
@@ -71,7 +67,7 @@ const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: Ses
   const now = useNowTick();
 
   const isRunning = session.status === "running" || session.status === "starting";
-  const activityLevel = isRunning ? getActivityLevel(session.lastOutputAt, now, session.lastOutputSnippet) : null;
+  const activityLevel = isRunning ? getActivityLevel(session.lastOutputAt, now) : null;
 
   return (
     <div

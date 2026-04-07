@@ -34,15 +34,14 @@ export function SessionStatusDot({
   const { dot, icon } = SIZE_CLASSES[size];
 
   switch (status) {
-    case "running":
     case "starting":
+      return (
+        <span className={`${dot} rounded-full bg-success status-breathe-animation shrink-0`} />
+      );
+
+    case "running":
       if (activityLevel === "idle") {
-        return <span className={`${dot} rounded-full bg-neutral-500 shrink-0`} />;
-      }
-      if (activityLevel === "thinking") {
-        return (
-          <span className={`${dot} rounded-full bg-info status-breathe-animation shrink-0`} />
-        );
+        return <span className={`${dot} rounded-full bg-success opacity-50 shrink-0`} />;
       }
       // active or no activity level — green pulse
       return (

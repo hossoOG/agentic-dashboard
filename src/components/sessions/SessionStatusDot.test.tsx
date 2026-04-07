@@ -13,19 +13,11 @@ describe("SessionStatusDot", () => {
     expect(dot).toBeTruthy();
   });
 
-  it("renders blue breathe dot for running + thinking activity", () => {
-    const { container } = render(
-      <SessionStatusDot status="running" activityLevel="thinking" />,
-    );
-    const dot = container.querySelector(".bg-info.status-breathe-animation");
-    expect(dot).toBeTruthy();
-  });
-
-  it("renders neutral dot for running + idle activity", () => {
+  it("renders dimmed green dot for running + idle activity", () => {
     const { container } = render(
       <SessionStatusDot status="running" activityLevel="idle" />,
     );
-    const dot = container.querySelector(".bg-neutral-500");
+    const dot = container.querySelector(".bg-success.opacity-50");
     expect(dot).toBeTruthy();
     // No pulse or breathe animation for idle
     expect(container.querySelector(".status-pulse-animation")).toBeNull();
@@ -38,10 +30,10 @@ describe("SessionStatusDot", () => {
     expect(dot).toBeTruthy();
   });
 
-  it("renders green pulse dot for starting status (default active)", () => {
+  it("renders green breathe dot for starting status", () => {
     const { container } = render(<SessionStatusDot status="starting" />);
-    // No activityLevel → defaults to null → green pulse
-    const dot = container.querySelector(".bg-success.status-pulse-animation");
+    // starting always gets breathe animation
+    const dot = container.querySelector(".bg-success.status-breathe-animation");
     expect(dot).toBeTruthy();
   });
 
