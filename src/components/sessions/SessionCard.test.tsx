@@ -117,10 +117,10 @@ describe("SessionCard", () => {
     expect(onClick).toHaveBeenCalledTimes(1); // still 1, not 2
   });
 
-  it("renders starting status with active dot animation class", () => {
+  it("renders starting status with breathe dot animation class", () => {
     const { container } = renderCard(makeSession({ status: "starting" }));
-    // starting + active activity → status-pulse-animation + bg-success
-    const dot = container.querySelector(".status-pulse-animation.bg-success");
+    // starting → status-breathe-animation + bg-success
+    const dot = container.querySelector(".status-breathe-animation.bg-success");
     expect(dot).toBeTruthy();
   });
 });

@@ -25,12 +25,10 @@ export function GridCell({
   const title = session?.title ?? "Session";
   const status = session?.status ?? "starting";
   const lastOutputAt = session?.lastOutputAt ?? Date.now();
-  const lastOutputSnippet = session?.lastOutputSnippet ?? "";
-
   const now = useNowTick();
   const isRunning = status === "running" || status === "starting";
 
-  const activityLevel = isRunning ? getActivityLevel(lastOutputAt, now, lastOutputSnippet) : null;
+  const activityLevel = isRunning ? getActivityLevel(lastOutputAt, now) : null;
 
   return (
     <div
