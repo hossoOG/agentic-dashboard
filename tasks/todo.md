@@ -219,8 +219,8 @@
 - [x] QA-11 Editor-Komponenten Tests — Toolbar/Preview/View (#88) — PR #95 merged, 5+3+5 Tests
 - [x] QA-10 Component-Tests fuer Kern-UI (#87) — PR #96 merged, SessionCard/SideNav/Toast/ErrorBoundary
 - [x] QA-16 Rust Integration Tests fuer kritische Tauri-Commands (#91) — PR #97 merged, 17 Tests
-- [ ] QA-15 Coverage-Schwellen auf 60/60/60/50 hochziehen (#90) — Abhaengigkeiten erledigt, bereit
-- [ ] test(all): Test-Coverage auf 75%+ Langzeit-Ziel (#66)
+- [x] QA-15 Coverage-Schwellen auf 75/75/65/75 hochgezogen (#90) — PR #131 merged, 907 Tests, 83% Coverage
+- [x] test(all): Test-Coverage auf 83%+ erreicht (#66) — PRs #125-#131, +241 Tests in 39 Dateien
 
 ### Welle 3 — Bug Fixes (Prio 1)
 
@@ -231,11 +231,11 @@
 ### Welle 4 — Refactorings & Reevaluierung
 
 - [x] refactor(ui): Hooks-Reiter und Konfig-Panel ueberarbeiten (#102) — erledigt
-- [ ] refactor(pipeline): Pipeline-Funktionalitaet neu evaluieren (#103)
+- [x] refactor(pipeline): Pipeline-Funktionalitaet neu evaluieren (#103) — PR #112 merged
 
 ### Welle 5 — Features
 
-- [ ] feat(library): Uebersicht aller Skills, Agents, Hooks, Configs — global + pro Projekt (#110)
+- [x] feat(library): Uebersicht aller Skills, Agents, Hooks, Configs — global + pro Projekt (#110) — PR #111 merged
 
 ### Welle 6 — Tech-Debt Refactorings (erledigt)
 
@@ -243,27 +243,47 @@
 - [x] refactor(tauri): ADPError statt String in Tauri-Commands (#63) — closed
 - [x] refactor(ui): Component-Library formalisieren — Button/Modal/Input (#65) — closed
 
+### Welle 7 — Bugs & Verbesserungen (aus manuellem Test 2026-04-06)
+
+- [x] bug(ui): Hooks-Reiter zeigt keine Hook-Details — nur 'Projekt' Label (#114) — PR #120 merged
+- [x] bug(ui): Library-Ansicht zeigt nur Global — keine Projekt-Konfigurationen (#117) — PR #121 merged
+- [x] bug(ui): Log-Ansicht — Zeitstempel springen, Updater-Spam, Exit-Code-Flut (#118) — PR #119 merged
+- [x] perf(editor): @codemirror/language-data auf ~20 Sprachen reduzieren (#113) — PR #122 merged, −669 KB (−25%)
+- [x] bug(ui): Agents aus .claude/agents/ werden im Config-Panel nicht angezeigt (#115) — PR #124 merged, 11 Tests
+- [x] bug(ui): Projektspezifische Claude-Settings nicht einsehbar (#116) — PR #123 merged, 13 Tests
+
+### Welle 8 — Frontend-Review Fixes (aus 5-Experten-Analyse 2026-04-06)
+
+- [x] fix(ui): echte Umlaute in allen UI-Strings (#132) — PR #145 merged, 45 Dateien
+- [x] fix(ui): Sprachmix bereinigen + SideNav Labels + Settings ausblenden (#133, #137, #138) — PR #141 merged
+- [x] fix(a11y): Toast aria-live + aria-hidden auf dekorativen Icons (#134) — PR #143 merged
+- [x] fix(a11y): Light-Mode Kontrast auf WCAG AA (#135) — PR #140 merged, CSS-Token-Fix
+- [x] feat(logs): Error-Grouping + Virtualisierung + React.memo (#136) — PR #144 merged
+- [x] fix(ui): Filled CTA-Buttons für primäre Aktionen (#139) — PR #142 merged
+
 ### Skill-Infrastruktur (parallel zum Sprint)
 
 - [x] `/implement` Skill: Phase 0.5 Pre-Flight (Working Tree clean) + Phase 7 Post-Merge-Cleanup ergaenzt (2026-04-05)
 - [x] `/parallel-implement` Skill **designen + erstellen** (2026-04-05) — `.claude/skills/parallel-implement/SKILL.md`. Orchestrator-Pattern: max 3 Subagents parallel, je in eigenem worktree, inline Mini-Pipeline (Analyse→Impl→Test→QA→PR), JSON-Return pro Agent.
 - [x] Alle 6 Skills gehaertet (2026-04-06) — Pre-Edit Usage Check, Cross-Cutting Pre+Post-Scan, Lessons Capture, Merge-Order-Empfehlung, Dead-Code-Check in Review
-- [ ] `/parallel-implement` Skill **testen** mit 2–3 gleichzeitigen Issues
+- [x] `/parallel-implement` Skill **testen** mit 3 gleichzeitigen Issues (2026-04-06) — #114, #117, #118 parallel, alle 3 PR_READY
+- [x] `/parallel-implement` 2. Lauf (2026-04-06) — #113, #115, #116 parallel, alle 3 merged inkl. Auto-Merge + Konflikt-Resolution
+- [x] `/implement` + `/parallel-implement` Skills: Auto-Merge + Merge-Konflikt-Resolution ergaenzt (2026-04-06)
 
 ## Backlog (Future)
 
 - [x] **DEBT-04**: Store-Deduplizierung agentStore vs pipelineStore (#85) — rawLogs entfernt, agentId Cross-Ref, Log-Flow 3→2
 - [ ] **US-P3**: Session-Start nach erkanntem Workflow (abhaengig von US-P2)
-- [ ] refactor(ui): SessionManagerView zerlegen (#62)
-- [ ] refactor(tauri): ADPError in Tauri-Commands deployen (#63)
-- [ ] refactor(ui): Component-Library formalisieren (#65)
+- [x] refactor(ui): SessionManagerView zerlegen (#62) — PR #98 merged
+- [x] refactor(tauri): ADPError in Tauri-Commands deployen (#63) — PR #99 merged
+- [x] refactor(ui): Component-Library formalisieren (#65) — PR #105 merged
 - [x] feat: In-App Markdown-Editor mit Speicherfunktion (#68) — Core implementiert + QA-Haertung
 - [ ] feat(editor): Unsaved-Changes-Warnung bei Tab-Wechsel/Close/Datei-Oeffnen (#68 follow-up)
 - [ ] feat(editor): Projekt-Dateibrowser fuer .md Dateien (#68 follow-up)
 - [ ] feat(editor): Library-Integration (Klick auf Datei → Editor oeffnet) (#68 follow-up)
-- [ ] perf(editor): @codemirror/language-data auf ~20 Sprachen reduzieren (#68 follow-up)
+- [x] perf(editor): @codemirror/language-data auf ~20 Sprachen reduzieren (#113) — PR #122 merged
 - [x] test(editor): Komponenten-Tests (EditorToolbar, MarkdownPreview XSS, MarkdownEditorView) (#68 follow-up) — via #88 PR #95
-- [ ] test(all): Test-Coverage auf 75%+ erhoehen (#66)
+- [x] test(all): Test-Coverage auf 83%+ erreicht (#66) — via PRs #125-#131
 - [ ] Gamification-System (#15)
 
 ---

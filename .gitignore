@@ -17,3 +17,5 @@ coverage/
 scripts/
 AI_ARCHITECT_SYNC.md
 Projekt.txt
+.playwright-mcp/
+graphify-out/

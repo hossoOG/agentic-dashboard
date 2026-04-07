@@ -199,3 +199,32 @@
 **Kontext:** Bei Issue #63 wurde der Code-Quality-Review-Agent im Hintergrund gestartet, waehrend gleichzeitig der PR erstellt wurde. Der Abschluss-Report sagte "PR wartet auf User-Merge". Der User hat gemerged. Dann kam der Review zurueck mit Findings (falscher Error-Code in `folder_actions.rs`). Die Fixes konnten nur noch als separater Commit nachgeschoben werden — der PR war bereits gemerged mit bekanntem Fehler.
 **Erkenntnis:** Die /implement Skill-Pipeline definiert Phase 5 (Review) → Phase 6 (PR) als sequentielle Schritte. Background-Agents fuer Reviews zu starten und parallel den PR zu erstellen bricht diese Sequenz. Das "Done"-Signal an den User kommt bevor die Qualitaet tatsaechlich geprueft ist.
 **Regel:** Review-Agents (code-quality, security-reviewer) MUESSEN abgeschlossen sein und ihre Findings verarbeitet sein BEVOR Phase 6 (Commit & PR) startet. Nie einen Review-Agent `run_in_background` starten und gleichzeitig den PR erstellen. Die Reihenfolge ist: Review starten → Review-Ergebnis abwarten → Findings fixen → DANN erst PR.
+
+---
+
+## 2026-04-06 — Sprint v1.6.0 Abschluss-Session (Mega-Session)
+
+### Worktree-Agents verlieren package.json-Änderungen beim Squash-Merge
+**Kontext:** Issue #136 (Log-Virtualisierung) hat `@tanstack/react-virtual` als Dependency hinzugefügt. Der Subagent hat `npm install` im Worktree ausgeführt — package.json wurde geändert, aber beim `git add` wurden nur die Source-Dateien explizit hinzugefügt, nicht package.json/package-lock.json. Beim Squash-Merge fehlte die Dependency. Der Build-Engineer im Verifikations-Team hat den Fehler aufgedeckt.
+**Erkenntnis:** `npm install <package>` ändert package.json + package-lock.json. Wenn der Subagent nur Source-Dateien staged (`git add src/...`), gehen Dependency-Änderungen verloren. Das ist besonders tückisch weil der Build im Worktree funktioniert (node_modules existiert lokal).
+**Regel:** Bei jedem `npm install <neues-paket>` im Subagent-Prompt explizit fordern: "Nach npm install MÜSSEN package.json und package-lock.json mit-committet werden." In Subagent-Prompts: `git add package.json package-lock.json src/...` statt nur `git add src/...`.
+
+### Parallele Batch-Arbeit mit 6+ Agents skaliert — aber Merge-Reihenfolge ist kritisch
+**Kontext:** 8 Frontend-Review Issues (#132-#139) wurden in 6 parallelen Work-Units abgearbeitet. 5 Units mergten konfliktfrei, Unit 6 (Umlaute, 45 Dateien) brauchte einen Rebase mit 2 Konflikten (EditorToolbar.tsx, MarkdownEditorView.tsx). Die Konflikte waren trivial aufzulösen weil sie additive Änderungen auf verschiedenen Ebenen waren (Umlaute = Textinhalt, A11y = Attribute, CTA = Komponenten-Wrapper).
+**Erkenntnis:** Die breiteste Änderung (die meisten Dateien berührt) MUSS zuletzt gemergt werden. Das minimiert Rebase-Aufwand: nur der letzte PR muss rebasen, nicht alle anderen.
+**Regel:** Bei parallelen Batches: Merge-Reihenfolge = aufsteigend nach Datei-Count. Isolierteste PRs zuerst, breiteste zuletzt.
+
+### Verifikations-Team vor Release deckt Probleme auf die CI nicht fängt
+**Kontext:** CI war grün für alle 6 PRs. Aber nach dem Merge aller PRs auf master fehlte `@tanstack/react-virtual` in node_modules (lokaler State). Der Build-Engineer-Agent hat das sofort gefunden. Ohne das Team hätte der User einen broken Build vorgefunden.
+**Erkenntnis:** CI prüft jeden PR isoliert auf seinem Branch. Nach dem Merge aller PRs auf master kann der lokale Zustand divergieren (node_modules stale, neue Dependencies nicht installiert). Ein finaler Verifikations-Durchlauf auf dem gemergten master ist Pflicht vor einem Release.
+**Regel:** Vor jedem Release: `npm install` + komplettes Verifikations-Team (Build, Tests, Rust, Quality) auf dem finalen master-Stand laufen lassen. Nicht davon ausgehen dass "CI war grün" = "lokaler Build funktioniert".
+
+### 241 Tests in einer Session via 6 parallele Batch-Workers — Test-Coverage von 47% auf 83%
+**Kontext:** Issues #90 und #66 (Coverage-Schwellen erhöhen) wurden mit 6 parallelen Test-Workers abgearbeitet. Jeder Worker hat 16-66 Tests für sein Modul geschrieben (Shared, Sessions, Viewers, Kanban, Stores/Hooks, Layout). Alle 6 PRs mergten konfliktfrei weil sie nur neue Test-Dateien hinzufügten.
+**Erkenntnis:** Test-Writing ist ideal für Parallelisierung: jeder Worker schreibt neue .test.tsx-Dateien neben den Source-Dateien, es gibt keine Merge-Konflikte weil keine Source-Dateien geändert werden. Die Coverage-Projektion (47% → ~77%) war konservativ — tatsächlich erreicht: 83%.
+**Regel:** Für Coverage-Sprints: immer /batch mit einem Worker pro Modul. Keine Source-Änderungen, nur Test-Dateien. Threshold-Bump als separaten letzten PR nach allen Test-PRs.
+
+### Frontend-Review mit 5 KI-Experten-Personas liefert systematische, priorisierte Findings
+**Kontext:** Statt eines einzelnen "schau mal drüber" wurden 5 spezialisierte Personas parallel eingesetzt (UX, Design, A11y, Performance, Copy). Jede Persona hat unabhängig analysiert, dann hat ein Moderator-Agent die Findings konsolidiert, Konsens identifiziert und priorisiert.
+**Erkenntnis:** Der Konsens-Mechanismus (3+ Experten einig = High-Confidence) filtert Rauschen effektiv. Einzelne Experten-Meinungen können subjektiv sein, aber wenn UX + Design + A11y alle dasselbe Problem sehen (z.B. "SideNav braucht Labels"), ist es ein echtes Problem. Die Priorisierung (P0-P3) nach Impact × Aufwand macht die Findings direkt actionable.
+**Regel:** Bei UI-Reviews: /frontend-review Skill nutzen. 5 Personas parallel, Moderator-Synthese, dann Issues erstellen. Nicht "einer schaut drüber" — das findet nur die offensichtlichen Probleme.
