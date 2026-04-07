@@ -135,9 +135,8 @@ function SkillCard({ skill }: { skill: DiscoveredSkill }) {
         relativePath: `commands/${skill.dirName}/SKILL.md`,
       });
     }
-    // Project skill content is already loaded during discovery
-    return "";
-  }, [skill.scope, skill.dirName]);
+    return skill.body;
+  }, [skill.scope, skill.dirName, skill.body]);
 
   return (
     <div className="rounded border border-neutral-700 bg-surface-raised mb-1.5">

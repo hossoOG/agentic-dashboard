@@ -14,6 +14,7 @@ export interface DiscoveredSkill {
   args: { name: string; description: string; required: boolean }[];
   hasReference: boolean;
   scope: ConfigScope;
+  body: string;
 }
 
 export interface DiscoveredAgent {
@@ -105,6 +106,7 @@ function parseSkillEntries(
       args: parsed.metadata.args,
       hasReference: dir.has_reference_dir,
       scope,
+      body: parsed.body,
     };
   });
 }
