@@ -468,7 +468,9 @@ impl SessionManager {
     /// Prueft den letzten Output-Snippet auf typische Prompt-Muster:
     /// - Endet mit "> " oder "? " (Claude's interaktive Prompts)
     /// - Endet mit "❯ " (Claude CLI Prompt)
-    /// - Enthaelt "(y/n)" oder "[Y/n]" (Ja/Nein-Frage)
+    /// - Endet mit "] " (Bracketed-Choice-Prompts wie "[allow/deny] ")
+    /// - Enthaelt "(y/n)", "[Y/n]", "(yes/no)", "[yes/no]" (Ja/Nein-Fragen)
+    /// - Enthaelt sowohl "allow" als auch "deny" (Tool-Permission-Prompts)
     ///
     /// Erkennt auch Thinking-Indikatoren (Spinner, "Thinking" Text),
     /// um bei ultrathink/langen Denkpausen nicht faelschlich "waiting" zu melden.
@@ -487,12 +489,21 @@ impl SessionManager {
             return "running".to_string();
         }
 
+        // Tool-Permission-Prompts: enthaelt sowohl "allow" als auch "deny"
+        let lower = trimmed.to_lowercase();
+        if lower.contains("allow") && lower.contains("deny") {
+            return "waiting".to_string();
+        }
+
         if trimmed.ends_with("> ")
             || trimmed.ends_with("? ")
             || trimmed.ends_with("❯ ")
+            || trimmed.ends_with("] ")
             || trimmed.ends_with("(y/n)")
             || trimmed.ends_with("[Y/n]")
             || trimmed.ends_with("[y/N]")
+            || trimmed.ends_with("(yes/no)")
+            || trimmed.ends_with("[yes/no]")
         {
             "waiting".to_string()
         } else {
@@ -524,6 +535,122 @@ impl Drop for SessionManager {
                 "SessionManager: mutex poisoned during drop, sessions may not be cleaned up"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn status(s: &str) -> String {
+        SessionManager::detect_status(s)
+    }
+
+    // --- Existing patterns: "waiting" ---
+
+    #[test]
+    fn waiting_angle_bracket_prompt() {
+        assert_eq!(status("Enter something> "), "waiting");
+    }
+
+    #[test]
+    fn waiting_question_mark_prompt() {
+        assert_eq!(status("Continue? "), "waiting");
+    }
+
+    #[test]
+    fn waiting_chevron_prompt() {
+        assert_eq!(status("❯ "), "waiting");
+    }
+
+    #[test]
+    fn waiting_yn_paren() {
+        assert_eq!(status("Proceed (y/n)"), "waiting");
+    }
+
+    #[test]
+    fn waiting_yn_bracket_upper() {
+        assert_eq!(status("Proceed [Y/n]"), "waiting");
+    }
+
+    #[test]
+    fn waiting_yn_bracket_lower() {
+        assert_eq!(status("Proceed [y/N]"), "waiting");
+    }
+
+    // --- New patterns: "waiting" ---
+
+    #[test]
+    fn waiting_bracket_space() {
+        assert_eq!(status("Choose [allow/deny] "), "waiting");
+    }
+
+    #[test]
+    fn waiting_yes_no_paren() {
+        assert_eq!(status("Continue (yes/no)"), "waiting");
+    }
+
+    #[test]
+    fn waiting_yes_no_bracket() {
+        assert_eq!(status("Continue [yes/no]"), "waiting");
+    }
+
+    #[test]
+    fn waiting_allow_deny_case_insensitive() {
+        assert_eq!(status("Do you Allow or Deny this tool?"), "waiting");
+    }
+
+    #[test]
+    fn waiting_allow_deny_mixed_case() {
+        assert_eq!(status("ALLOW / DENY"), "waiting");
+    }
+
+    // --- Thinking indicators: "running" ---
+
+    #[test]
+    fn running_spinner_char() {
+        assert_eq!(status("Processing ⠋"), "running");
+    }
+
+    #[test]
+    fn running_thinking_text() {
+        assert_eq!(status("Thinking about your question..."), "running");
+    }
+
+    #[test]
+    fn running_thinking_overrides_prompt() {
+        // "Thinking" should take priority even if line ends with "> "
+        assert_eq!(status("Thinking> "), "running");
+    }
+
+    // --- Normal text: "running" ---
+
+    #[test]
+    fn running_normal_output() {
+        assert_eq!(status("Generating file: index.ts"), "running");
+    }
+
+    #[test]
+    fn running_colon_space_not_matched() {
+        // ": " must NOT trigger waiting (too broad)
+        assert_eq!(status("Generating file: "), "running");
+    }
+
+    // --- Edge cases ---
+
+    #[test]
+    fn running_empty_string() {
+        assert_eq!(status(""), "running");
+    }
+
+    #[test]
+    fn running_whitespace_only() {
+        assert_eq!(status("   "), "running");
+    }
+
+    #[test]
+    fn waiting_with_trailing_newlines() {
+        assert_eq!(status("Continue? \n\r\n"), "waiting");
     }
 }
 
