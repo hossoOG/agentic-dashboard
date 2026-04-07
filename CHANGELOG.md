@@ -4,8 +4,54 @@ Alle relevanten Änderungen an AgenticExplorer werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.6.0] — 2026-04-07 — "Tech-Debt & QA-Härtung"
 
+> Sprint-Ziel: Test-Coverage von Baseline auf 83% heben, DevOps-Infrastruktur härten,
+> God-Components entschlacken, UI-Polish aus 5-Experten-Frontend-Review umsetzen.
 
+### Features
+- **Library-Ansicht komplett neu**: Übersicht aller Skills, Agents, Hooks und Configs — global + pro Projekt (#110, #111)
+- **Error-Grouping + Virtualisierung** in der Log-Ansicht mit React.memo (#136, #144)
+- **Favoriten-Klick öffnet Config-Preview** auch bei aktiver Session (#149)
+
+### Fixes
+- Session-Status-Farben korrigiert — Idle von Done unterscheidbar (#100, #106)
+- Terminal-Scrolling stabilisiert (#101, #107)
+- Log-Ansicht: Zeitstempel-Sprünge, Updater-Spam, Exit-Code-Flut behoben (#104, #108, #118, #119)
+- Hooks-Reiter zeigt jetzt Hook-Name und Command (#114, #120)
+- Library zeigt Favoriten-Projekte (#117, #121)
+- Agents aus `.claude/agents/` im Config-Panel sichtbar (#115, #124)
+- Projektspezifische Claude-Settings einsehbar (#116, #123)
+- Skill-Body in Library korrekt angezeigt statt "Kein Inhalt" (#149)
+- Waiting-Detection-Patterns verbessert (#146, #149)
+- Echte Umlaute in allen UI-Strings (#132, #145)
+- SideNav Labels + Sprachmix bereinigt + Settings ausgeblendet (#133, #137, #138, #141)
+- Filled CTA-Buttons für primäre Aktionen (#139, #142)
+
+### Accessibility
+- Light-Mode Kontrast auf WCAG AA 4.5:1+ (#135, #140)
+- Toast `aria-live` + `aria-hidden` auf dekorativen Icons (#134, #143)
+
+### Performance
+- `@codemirror/language-data` auf ~20 Sprachen reduziert — −669 KB (−25%) (#113, #122)
+
+### Refactoring
+- SessionManagerView God-Component in Custom Hooks zerlegt (#62, #98)
+- Alle Tauri-Commands auf strukturierten ADPError migriert (#63, #99)
+- Component-Library formalisiert — Button, Modal, Input (#65, #105)
+- Hooks-Reiter und Konfig-Panel überarbeitet (#102, #109)
+- Pipeline-Funktionalität evaluiert und bereinigt (#103, #112)
+
+### Testing & QA
+- **Test-Coverage von 47% auf 83%** — 241 neue Tests in 39 Dateien (#66, #90, #125–#131)
+- Coverage-Schwellen auf 75/75/65/75 hochgezogen (Ratchet-Prinzip)
+- 17 Rust Integration Tests für Tauri-Commands (#97)
+- Component-Tests: SessionCard, SideNav, Toast, ErrorBoundary, Editor (#95, #96)
+- editorStore Tests auf 26 Cases erweitert (#89, #94)
+
+### DevOps
+- Wöchentlicher Dependency Audit in CI: `npm audit` + `cargo audit` (#92)
+- Release-Workflow in arc42 Kap. 10.3 dokumentiert (#93)
 
 
 ## [1.5.1] — 2026-04-05 — Kompass Aufraeum-Patch
