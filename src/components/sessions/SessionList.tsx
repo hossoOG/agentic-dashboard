@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useSessionStore } from "../../store/sessionStore";
 import { useSettingsStore } from "../../store/settingsStore";
+import { useUIStore } from "../../store/uiStore";
 import { SessionCard } from "./SessionCard";
 import { FavoritesList } from "./FavoritesList";
 import { logError } from "../../utils/errorLogger";
@@ -47,6 +48,7 @@ export function SessionList({ onNewSession, onQuickStart }: SessionListProps) {
       }
     } else {
       store.setActiveSession(sessionId);
+      useUIStore.getState().closePreview();
     }
   }, []);
 

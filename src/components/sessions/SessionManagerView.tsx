@@ -77,7 +77,7 @@ export function SessionManagerView() {
           {/* Content area */}
           <div className="flex-1 min-h-0">
             {layoutMode === "single" ? (
-              previewFolder && !activeSessionId ? (
+              previewFolder ? (
                 <FavoritePreview
                   key={previewFolder}
                   folder={previewFolder}

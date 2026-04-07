@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { SessionManagerView } from "./SessionManagerView";
 import { useSessionStore } from "../../store/sessionStore";
+import { useUIStore } from "../../store/uiStore";
 
 // ── Mocks ─────────────────────────────────────────────────────────────
 
@@ -60,6 +61,7 @@ beforeEach(() => {
     gridSessionIds: [],
     focusedGridSessionId: null,
   });
+  useUIStore.setState({ previewFolder: null });
 });
 
 // ── Tests ─────────────────────────────────────────────────────────────
@@ -100,6 +102,69 @@ describe("SessionManagerView", () => {
 
     expect(screen.getByTestId("session-terminal")).toBeTruthy();
     expect(screen.getByTestId("agent-bottom-panel")).toBeTruthy();
+  });
+
+  it("shows favorite preview even when a session is active", () => {
+    useSessionStore.setState({
+      sessions: [
+        {
+          id: "s-1",
+          title: "Test",
+          folder: "/test",
+          shell: "powershell",
+          status: "running",
+          createdAt: Date.now(),
+          finishedAt: null,
+          exitCode: null,
+          lastOutputAt: Date.now(),
+          lastOutputSnippet: "",
+        },
+      ],
+      activeSessionId: "s-1",
+      layoutMode: "single",
+      gridSessionIds: [],
+      focusedGridSessionId: null,
+    });
+    useUIStore.setState({ previewFolder: "/some/project" });
+
+    render(<SessionManagerView />);
+
+    expect(screen.getByTestId("favorite-preview")).toBeTruthy();
+    expect(screen.queryByTestId("session-terminal")).toBeNull();
+  });
+
+  it("returns to terminal when preview is closed", () => {
+    useSessionStore.setState({
+      sessions: [
+        {
+          id: "s-1",
+          title: "Test",
+          folder: "/test",
+          shell: "powershell",
+          status: "running",
+          createdAt: Date.now(),
+          finishedAt: null,
+          exitCode: null,
+          lastOutputAt: Date.now(),
+          lastOutputSnippet: "",
+        },
+      ],
+      activeSessionId: "s-1",
+      layoutMode: "single",
+      gridSessionIds: [],
+      focusedGridSessionId: null,
+    });
+    useUIStore.setState({ previewFolder: "/some/project" });
+
+    const { rerender } = render(<SessionManagerView />);
+    expect(screen.getByTestId("favorite-preview")).toBeTruthy();
+
+    // Close the preview
+    useUIStore.getState().closePreview();
+    rerender(<SessionManagerView />);
+
+    expect(screen.queryByTestId("favorite-preview")).toBeNull();
+    expect(screen.getByTestId("session-terminal")).toBeTruthy();
   });
 
   it("renders session grid in grid layout mode", () => {
