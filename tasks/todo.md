@@ -194,8 +194,8 @@
 - [x] Pin umbenennen per Doppelklick/Inline-Edit (v1.5.1)
 - [x] Unsaved-Changes-Warnung beim Pin-Tab-Wechsel (v1.5.1)
 - [x] Dead-Code-Audit: `ContentTabs.tsx` entfernt (v1.5.1)
-- [ ] Pin-Reordering per Drag & Drop (offen)
-- [ ] Komponenten-Tests fuer ConfigPanel (offen, v1.6.0 QA-Sprint)
+- [ ] Pin-Reordering per Drag & Drop → verschoben nach v3.0+
+- [x] Komponenten-Tests fuer ConfigPanel — via v1.6.0 QA-Sprint erledigt
 
 ## Abgeschlossen: v1.5.1 — Kompass Aufraeum-Patch (2026-04-05)
 
@@ -270,21 +270,32 @@
 - [x] `/parallel-implement` 2. Lauf (2026-04-06) — #113, #115, #116 parallel, alle 3 merged inkl. Auto-Merge + Konflikt-Resolution
 - [x] `/implement` + `/parallel-implement` Skills: Auto-Merge + Merge-Konflikt-Resolution ergaenzt (2026-04-06)
 
-## Backlog (Future)
+## Backlog (v2.0 — Pipeline Engine)
+
+- [ ] **US-P3**: Session-Start nach erkanntem Workflow (abhaengig von US-P2)
+- [ ] feat(editor): Unsaved-Changes-Warnung bei Tab-Wechsel/Close/Datei-Oeffnen (#68 follow-up)
+- [ ] feat(editor): Projekt-Dateibrowser fuer .md Dateien (#68 follow-up)
+- [ ] feat(editor): Library-Integration (Klick auf Datei → Editor oeffnet) (#68 follow-up)
+
+## Backlog (v3.0+ — Session Manager Feature-Freeze)
+
+> Session Manager ist ab v1.6.0 feature-frozen. Nur Bugfixes erlaubt.
+
+- [ ] feat(ui): Sessions umbenennen (#147)
+- [ ] Node/Graph-basierte Session-Visualisierung (#14)
+- [ ] Gamification-System (#15)
+- [ ] Pin-Reordering per Drag & Drop
+
+## Erledigt (Backlog)
 
 - [x] **DEBT-04**: Store-Deduplizierung agentStore vs pipelineStore (#85) — rawLogs entfernt, agentId Cross-Ref, Log-Flow 3→2
-- [ ] **US-P3**: Session-Start nach erkanntem Workflow (abhaengig von US-P2)
 - [x] refactor(ui): SessionManagerView zerlegen (#62) — PR #98 merged
 - [x] refactor(tauri): ADPError in Tauri-Commands deployen (#63) — PR #99 merged
 - [x] refactor(ui): Component-Library formalisieren (#65) — PR #105 merged
 - [x] feat: In-App Markdown-Editor mit Speicherfunktion (#68) — Core implementiert + QA-Haertung
-- [ ] feat(editor): Unsaved-Changes-Warnung bei Tab-Wechsel/Close/Datei-Oeffnen (#68 follow-up)
-- [ ] feat(editor): Projekt-Dateibrowser fuer .md Dateien (#68 follow-up)
-- [ ] feat(editor): Library-Integration (Klick auf Datei → Editor oeffnet) (#68 follow-up)
 - [x] perf(editor): @codemirror/language-data auf ~20 Sprachen reduzieren (#113) — PR #122 merged
 - [x] test(editor): Komponenten-Tests (EditorToolbar, MarkdownPreview XSS, MarkdownEditorView) (#68 follow-up) — via #88 PR #95
 - [x] test(all): Test-Coverage auf 83%+ erreicht (#66) — via PRs #125-#131
-- [ ] Gamification-System (#15)
 
 ---
 
