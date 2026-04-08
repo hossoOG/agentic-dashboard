@@ -189,6 +189,9 @@ pub fn run() {
             library::commands::commands::attach_library_item,
             library::commands::commands::detach_library_item,
             library::commands::commands::get_library_item_path,
+            // Pipeline history
+            pipeline::commands::list_pipeline_runs,
+            pipeline::commands::get_pipeline_run,
             // Log reader
             log_reader::commands::read_backend_log,
             // User settings (Documents/AgenticExplorer/)
