@@ -4,26 +4,38 @@ import { PipelineControls } from "./PipelineControls";
 import { TaskTreeView } from "./TaskTreeView";
 import { AgentMetricsPanel } from "./AgentMetricsPanel";
 import { PipelineStatusBar } from "./PipelineStatusBar";
+import { PipelineHistoryView } from "./PipelineHistoryView";
+import { PipelineRunDetail } from "./PipelineRunDetail";
 import { useSessionStore, selectActiveSession } from "../../store/sessionStore";
 import { useAgentStore, selectDetectionQuality } from "../../store/agentStore";
 import { usePipelineStatusStore } from "../../store/pipelineStatusStore";
+import { usePipelineHistoryStore } from "../../store/pipelineHistoryStore";
+
+type PipelineTab = "live" | "history";
 
 /**
  * PipelineView — Wrapper that combines:
- * 1. Header with session filter dropdown
- * 2. WorkflowLauncher — detected workflows from Skills/Hooks
- * 3. TaskTreeView — hierarchical agent/task tree visualization
- * 4. AgentMetricsPanel — aggregated agent metrics
+ * 1. Header with session filter dropdown + tab switcher (Live / Verlauf)
+ * 2. Live tab: WorkflowLauncher, TaskTreeView, AgentMetricsPanel
+ * 3. History tab: PipelineHistoryView / PipelineRunDetail
  */
 export function PipelineView() {
   const activeSession = useSessionStore(selectActiveSession);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const sessions = useSessionStore((s) => s.sessions);
   const [filterSessionId, setFilterSessionId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<PipelineTab>("live");
   const effectiveSessionId = filterSessionId ?? activeSessionId;
   const detectionQuality = useAgentStore(selectDetectionQuality(effectiveSessionId ?? ""));
   const startPolling = usePipelineStatusStore((s) => s.startPolling);
   const stopPolling = usePipelineStatusStore((s) => s.stopPolling);
+
+  // History detail state
+  const selectedRunId = usePipelineHistoryStore((s) => s.selectedRunId);
+  const runs = usePipelineHistoryStore((s) => s.runs);
+  const selectedRun = selectedRunId
+    ? runs.find((r) => r.id === selectedRunId) ?? null
+    : null;
 
   // Start/stop pipeline status polling on mount/unmount
   useEffect(() => {
@@ -33,53 +45,87 @@ export function PipelineView() {
     };
   }, [startPolling, stopPolling]);
 
+  const TAB_CLASSES = (tab: PipelineTab) =>
+    `px-3 py-1 text-xs font-medium rounded transition-colors ${
+      activeTab === tab
+        ? "bg-accent/20 text-accent"
+        : "text-neutral-500 hover:text-neutral-300"
+    }`;
+
   return (
     <div className="flex flex-col h-full">
-      {/* Header with session selector */}
+      {/* Header with session selector + tabs */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-700">
-        <h2 className="text-sm font-display font-bold text-neutral-300 tracking-wider uppercase">
-          Pipeline
-        </h2>
-        <select
-          value={filterSessionId ?? ""}
-          onChange={(e) =>
-            setFilterSessionId(e.target.value === "" ? null : e.target.value)
-          }
-          className="bg-surface-raised border border-neutral-700 text-sm text-neutral-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent"
-        >
-          <option value="">Alle Sessions</option>
-          {sessions.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.title || s.id.slice(0, 8)}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <PipelineStatusBar />
-
-      {/* Pipeline Controls — start/stop workflows */}
-      {activeSession?.folder && (
-        <PipelineControls projectPath={activeSession.folder} />
-      )}
-
-      {/* Detection quality warning */}
-      {effectiveSessionId && detectionQuality === "none" && (
-        <div className="mx-4 mt-2 px-3 py-2 bg-warning/10 border border-warning/30 rounded text-xs text-warning">
-          Agent-Erkennung hat noch keine Agents erkannt. Die Erkennung basiert auf Terminal-Output-Patterns und funktioniert möglicherweise nicht mit allen Claude CLI Versionen.
+        <div className="flex items-center gap-3">
+          <h2 className="text-sm font-display font-bold text-neutral-300 tracking-wider uppercase">
+            Pipeline
+          </h2>
+          <div className="flex items-center gap-1">
+            <button
+              className={TAB_CLASSES("live")}
+              onClick={() => setActiveTab("live")}
+            >
+              Live
+            </button>
+            <button
+              className={TAB_CLASSES("history")}
+              onClick={() => setActiveTab("history")}
+              data-testid="history-tab"
+            >
+              Verlauf
+            </button>
+          </div>
         </div>
-      )}
-
-      {/* Top: Workflow Launcher */}
-      <WorkflowLauncher />
-
-      {/* Middle: Task Tree — takes remaining space */}
-      <div className="flex-1 min-h-0">
-        <TaskTreeView sessionId={effectiveSessionId} />
+        {activeTab === "live" && (
+          <select
+            value={filterSessionId ?? ""}
+            onChange={(e) =>
+              setFilterSessionId(e.target.value === "" ? null : e.target.value)
+            }
+            className="bg-surface-raised border border-neutral-700 text-sm text-neutral-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent"
+          >
+            <option value="">Alle Sessions</option>
+            {sessions.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.title || s.id.slice(0, 8)}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
-      {/* Bottom: Agent Metrics */}
-      <AgentMetricsPanel sessionId={effectiveSessionId ?? undefined} />
+      {activeTab === "live" ? (
+        <>
+          <PipelineStatusBar />
+
+          {/* Pipeline Controls — start/stop workflows */}
+          {activeSession?.folder && (
+            <PipelineControls projectPath={activeSession.folder} />
+          )}
+
+          {/* Detection quality warning */}
+          {effectiveSessionId && detectionQuality === "none" && (
+            <div className="mx-4 mt-2 px-3 py-2 bg-warning/10 border border-warning/30 rounded text-xs text-warning">
+              Agent-Erkennung hat noch keine Agents erkannt. Die Erkennung basiert auf Terminal-Output-Patterns und funktioniert möglicherweise nicht mit allen Claude CLI Versionen.
+            </div>
+          )}
+
+          {/* Top: Workflow Launcher */}
+          <WorkflowLauncher />
+
+          {/* Middle: Task Tree — takes remaining space */}
+          <div className="flex-1 min-h-0">
+            <TaskTreeView sessionId={effectiveSessionId} />
+          </div>
+
+          {/* Bottom: Agent Metrics */}
+          <AgentMetricsPanel sessionId={effectiveSessionId ?? undefined} />
+        </>
+      ) : selectedRun ? (
+        <PipelineRunDetail run={selectedRun} />
+      ) : (
+        <PipelineHistoryView />
+      )}
     </div>
   );
 }
