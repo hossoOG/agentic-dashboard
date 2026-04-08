@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { WorkflowLauncher } from "./WorkflowLauncher";
+import { PipelineControls } from "./PipelineControls";
 import { TaskTreeView } from "./TaskTreeView";
 import { AgentMetricsPanel } from "./AgentMetricsPanel";
 import { PipelineStatusBar } from "./PipelineStatusBar";
-import { useSessionStore } from "../../store/sessionStore";
+import { useSessionStore, selectActiveSession } from "../../store/sessionStore";
 import { useAgentStore, selectDetectionQuality } from "../../store/agentStore";
 import { usePipelineStatusStore } from "../../store/pipelineStatusStore";
 
@@ -15,6 +16,7 @@ import { usePipelineStatusStore } from "../../store/pipelineStatusStore";
  * 4. AgentMetricsPanel — aggregated agent metrics
  */
 export function PipelineView() {
+  const activeSession = useSessionStore(selectActiveSession);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const sessions = useSessionStore((s) => s.sessions);
   const [filterSessionId, setFilterSessionId] = useState<string | null>(null);
@@ -55,6 +57,11 @@ export function PipelineView() {
       </div>
 
       <PipelineStatusBar />
+
+      {/* Pipeline Controls — start/stop workflows */}
+      {activeSession?.folder && (
+        <PipelineControls projectPath={activeSession.folder} />
+      )}
 
       {/* Detection quality warning */}
       {effectiveSessionId && detectionQuality === "none" && (

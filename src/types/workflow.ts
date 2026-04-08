@@ -121,6 +121,20 @@ export interface WorkflowStep {
 export type GateFailureAction = "fail" | "retry" | "skip";
 
 // ============================================================================
+// Summary (from list_workflows command)
+// ============================================================================
+
+/** Summary returned by the `list_workflows` Tauri command. */
+export interface WorkflowSummary {
+  /** Workflow name from YAML */
+  name: string;
+  /** Workflow description from YAML */
+  description: string;
+  /** Absolute file path to the YAML file */
+  file_path: string;
+}
+
+// ============================================================================
 // Metadata
 // ============================================================================
 
