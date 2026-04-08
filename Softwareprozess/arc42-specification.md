@@ -32,7 +32,7 @@ Die Arbeit mit KI hat sich fundamental verändert. Früher war der IDE-Copilot e
 ```mermaid
 graph LR
     A["v1.0–v1.2<br/>Session Manager MVP<br/>(Terminal, CLAUDE.md, GitHub)"] -->|Transparenz| B["v1.3–v1.4<br/>Agent Detection<br/>(Hierarchie, Task-Tree)"]
-    B -->|Monitoring| C["v2.0<br/>Pipeline Control<br/>(Workflow-Start, Parallel Tracking)"]
+    B -->|Feature-Freeze v1.6| C["v2.0<br/>Pipeline Control<br/>(Workflow-Start, Parallel Tracking)"]
     C -->|Audit| D["v2.5<br/>Team Features<br/>(Multi-User, Audit-Logs)"]
     D -->|Orchestrierung| E["v3.0+<br/>AgenticExplorer<br/>(Volle Orchestrierung,<br/>Code-Simplification)"]
 
@@ -222,10 +222,12 @@ graph TB
 ### 4.3 Evolutionsstrategie — IST zu ZUKUNFT
 
 > **PO-Entscheidung (2026-04-04):** Cloud-Backend und Gamification nach v3.0+ verschoben. Fundament zuerst. Multi-LLM-Abstraktionsschicht in v2.5. App bleibt 100% lokal bis v3.0.
+>
+> **PO-Entscheidung (2026-04-08):** Session Manager ist ab v1.6.0 feature-frozen. Alle Entwicklungsenergie geht in die Pipeline-Engine (v2.0). Session Manager erhaelt nur noch Bugfixes.
 
 ```mermaid
 graph TD
-    subgraph v1["v1.4 — MVP (JETZT)"]
+    subgraph v1["v1.6 — Session Manager (Feature-Freeze)"]
         A["Multi-Session Terminal<br/>CLAUDE.md/Skills/Hooks Viewer<br/>GitHub Integration<br/>Agent Detection (PTY)<br/>Task-Tree Visualization"]
     end
 
@@ -259,7 +261,7 @@ graph TD
 
 | Phase | Kern-Features | Strategische Entscheidung |
 |-------|---------------|--------------------------|
-| **v1.4 (Jetzt)** | Agent-Erkennung, Task-Tree | Agent-Detection aus PTY-Output via Regex |
+| **v1.6 (Feature-Freeze)** | Session Manager feature-complete. Nur Bugfixes. | Agent-Detection aus PTY-Output via Regex |
 | **v2.0** | Workflow-Start, Cross-Session Tracking | `agentStore` sessionuebergreifend; Workflows aus Skills/Hooks |
 | **v2.1** | QA-Haertung, Audit-Trail, Metriken | Coverage 70% Gate; Agent-Aktionen persistent geloggt |
 | **v2.5** | Multi-LLM, Plugin-Architektur | Abstraktionsschicht fuer andere CLI-Tools (ollama, gpt-cli) |

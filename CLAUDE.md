@@ -10,6 +10,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Language**: UI und Doku auf Deutsch, Code auf Englisch
 
+> **Feature-Freeze (ab v1.6.0):** Der Session Manager ist feature-complete. Nur noch Bugfixes erlaubt. Alle neuen Features gehen in die Pipeline-Engine (v2.0).
+
 ## Commands
 
 ```bash
