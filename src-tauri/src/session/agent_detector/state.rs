@@ -1,257 +1,23 @@
-// src-tauri/src/session/agent_detector.rs
+// src-tauri/src/session/agent_detector/state.rs
 //
-// Detects Claude Code subagent spawns, task/phase status changes, completions,
-// and worktree creation from PTY terminal output. Operates on ANSI-stripped text.
-//
-// Claude Code outputs structured Unicode markers (●, ■, □, ✓, ✗, ·, ✱) that
-// survive ANSI stripping. This detector matches those specific signals instead
-// of generic phrases like "agent launched" which cause false positives.
+// State management: AgentDetector struct, feed() method, agent lifecycle.
 
-use regex::Regex;
 use std::collections::HashMap;
-use std::sync::OnceLock;
+
+use super::events::{
+    AgentCompletedEvent, AgentDetectedEvent, AgentEvent, AgentInfo, AgentStatusUpdateEvent,
+    TaskSummaryEvent, WorktreeDetectedEvent,
+};
+use super::parser::{
+    extract_metrics, get_patterns, icon_to_status, is_noise_line, is_terminal_status,
+};
 
 /// Maximum buffer size for rolling output window (in chars).
-const MAX_BUFFER: usize = 4000;
+pub(crate) const MAX_BUFFER: usize = 4000;
 
 /// Maximum number of completed/errored agents to keep in memory.
 /// Running agents are never pruned.
 const MAX_COMPLETED_AGENTS: usize = 50;
-
-// ============================================================================
-// Data Model
-// ============================================================================
-
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct AgentInfo {
-    pub id: String,
-    pub name: Option<String>,
-    pub task: Option<String>,
-    pub task_number: Option<u32>,
-    pub phase_number: Option<u32>,
-    pub status: String, // "running" | "completed" | "error" | "pending" | "blocked"
-    pub detected_at: i64,
-    pub completed_at: Option<i64>,
-    pub worktree_path: Option<String>,
-    pub parent_agent_id: Option<String>,
-    pub depth: u32,
-    pub duration_str: Option<String>,
-    pub token_count: Option<String>,
-    pub blocked_by: Option<u32>,
-}
-
-// ============================================================================
-// Tauri Event Payloads
-// ============================================================================
-
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct AgentDetectedEvent {
-    pub session_id: String,
-    pub agent_id: String,
-    pub name: Option<String>,
-    pub task: Option<String>,
-    pub task_number: Option<u32>,
-    pub phase_number: Option<u32>,
-    pub parent_agent_id: Option<String>,
-    pub depth: u32,
-    pub detected_at: i64,
-}
-
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct AgentCompletedEvent {
-    pub session_id: String,
-    pub agent_id: String,
-    pub status: String,
-    pub completed_at: i64,
-}
-
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct AgentStatusUpdateEvent {
-    pub session_id: String,
-    pub agent_id: String,
-    pub status: String,
-    pub duration_str: Option<String>,
-    pub token_count: Option<String>,
-    pub blocked_by: Option<u32>,
-}
-
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct TaskSummaryEvent {
-    pub session_id: String,
-    pub pending_count: u32,
-    pub completed_count: u32,
-}
-
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct WorktreeDetectedEvent {
-    pub session_id: String,
-    pub path: String,
-    pub branch: Option<String>,
-    pub agent_id: Option<String>,
-}
-
-// ============================================================================
-// Worktree scan result (unchanged)
-// ============================================================================
-
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct WorktreeInfo {
-    pub path: String,
-    pub branch: Option<String>,
-    pub is_main: bool,
-}
-
-// ============================================================================
-// Event Enum
-// ============================================================================
-
-/// Events emitted by the detector after processing a chunk.
-#[derive(Clone, Debug)]
-pub enum AgentEvent {
-    Detected(AgentDetectedEvent),
-    Completed(AgentCompletedEvent),
-    StatusUpdate(AgentStatusUpdateEvent),
-    TaskSummary(TaskSummaryEvent),
-    Worktree(WorktreeDetectedEvent),
-}
-
-// ============================================================================
-// Regex Patterns — Claude Code specific
-// ============================================================================
-
-struct AgentPatterns {
-    /// "● Agent(description)" or "● Explore(description)"
-    agent_spawn: Regex,
-    /// "· Task N: Name..." or "✱ Main task..." — anchored, · requires "Task N:"
-    task_entry: Regex,
-    /// "■ Task N: Name" / "□ Task N:" / "✓ Task N:" / "✗ Task N:"
-    task_status: Regex,
-    /// "■ Phase N: Name" / "✓ Phase N: Name (#55)"
-    phase_status: Regex,
-    /// "blocked by #N"
-    blocked_by: Regex,
-    /// "(2m 38s · ↓ 5.4k tokens)"
-    metrics: Regex,
-    /// "+3 pending, 1 completed"
-    summary_line: Regex,
-    /// "git worktree add" / "created worktree"
-    worktree_create: Regex,
-    /// Extract worktree path
-    worktree_path: Regex,
-    /// "✻ Churned for 1m 0s" — Claude finished processing
-    session_complete: Regex,
-}
-
-/// Process-global singleton — patterns are compiled once on first access.
-static PATTERNS: OnceLock<AgentPatterns> = OnceLock::new();
-
-fn get_patterns() -> &'static AgentPatterns {
-    PATTERNS.get_or_init(|| AgentPatterns {
-        // ● (U+25CF) precedes tool calls in Claude Code output
-        // Matches: "● Agent(desc)", "● Explore(desc)" — anchored to line start
-        agent_spawn: Regex::new(
-            r"^[\s]*●\s+(Agent|Explore)\(([^)]{1,200})\)",
-        )
-        .expect("agent_spawn regex"),
-
-        // Task entry — two alternations to prevent false positives:
-        //   · (U+00B7) REQUIRES "Task N:" prefix (otherwise it catches status bar text)
-        //   ✱ (U+2731) allows free-form text (only used for main task headers)
-        // Both anchored to line start (^) to prevent matching · buried in metric strings.
-        // Named groups: num, name1 (numbered), name2 (main), parens (metrics)
-        task_entry: Regex::new(
-            r"^[\s]*(?:·\s+Task\s+(?P<num>\d+):\s*(?P<name1>.+?)|✱\s+(?P<name2>.+?))(?:\.{3})?\s*(?:\((?P<parens>[^)]+)\))?$",
-        )
-        .expect("task_entry regex"),
-
-        // Status icons: ■ (U+25A0)=running, □ (U+25A1)=pending, ✓ (U+2713)=done, ✗ (U+2717)=error
-        // Preceded by optional tree chars (├, └, │, spaces) — anchored to line start
-        task_status: Regex::new(
-            r"^[\s├└│]*([■□✓✗])\s+Task\s+(\d+):\s*(.+?)(?:\s*\.{3})?\s*$",
-        )
-        .expect("task_status regex"),
-
-        // Phase status: same icons + "Phase N: Name (#55)" — anchored to line start
-        phase_status: Regex::new(
-            r"^[\s├└│]*([■□✓✗])\s+Phase\s+(\d+):\s*(.+?)(?:\s*\(#(\d+)\))?\s*$",
-        )
-        .expect("phase_status regex"),
-
-        // Dependency: "blocked by #4" or "> blocked by #4"
-        blocked_by: Regex::new(
-            r"blocked\s+by\s+#(\d+)",
-        )
-        .expect("blocked_by regex"),
-
-        // Metrics in parens: "(2m 38s · ↓ 5.4k tokens)"
-        metrics: Regex::new(
-            r"\((\d+[mh]\s*\d*s?)\s*[·•]\s*[↓⬇]\s*([\d.]+k?\s*tokens?)\)",
-        )
-        .expect("metrics regex"),
-
-        // Summary: "+3 pending, 1 completed" or "… +3 pending, 1 completed"
-        summary_line: Regex::new(
-            r"\+(\d+)\s+pending(?:,\s*(\d+)\s+completed)?",
-        )
-        .expect("summary_line regex"),
-
-        // Worktree creation (kept from original — matches real git output)
-        worktree_create: Regex::new(
-            r"(?i)(?:git\s+worktree\s+add|created?\s+worktree|worktree\s+created)",
-        )
-        .expect("worktree_create regex"),
-
-        // Worktree path extraction
-        worktree_path: Regex::new(
-            r#"(?:worktrees?[/\\]|worktree\s+add\s+)([^\s\n"']+)"#,
-        )
-        .expect("worktree_path regex"),
-
-        // "✻ Churned for 1m 0s" — Claude finished processing, all agents done
-        session_complete: Regex::new(
-            r"✻\s+Churned\s+for",
-        )
-        .expect("session_complete regex"),
-    })
-}
-
-// ============================================================================
-// Status icon → status string mapping
-// ============================================================================
-
-fn icon_to_status(icon: &str) -> &'static str {
-    match icon {
-        "■" => "running",
-        "□" => "pending",
-        "✓" => "completed",
-        "✗" => "error",
-        _ => "running",
-    }
-}
-
-fn is_terminal_status(status: &str) -> bool {
-    status == "completed" || status == "error"
-}
-
-/// Detect status-bar and spinner noise that should never be matched as agents.
-/// These are transient terminal updates from Claude Code's UI, not structured output.
-fn is_noise_line(line: &str) -> bool {
-    let trimmed = line.trim();
-    // Braille spinner characters (⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏) used for progress animation
-    const SPINNER_CHARS: &[char] = &['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-    if trimmed.starts_with(SPINNER_CHARS) {
-        return true;
-    }
-    // Status bar keyboard hints
-    if trimmed.contains("esc to interrupt") || trimmed.contains("shift+tab to cycle") {
-        return true;
-    }
-    // Bare metric fragments (e.g. "↓ 342 tokens · thought for 4s)")
-    if trimmed.starts_with('↓') || trimmed.starts_with('⬇') {
-        return true;
-    }
-    false
-}
 
 // ============================================================================
 // AgentDetector
@@ -259,7 +25,7 @@ fn is_noise_line(line: &str) -> bool {
 
 pub struct AgentDetector {
     session_id: String,
-    buffer: String,
+    pub(crate) buffer: String,
     known_agents: HashMap<String, AgentInfo>,
     agent_counter: u32,
     /// Track what we've already processed to avoid duplicate events
@@ -798,78 +564,6 @@ impl AgentDetector {
     pub fn known_agents(&self) -> &HashMap<String, AgentInfo> {
         &self.known_agents
     }
-}
-
-/// Extract duration and token count from a line using the metrics pattern.
-fn extract_metrics(line: &str, p: &AgentPatterns) -> (Option<String>, Option<String>) {
-    if let Some(caps) = p.metrics.captures(line) {
-        let duration = caps.get(1).map(|m| m.as_str().trim().to_string());
-        let tokens = caps.get(2).map(|m| m.as_str().trim().to_string());
-        (duration, tokens)
-    } else {
-        (None, None)
-    }
-}
-
-// ============================================================================
-// Worktree scanning (unchanged)
-// ============================================================================
-
-/// Scan a project folder for git worktrees.
-/// Uses `git worktree list --porcelain` for reliable parsing.
-pub fn scan_worktrees_in_folder(folder: &str) -> Result<Vec<WorktreeInfo>, crate::error::ADPError> {
-    let mut cmd = crate::util::silent_command("git");
-    cmd.args(["worktree", "list", "--porcelain"])
-        .current_dir(folder);
-    let output = crate::util::timed_output(cmd, crate::util::DEFAULT_COMMAND_TIMEOUT)?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(crate::error::ADPError::command_failed(format!(
-            "git worktree list failed: {}",
-            stderr.trim()
-        )));
-    }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let mut worktrees = Vec::new();
-    let mut current_path: Option<String> = None;
-    let mut current_branch: Option<String> = None;
-    let mut is_bare = false;
-
-    for line in stdout.lines() {
-        if let Some(rest) = line.strip_prefix("worktree ") {
-            if let Some(path) = current_path.take() {
-                if !is_bare {
-                    worktrees.push(WorktreeInfo {
-                        path,
-                        branch: current_branch.take(),
-                        is_main: worktrees.is_empty(),
-                    });
-                }
-            }
-            current_path = Some(rest.to_string());
-            current_branch = None;
-            is_bare = false;
-        } else if let Some(rest) = line.strip_prefix("branch ") {
-            let branch = rest.to_string();
-            current_branch = Some(branch.replace("refs/heads/", ""));
-        } else if line == "bare" {
-            is_bare = true;
-        }
-    }
-
-    if let Some(path) = current_path {
-        if !is_bare {
-            worktrees.push(WorktreeInfo {
-                path,
-                branch: current_branch,
-                is_main: worktrees.is_empty(),
-            });
-        }
-    }
-
-    Ok(worktrees)
 }
 
 // ============================================================================
@@ -1415,13 +1109,6 @@ mod tests {
         events
             .iter()
             .filter(|e| matches!(e, AgentEvent::Detected(_)))
-            .count()
-    }
-
-    fn count_completed(events: &[AgentEvent]) -> usize {
-        events
-            .iter()
-            .filter(|e| matches!(e, AgentEvent::Completed(_)))
             .count()
     }
 
