@@ -197,9 +197,10 @@ pub fn run() {
             // Pipeline history
             pipeline::commands::list_pipeline_runs,
             pipeline::commands::get_pipeline_run,
-            // Pipeline workflow parser
+            // Pipeline workflow parser + executor
             pipeline::commands::load_workflow,
             pipeline::commands::list_workflows,
+            pipeline::commands::run_workflow,
             // Log reader
             log_reader::commands::read_backend_log,
             // User settings (Documents/AgenticExplorer/)
