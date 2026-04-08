@@ -250,6 +250,65 @@ pub async fn stop_pipeline(
 }
 
 // ============================================================================
+// Workflow Commands
+// ============================================================================
+
+/// Summary of a discovered workflow file for listing in the UI.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkflowSummary {
+    /// Workflow name from YAML
+    pub name: String,
+    /// Workflow description from YAML
+    pub description: String,
+    /// Absolute file path
+    pub file_path: String,
+}
+
+/// Load and validate a single workflow from a YAML file.
+#[tauri::command]
+pub async fn load_workflow(path: String) -> Result<super::schema::WorkflowDefinition, ADPError> {
+    let p = std::path::Path::new(&path);
+    let workflow = super::parser::parse_workflow_file(p)?;
+    super::parser::validate_workflow(&workflow)?;
+    Ok(workflow)
+}
+
+/// List all workflow files in `{project_path}/.claude/workflows/` and
+/// `{project_path}/workflows/`, returning a summary for each valid file.
+#[tauri::command]
+pub async fn list_workflows(project_path: String) -> Result<Vec<WorkflowSummary>, ADPError> {
+    crate::validation::validate_folder(&project_path)?;
+    let base = std::path::Path::new(&project_path);
+
+    let search_dirs = [
+        base.join(".claude").join("workflows"),
+        base.join("workflows"),
+    ];
+
+    let mut summaries = Vec::new();
+    for dir in &search_dirs {
+        let files = super::parser::list_workflow_files(dir)?;
+        for file in files {
+            match super::parser::parse_workflow_file(&file) {
+                Ok(wf) => {
+                    summaries.push(WorkflowSummary {
+                        name: wf.name,
+                        description: wf.description,
+                        file_path: file.to_string_lossy().to_string(),
+                    });
+                }
+                Err(e) => {
+                    log::warn!("Skipping invalid workflow {}: {}", file.display(), e);
+                }
+            }
+        }
+    }
+
+    Ok(summaries)
+}
+
+// ============================================================================
 // Pipeline History Commands
 // ============================================================================
 
