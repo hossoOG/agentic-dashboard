@@ -249,6 +249,27 @@ pub async fn stop_pipeline(
     Ok(())
 }
 
+// ============================================================================
+// Pipeline History Commands
+// ============================================================================
+
+/// List pipeline runs with optional pagination. Returns newest first.
+#[tauri::command]
+pub async fn list_pipeline_runs(
+    limit: Option<usize>,
+    offset: Option<usize>,
+) -> Result<Vec<super::history::PipelineRun>, ADPError> {
+    let limit = limit.unwrap_or(50);
+    let offset = offset.unwrap_or(0);
+    super::history::list_runs(limit, offset)
+}
+
+/// Get a single pipeline run by ID.
+#[tauri::command]
+pub async fn get_pipeline_run(id: String) -> Result<super::history::PipelineRun, ADPError> {
+    super::history::load_run(&id)
+}
+
 /// Open a native folder picker dialog and return the selected path.
 #[tauri::command]
 pub async fn pick_project_folder(app: AppHandle) -> Result<Option<String>, ADPError> {
