@@ -9,10 +9,6 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
 
-vi.mock("../Header", () => ({
-  Header: () => <div data-testid="header" />,
-}));
-
 vi.mock("./SideNav", () => ({
   SideNav: () => <nav data-testid="side-nav" />,
 }));
@@ -50,10 +46,9 @@ describe("AppShell", () => {
     useUIStore.setState({ activeTab: "sessions" });
   });
 
-  it("renders SideNav, Header, and main content area", () => {
+  it("renders SideNav and main content area", () => {
     render(<AppShell />);
     expect(screen.getByTestId("side-nav")).toBeTruthy();
-    expect(screen.getByTestId("header")).toBeTruthy();
     expect(screen.getByTestId("session-manager")).toBeTruthy();
   });
 

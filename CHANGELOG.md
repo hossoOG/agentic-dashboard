@@ -4,6 +4,28 @@ Alle relevanten Änderungen an AgenticExplorer werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.6.1] — 2026-04-08 — "Pipeline-Entkopplung"
+
+> Pipeline-Engine vom Session-System entkoppelt. Pipeline-View funktioniert jetzt
+> ohne aktive Session — Folder-Picker mit Favoriten-Fallback. Agent-Cleanup bei
+> Session-Ende und Stale-Agent-Timeout hinzugefügt.
+
+### Features
+- **Pipeline Folder-Picker**: Pipeline-View zeigt Dropdown mit aktiver Session + Favoriten — kein Session-Zwang mehr
+- **Agent-Cleanup bei Session-Exit**: Running-Agents werden bei Session-Ende automatisch als "completed" markiert
+- **Stale-Agent-Timeout**: Agents die >5 Min. ohne Update im "running"-Status stecken werden automatisch abgeschlossen
+
+### Refactoring
+- WorkflowLauncher akzeptiert `folder` als Prop statt `activeSession` direkt zu lesen
+- PipelineControls nutzt den aufgelösten Folder statt `activeSession.folder`
+- Header-Komponente entfernt — Funktionalität in SideNav integriert
+- NotesPanel UI-Verbesserungen
+
+### Testing
+- Neue Tests: Folder-Picker mit Favoriten, Session-Exit Agent-Cleanup
+- Alle 950 Tests grün, tsc + Build fehlerfrei
+
+
 ## [1.6.0] — 2026-04-07 — "Tech-Debt & QA-Härtung"
 
 > Sprint-Ziel: Test-Coverage von Baseline auf 83% heben, DevOps-Infrastruktur härten,

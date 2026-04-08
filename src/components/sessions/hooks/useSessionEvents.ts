@@ -47,7 +47,7 @@ export function useSessionEvents(): void {
       }),
     );
 
-    // session-exit -> set exit code
+    // session-exit -> set exit code + mark running agents as completed
     unlisteners.push(
       listen<{ id: string; exit_code: number }>("session-exit", (event) => {
         try {
@@ -55,6 +55,15 @@ export function useSessionEvents(): void {
           const exitCode = event?.payload?.exit_code;
           if (typeof id !== "string" || exitCode == null) return;
           useSessionStore.getState().setExitCode(id, exitCode);
+
+          // Mark all running agents for this session as completed
+          const agentState = useAgentStore.getState();
+          const sessionAgents = Object.values(agentState.agents).filter(
+            (a) => a.sessionId === id && a.status === "running",
+          );
+          for (const agent of sessionAgents) {
+            agentState.updateAgentStatus(agent.id, "completed", Date.now());
+          }
         } catch (err) {
           logError("useSessionEvents.sessionExit", err);
         }

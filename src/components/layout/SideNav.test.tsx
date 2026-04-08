@@ -7,6 +7,34 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
 
+vi.mock("../../hooks/useAutoUpdate", () => ({
+  useAutoUpdate: () => ({
+    status: "idle",
+    progress: 0,
+    error: null,
+    newVersion: null,
+    lastChecked: null,
+    checkForUpdate: vi.fn(),
+    downloadAndInstall: vi.fn(),
+    confirmRelaunch: vi.fn(),
+    dismiss: vi.fn(),
+  }),
+}));
+
+vi.mock("../shared/NotesPanel", () => ({
+  NotesPanel: ({ variant }: { variant?: string }) => (
+    <button data-testid="notes-panel" data-variant={variant}>Notizen</button>
+  ),
+}));
+
+vi.mock("../shared/ChangelogDialog", () => ({
+  ChangelogDialog: () => null,
+}));
+
+vi.mock("../shared/UpdateNotification", () => ({
+  UpdateNotification: () => null,
+}));
+
 describe("SideNav", () => {
   beforeEach(() => {
     useUIStore.setState({ activeTab: "sessions" });
@@ -64,5 +92,18 @@ describe("SideNav", () => {
     render(<SideNav badges={{ pipeline: 150 }} />);
     expect(screen.getByText("99+")).toBeTruthy();
     expect(screen.queryByText("150")).toBeNull();
+  });
+
+  it("renders logo and version badge", () => {
+    render(<SideNav />);
+    expect(screen.getByText(/AGENTIC/)).toBeTruthy();
+    expect(screen.getByText(/^v\d+\.\d+\.\d+/)).toBeTruthy();
+  });
+
+  it("renders theme toggle and notes panel in sidebar variant", () => {
+    render(<SideNav />);
+    expect(screen.getByLabelText(/Mode aktivieren/)).toBeTruthy();
+    const notesPanel = screen.getByTestId("notes-panel");
+    expect(notesPanel.dataset.variant).toBe("sidebar");
   });
 });

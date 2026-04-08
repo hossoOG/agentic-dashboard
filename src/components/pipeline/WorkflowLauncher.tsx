@@ -13,10 +13,9 @@ import {
 import { getErrorMessage } from "../../utils/adpError";
 import { logError } from "../../utils/errorLogger";
 import { useWorkflowStore, selectWorkflowsForFolder } from "../../store/workflowStore";
-import { useSessionStore, selectActiveSession } from "../../store/sessionStore";
 import { useUIStore } from "../../store/uiStore";
 import type { DetectedWorkflow, WorkflowType } from "../../store/workflowStore";
-import type { SessionShell } from "../../store/sessionStore";
+import { useSessionStore, type SessionShell } from "../../store/sessionStore";
 import { DURATION, EASE, staggerDelay } from "../../utils/motion";
 
 // ============================================================================
@@ -115,9 +114,12 @@ function WorkflowCard({
 // WorkflowLauncher
 // ============================================================================
 
-export function WorkflowLauncher() {
-  const activeSession = useSessionStore(selectActiveSession);
-  const folder = activeSession?.folder ?? "";
+interface WorkflowLauncherProps {
+  folder: string | null;
+}
+
+export function WorkflowLauncher({ folder: folderProp }: WorkflowLauncherProps) {
+  const folder = folderProp ?? "";
   const workflows = useWorkflowStore(selectWorkflowsForFolder(folder));
   const loading = useWorkflowStore((s) => s.loading);
   const error = useWorkflowStore((s) => s.error);

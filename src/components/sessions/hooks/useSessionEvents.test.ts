@@ -28,9 +28,12 @@ vi.mock("../../../store/sessionStore", () => ({
   },
 }));
 
+let mockAgents: Record<string, { id: string; sessionId: string; status: string }> = {};
+
 vi.mock("../../../store/agentStore", () => ({
   useAgentStore: {
     getState: () => ({
+      agents: mockAgents,
       addAgent: mockAddAgent,
       updateAgentStatus: mockUpdateAgentStatus,
       updateAgentDetails: mockUpdateAgentDetails,
@@ -68,6 +71,7 @@ describe("useSessionEvents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    mockAgents = {};
   });
 
   it("registers 8 event listeners on mount", () => {
@@ -257,5 +261,28 @@ describe("useSessionEvents", () => {
       sessionId: "s1",
       active: true,
     });
+  });
+
+  it("session-exit: marks running agents as completed", () => {
+    mockAgents = {
+      a1: { id: "a1", sessionId: "s1", status: "running" },
+      a2: { id: "a2", sessionId: "s1", status: "completed" },
+      a3: { id: "a3", sessionId: "s2", status: "running" },
+    };
+
+    renderHook(() => useSessionEvents());
+    const cb = getListenCallback("session-exit");
+
+    cb({ payload: { id: "s1", exit_code: 0 } });
+
+    // Only running agents from session s1 should be marked completed
+    expect(mockUpdateAgentStatus).toHaveBeenCalledWith(
+      "a1",
+      "completed",
+      expect.any(Number),
+    );
+    // a2 already completed — should not be called again
+    // a3 belongs to s2 — should not be touched
+    expect(mockUpdateAgentStatus).toHaveBeenCalledTimes(1);
   });
 });

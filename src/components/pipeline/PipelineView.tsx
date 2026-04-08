@@ -7,9 +7,11 @@ import { PipelineStatusBar } from "./PipelineStatusBar";
 import { PipelineHistoryView } from "./PipelineHistoryView";
 import { PipelineRunDetail } from "./PipelineRunDetail";
 import { useSessionStore, selectActiveSession } from "../../store/sessionStore";
+import { useSettingsStore } from "../../store/settingsStore";
 import { useAgentStore, selectDetectionQuality } from "../../store/agentStore";
 import { usePipelineStatusStore } from "../../store/pipelineStatusStore";
 import { usePipelineHistoryStore } from "../../store/pipelineHistoryStore";
+import { useStaleAgentCleanup } from "./useStaleAgentCleanup";
 
 type PipelineTab = "live" | "history";
 
@@ -23,8 +25,14 @@ export function PipelineView() {
   const activeSession = useSessionStore(selectActiveSession);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const sessions = useSessionStore((s) => s.sessions);
+  const favorites = useSettingsStore((s) => s.favorites);
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [filterSessionId, setFilterSessionId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<PipelineTab>("live");
+
+  // Folder resolution: explicit selection > active session > null
+  const folder = selectedFolder ?? activeSession?.folder ?? null;
+
   const effectiveSessionId = filterSessionId ?? activeSessionId;
   const detectionQuality = useAgentStore(selectDetectionQuality(effectiveSessionId ?? ""));
   const startPolling = usePipelineStatusStore((s) => s.startPolling);
@@ -44,6 +52,9 @@ export function PipelineView() {
       stopPolling();
     };
   }, [startPolling, stopPolling]);
+
+  // Clean up stale agents stuck in "running" status
+  useStaleAgentCleanup();
 
   const TAB_CLASSES = (tab: PipelineTab) =>
     `px-3 py-1 text-xs font-medium rounded transition-colors ${
@@ -98,10 +109,34 @@ export function PipelineView() {
         <>
           <PipelineStatusBar />
 
-          {/* Pipeline Controls — start/stop workflows */}
-          {activeSession?.folder && (
-            <PipelineControls projectPath={activeSession.folder} />
+          {/* Folder picker — session or favorites */}
+          {(favorites.length > 0 || activeSession) && (
+            <div className="flex items-center gap-2 px-4 py-2 border-b border-neutral-700 shrink-0">
+              <span className="text-xs text-neutral-500">Projekt:</span>
+              <select
+                value={folder ?? ""}
+                onChange={(e) => setSelectedFolder(e.target.value || null)}
+                className="text-xs bg-surface-base border border-neutral-700 text-neutral-300 rounded-sm px-2 py-1 outline-none focus:border-accent max-w-xs"
+                data-testid="folder-picker"
+              >
+                {activeSession && (
+                  <option value={activeSession.folder}>
+                    {activeSession.title} (aktive Session)
+                  </option>
+                )}
+                {favorites
+                  .filter((f) => f.path !== activeSession?.folder)
+                  .map((fav) => (
+                    <option key={fav.id} value={fav.path}>
+                      {fav.label}
+                    </option>
+                  ))}
+              </select>
+            </div>
           )}
+
+          {/* Pipeline Controls — start/stop workflows */}
+          {folder && <PipelineControls projectPath={folder} />}
 
           {/* Detection quality warning */}
           {effectiveSessionId && detectionQuality === "none" && (
@@ -111,7 +146,7 @@ export function PipelineView() {
           )}
 
           {/* Top: Workflow Launcher */}
-          <WorkflowLauncher />
+          <WorkflowLauncher folder={folder} />
 
           {/* Middle: Task Tree — takes remaining space */}
           <div className="flex-1 min-h-0">

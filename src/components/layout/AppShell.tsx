@@ -1,5 +1,4 @@
 import React, { Suspense } from "react";
-import { Header } from "../Header";
 import { SideNav } from "./SideNav";
 import { PipelineView } from "../pipeline/PipelineView";
 import { SessionManagerView } from "../sessions/SessionManagerView";
@@ -78,7 +77,6 @@ export function AppShell() {
     <div className="flex h-screen w-screen overflow-hidden bg-surface-base">
       <SideNav />
       <div className="flex flex-col flex-1 min-w-0">
-        <Header />
         <main className="flex-1 min-h-0 overflow-hidden">
           {renderContent()}
         </main>

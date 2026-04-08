@@ -4,6 +4,7 @@ import { PipelineView } from "./PipelineView";
 import { AgentMetricsPanel } from "./AgentMetricsPanel";
 import { useAgentStore } from "../../store/agentStore";
 import { useSessionStore } from "../../store/sessionStore";
+import { useSettingsStore } from "../../store/settingsStore";
 import type { DetectedAgent } from "../../store/agentStore";
 
 // ---------------------------------------------------------------------------
@@ -73,6 +74,7 @@ beforeEach(() => {
     ] as never[],
     activeSessionId: "sess-1",
   });
+  useSettingsStore.setState({ favorites: [] });
 });
 
 // ============================================================================
@@ -85,12 +87,32 @@ describe("PipelineView", () => {
     expect(container).toBeTruthy();
   });
 
-  it("shows WorkflowLauncher empty state when no session is active", () => {
+  it("shows WorkflowLauncher empty state when no session and no favorites", () => {
     useSessionStore.setState({ sessions: [], activeSessionId: null });
+    useSettingsStore.setState({ favorites: [] });
     render(<PipelineView />);
     expect(
       screen.getByText(/Wähle ein Projekt um Workflows zu erkennen/)
     ).toBeInTheDocument();
+  });
+
+  it("renders folder picker with favorites", () => {
+    useSessionStore.setState({ sessions: [], activeSessionId: null });
+    useSettingsStore.setState({
+      favorites: [
+        {
+          id: "fav-1",
+          path: "/tmp/favorite-project",
+          label: "Mein Favorit",
+          shell: "powershell",
+          addedAt: Date.now(),
+          lastUsedAt: Date.now(),
+        },
+      ],
+    });
+    render(<PipelineView />);
+    expect(screen.getByTestId("folder-picker")).toBeInTheDocument();
+    expect(screen.getByText("Mein Favorit")).toBeInTheDocument();
   });
 
   it("shows AgentMetricsPanel empty state when no agents exist", () => {

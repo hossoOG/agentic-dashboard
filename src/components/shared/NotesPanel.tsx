@@ -11,7 +11,7 @@ function normalizePath(p: string) {
   return p.replace(/\\/g, "/").toLowerCase();
 }
 
-export function NotesPanel() {
+export function NotesPanel({ variant = "header" }: { variant?: "header" | "sidebar" }) {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<NotesTab>("project");
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
@@ -101,22 +101,34 @@ export function NotesPanel() {
     <div className="relative" ref={panelRef}>
       <button
         onClick={() => setOpen(!open)}
-        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-sm transition-all ${
-          open
-            ? "bg-accent-a15 text-accent border border-accent-a40"
-            : hasAnyNotes
-              ? "text-accent hover:bg-hover-overlay border border-transparent"
-              : "text-neutral-400 hover:text-neutral-200 hover:bg-hover-overlay border border-transparent"
-        }`}
+        className={
+          variant === "sidebar"
+            ? `flex items-center gap-2 w-full h-9 px-3 rounded-none transition-all duration-150 text-left border-l-2 border-transparent ${
+                open
+                  ? "text-accent bg-accent-a10 border-accent"
+                  : hasAnyNotes
+                    ? "text-accent hover:bg-hover-overlay"
+                    : "text-neutral-400 hover:text-neutral-200 hover:bg-hover-overlay"
+              }`
+            : `flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-sm transition-all ${
+                open
+                  ? "bg-accent-a15 text-accent border border-accent-a40"
+                  : hasAnyNotes
+                    ? "text-accent hover:bg-hover-overlay border border-transparent"
+                    : "text-neutral-400 hover:text-neutral-200 hover:bg-hover-overlay border border-transparent"
+              }`
+        }
         aria-label="Notizen"
         title="Notizen"
       >
-        <StickyNote className="w-4 h-4" />
-        <span className="text-xs hidden lg:inline">Notizen</span>
+        <StickyNote className="w-4 h-4 shrink-0" />
+        <span className={variant === "sidebar" ? "text-xs truncate" : "text-xs hidden lg:inline"}>Notizen</span>
       </button>
 
       {open && (
-        <div className="absolute top-full right-0 mt-2 z-50 w-96 bg-surface-overlay border border-neutral-700 rounded-sm shadow-xl">
+        <div className={`absolute z-50 w-96 bg-surface-overlay border border-neutral-700 rounded-sm shadow-xl ${
+          variant === "sidebar" ? "left-full top-0 ml-2" : "top-full right-0 mt-2"
+        }`}>
           {/* Tab Bar */}
           <div className="flex border-b border-neutral-700">
             <button
