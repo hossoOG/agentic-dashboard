@@ -670,4 +670,87 @@ steps:
         let err = validate_workflow(&wf).unwrap_err();
         assert!(err.message.contains("Circular dependency"));
     }
+
+    // ========================================================================
+    // Integration tests for .claude/workflows/implement.yaml (#154)
+    // ========================================================================
+
+    #[test]
+    fn implement_yaml_parses_successfully() {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let project_root = std::path::Path::new(manifest_dir).parent().unwrap();
+        let yaml_path = project_root.join(".claude/workflows/implement.yaml");
+        if !yaml_path.exists() {
+            // Skip in CI where the workflow file may not be present
+            return;
+        }
+        let wf = parse_workflow_file(&yaml_path).unwrap();
+        assert_eq!(wf.name, "implement-feature");
+        assert!(!wf.description.is_empty());
+    }
+
+    #[test]
+    fn implement_yaml_passes_validation() {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let project_root = std::path::Path::new(manifest_dir).parent().unwrap();
+        let yaml_path = project_root.join(".claude/workflows/implement.yaml");
+        if !yaml_path.exists() {
+            return;
+        }
+        let wf = parse_workflow_file(&yaml_path).unwrap();
+        validate_workflow(&wf).unwrap();
+    }
+
+    #[test]
+    fn implement_yaml_has_expected_steps() {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let project_root = std::path::Path::new(manifest_dir).parent().unwrap();
+        let yaml_path = project_root.join(".claude/workflows/implement.yaml");
+        if !yaml_path.exists() {
+            return;
+        }
+        let wf = parse_workflow_file(&yaml_path).unwrap();
+        assert!(
+            wf.steps.len() >= 7,
+            "Expected at least 7 steps (phases 0-6)"
+        );
+        assert_eq!(wf.steps[0].id, "lessons-check");
+        assert_eq!(wf.steps.last().unwrap().id, "create-pr");
+    }
+
+    #[test]
+    fn implement_yaml_has_required_inputs() {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let project_root = std::path::Path::new(manifest_dir).parent().unwrap();
+        let yaml_path = project_root.join(".claude/workflows/implement.yaml");
+        if !yaml_path.exists() {
+            return;
+        }
+        let wf = parse_workflow_file(&yaml_path).unwrap();
+        let issue_input = wf.inputs.iter().find(|i| i.name == "issue_id");
+        assert!(issue_input.is_some(), "Must have issue_id input");
+        assert!(issue_input.unwrap().required, "issue_id must be required");
+    }
+
+    #[test]
+    fn implement_yaml_input_resolution() {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let project_root = std::path::Path::new(manifest_dir).parent().unwrap();
+        let yaml_path = project_root.join(".claude/workflows/implement.yaml");
+        if !yaml_path.exists() {
+            return;
+        }
+        let wf = parse_workflow_file(&yaml_path).unwrap();
+        let mut inputs = HashMap::new();
+        inputs.insert("issue_id".to_string(), "42".to_string());
+        // Check that the first agent step's prompt contains the placeholder
+        if let crate::pipeline::schema::StepType::Agent { ref prompt, .. } = wf.steps[0].step_type {
+            let resolved = resolve_input_refs(prompt, &inputs);
+            assert!(resolved.contains("42"), "issue_id should be resolved to 42");
+            assert!(
+                !resolved.contains("{issue_id}"),
+                "placeholder should be replaced"
+            );
+        }
+    }
 }
