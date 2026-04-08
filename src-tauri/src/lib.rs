@@ -93,6 +93,7 @@ pub struct LogEvent {
 #[derive(Default)]
 pub struct PipelineState {
     pub child_pid: Option<u32>,
+    pub state_machine: pipeline::state_machine::PipelineStateMachine,
 }
 
 mod commands {
@@ -189,6 +190,10 @@ pub fn run() {
             library::commands::commands::attach_library_item,
             library::commands::commands::detach_library_item,
             library::commands::commands::get_library_item_path,
+            // Pipeline
+            pipeline::commands::start_pipeline,
+            pipeline::commands::stop_pipeline,
+            pipeline::commands::get_pipeline_status,
             // Pipeline history
             pipeline::commands::list_pipeline_runs,
             pipeline::commands::get_pipeline_run,

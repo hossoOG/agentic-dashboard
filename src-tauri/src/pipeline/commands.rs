@@ -6,8 +6,37 @@ use tauri::{AppHandle, Emitter};
 
 use crate::adp::{ADPEmitter, ADPEventType};
 use crate::error::{ADPError, ADPErrorCode};
+use crate::pipeline::state_machine::PipelineStatusInfo;
 use crate::util::silent_command;
 use crate::{LogEvent, PipelineState};
+
+/// Emit a `pipeline.status` ADP event with the current state machine snapshot.
+fn emit_status_event(
+    emitter: &ADPEmitter,
+    state: &Arc<Mutex<PipelineState>>,
+    is_running: bool,
+) -> Result<(), ADPError> {
+    let s = state
+        .lock()
+        .map_err(|e| ADPError::internal(e.to_string()))?;
+    let info = s.state_machine.info();
+    let uptime = if is_running {
+        0
+    } else {
+        info.elapsed_ms / 1000
+    };
+    let status_payload = serde_json::json!({
+        "_type": "pipeline.status",
+        "isRunning": is_running,
+        "uptime": uptime,
+        "worktreeCount": 0,
+        "stateMachine": info
+    });
+    if let Err(e) = emitter.emit_from_backend(ADPEventType::PipelineStatus, &status_payload) {
+        log::error!("Failed to emit pipeline.status ADP event: {}", e);
+    }
+    Ok(())
+}
 
 /// Spawn a thread that reads lines from a stream and emits both legacy
 /// `pipeline-log` events and ADP `orchestrator.log` envelopes.
@@ -85,6 +114,14 @@ pub async fn start_pipeline(
             .lock()
             .map_err(|e| ADPError::internal(e.to_string()))?;
         s.child_pid = None;
+        s.state_machine
+            .start("claude-pipeline".into(), 1)
+            .map_err(|e| {
+                ADPError::new(
+                    ADPErrorCode::PipelineAlreadyRunning,
+                    format!("State machine error: {}", e),
+                )
+            })?;
     }
 
     // Emit ADP pipeline.start event
@@ -97,6 +134,8 @@ pub async fn start_pipeline(
     if let Err(e) = emitter.emit_from_backend(ADPEventType::PipelineStart, &start_payload) {
         log::error!("Failed to emit pipeline.start ADP event: {}", e);
     }
+
+    emit_status_event(&emitter, &state, true)?;
 
     // Validate that claude CLI is available before spawning
     let mut version_cmd = silent_command("claude");
@@ -192,6 +231,9 @@ pub async fn stop_pipeline(
         let mut s = state
             .lock()
             .map_err(|e| ADPError::internal(e.to_string()))?;
+        if s.state_machine.cancel().is_err() {
+            let _ = s.state_machine.fail("user-initiated stop".into());
+        }
         s.child_pid.take()
     };
 
@@ -245,6 +287,8 @@ pub async fn stop_pipeline(
     if let Err(e) = emitter.emit_from_backend(ADPEventType::PipelineStop, &stop_payload) {
         log::error!("Failed to emit ADP pipeline.stop event: {}", e);
     }
+
+    emit_status_event(&emitter, &state, false)?;
 
     Ok(())
 }
@@ -306,6 +350,21 @@ pub async fn list_workflows(project_path: String) -> Result<Vec<WorkflowSummary>
     }
 
     Ok(summaries)
+}
+
+// ============================================================================
+// Pipeline Status Query
+// ============================================================================
+
+/// Get the current pipeline status including state machine info.
+#[tauri::command]
+pub async fn get_pipeline_status(
+    state: tauri::State<'_, Arc<Mutex<PipelineState>>>,
+) -> Result<PipelineStatusInfo, ADPError> {
+    let s = state
+        .lock()
+        .map_err(|e| ADPError::internal(e.to_string()))?;
+    Ok(s.state_machine.info())
 }
 
 // ============================================================================
