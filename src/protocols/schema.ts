@@ -171,6 +171,28 @@ export interface PipelineStatusPayload {
   isRunning: boolean;
   uptime: number; // Sekunden seit Start
   worktreeCount: number;
+  stateMachine?: PipelineStatusInfo;
+}
+
+/** Pipeline state machine status (matches Rust PipelineStatusInfo). */
+export type PipelineState =
+  | "idle"
+  | "starting"
+  | "running"
+  | "paused"
+  | "completing"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
+/** Snapshot of the pipeline state machine returned by get_pipeline_status. */
+export interface PipelineStatusInfo {
+  status: PipelineState;
+  workflowName: string | null;
+  stepIndex: number;
+  totalSteps: number;
+  elapsedMs: number;
+  errorMessage: string | null;
 }
 
 export interface PipelineErrorPayload {
