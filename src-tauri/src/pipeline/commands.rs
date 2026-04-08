@@ -353,6 +353,105 @@ pub async fn list_workflows(project_path: String) -> Result<Vec<WorkflowSummary>
 }
 
 // ============================================================================
+// Workflow Execution
+// ============================================================================
+
+/// Run a complete workflow: load, validate, execute all steps sequentially,
+/// save the run to history, and return the result.
+#[tauri::command]
+pub async fn run_workflow(
+    app: AppHandle,
+    workflow_path: String,
+    inputs: std::collections::HashMap<String, String>,
+    project_path: String,
+    state: tauri::State<'_, Arc<Mutex<PipelineState>>>,
+) -> Result<super::runner::PipelineRunResult, ADPError> {
+    // 1. Load and validate workflow
+    let p = std::path::Path::new(&workflow_path);
+    let workflow = super::parser::parse_workflow_file(p)?;
+    super::parser::validate_workflow(&workflow)?;
+
+    let step_count = workflow.steps.len();
+
+    // 2. Update state machine to Running
+    {
+        let mut s = state
+            .lock()
+            .map_err(|e| ADPError::internal(e.to_string()))?;
+        // Reset if in terminal state
+        if s.state_machine.is_terminal() {
+            let _ = s.state_machine.reset();
+        }
+        s.state_machine
+            .start(workflow.name.clone(), step_count)
+            .map_err(|e| {
+                ADPError::new(
+                    ADPErrorCode::PipelineAlreadyRunning,
+                    format!("State machine error: {}", e),
+                )
+            })?;
+    }
+
+    // 3. Emit pipeline.start ADP event
+    let emitter = ADPEmitter::new(app.clone());
+    let start_payload = serde_json::json!({
+        "_type": "pipeline.start",
+        "projectPath": project_path,
+        "workflow": workflow.name,
+        "mode": "workflow"
+    });
+    if let Err(e) = emitter.emit_from_backend(ADPEventType::PipelineStart, &start_payload) {
+        log::error!("Failed to emit pipeline.start ADP event: {}", e);
+    }
+
+    // 4. Create runner and execute
+    let mut runner =
+        super::runner::PipelineRunner::new(workflow.clone(), inputs, project_path.clone());
+
+    let result = runner.run();
+
+    // 5. Update state machine based on result
+    {
+        let mut s = state
+            .lock()
+            .map_err(|e| ADPError::internal(e.to_string()))?;
+        match &result {
+            Ok(r) if r.success => {
+                let _ = s.state_machine.complete();
+            }
+            Ok(_) => {
+                let _ = s.state_machine.fail("Workflow steps failed".into());
+            }
+            Err(e) => {
+                let _ = s.state_machine.fail(e.message.clone());
+            }
+        }
+    }
+
+    let result = result?;
+
+    // 6. Save to history
+    let pipeline_run = runner.to_pipeline_run(&result);
+    if let Err(e) = super::history::save_run(&pipeline_run) {
+        log::error!("Failed to save pipeline run to history: {}", e);
+    }
+
+    // 7. Emit pipeline completion event
+    let complete_payload = serde_json::json!({
+        "_type": "pipeline.status",
+        "workflow": workflow.name,
+        "success": result.success,
+        "totalDurationMs": result.total_duration_ms,
+        "stepCount": result.steps.len()
+    });
+    if let Err(e) = emitter.emit_from_backend(ADPEventType::PipelineStatus, &complete_payload) {
+        log::error!("Failed to emit pipeline.status ADP event: {}", e);
+    }
+
+    Ok(result)
+}
+
+// ============================================================================
 // Pipeline Status Query
 // ============================================================================
 
