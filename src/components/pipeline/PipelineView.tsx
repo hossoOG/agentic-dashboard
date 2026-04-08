@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { WorkflowLauncher } from "./WorkflowLauncher";
 import { TaskTreeView } from "./TaskTreeView";
 import { AgentMetricsPanel } from "./AgentMetricsPanel";
+import { PipelineStatusBar } from "./PipelineStatusBar";
 import { useSessionStore } from "../../store/sessionStore";
 import { useAgentStore, selectDetectionQuality } from "../../store/agentStore";
+import { usePipelineStatusStore } from "../../store/pipelineStatusStore";
 
 /**
  * PipelineView — Wrapper that combines:
@@ -18,6 +20,16 @@ export function PipelineView() {
   const [filterSessionId, setFilterSessionId] = useState<string | null>(null);
   const effectiveSessionId = filterSessionId ?? activeSessionId;
   const detectionQuality = useAgentStore(selectDetectionQuality(effectiveSessionId ?? ""));
+  const startPolling = usePipelineStatusStore((s) => s.startPolling);
+  const stopPolling = usePipelineStatusStore((s) => s.stopPolling);
+
+  // Start/stop pipeline status polling on mount/unmount
+  useEffect(() => {
+    startPolling();
+    return () => {
+      stopPolling();
+    };
+  }, [startPolling, stopPolling]);
 
   return (
     <div className="flex flex-col h-full">
@@ -41,6 +53,8 @@ export function PipelineView() {
           ))}
         </select>
       </div>
+
+      <PipelineStatusBar />
 
       {/* Detection quality warning */}
       {effectiveSessionId && detectionQuality === "none" && (
