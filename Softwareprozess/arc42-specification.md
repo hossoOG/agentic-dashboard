@@ -1,9 +1,9 @@
 # AgenticExplorer — arc42 Architektur-Dokumentation
 
-**Version**: 2.1 (Product-Owner-Feedback integriert, Testing-Strategie, Workflow)
-**Stand**: 2026-04-04
-**App-Version**: v1.4.0
-**Methode**: Retroaktive Spezifikation + Zukunfts-Vision (3-Runden Spezialisten-Review)
+**Version**: 3.0 (v1.6.0 Status-Sync, Sprint 1+2 abgeschlossen, v2.0 Planung)
+**Stand**: 2026-04-08
+**App-Version**: v1.6.0
+**Methode**: Retroaktive Spezifikation + Zukunfts-Vision (4-Runden Spezialisten-Review)
 
 ---
 
@@ -221,49 +221,42 @@ graph TB
 
 ### 4.3 Evolutionsstrategie — IST zu ZUKUNFT
 
-> **PO-Entscheidung (2026-04-04):** Cloud-Backend und Gamification nach v3.0+ verschoben. Fundament zuerst. Multi-LLM-Abstraktionsschicht in v2.5. App bleibt 100% lokal bis v3.0.
+> **Stand 2026-04-08:** v1.6.0 released. Sprint 1+2 (Stabilisierung + QA) abgeschlossen. 912 Tests, 83% Coverage, 75/75/65/75 Schwellen enforced. v2.0 Planung laeuft.
 
 ```mermaid
 graph TD
-    subgraph v1["v1.4 — MVP (JETZT)"]
-        A["Multi-Session Terminal<br/>CLAUDE.md/Skills/Hooks Viewer<br/>GitHub Integration<br/>Agent Detection (PTY)<br/>Task-Tree Visualization"]
+    subgraph v1_done["v1.0–v1.6 — ABGESCHLOSSEN"]
+        A["v1.0–v1.2: Session Manager MVP<br/>v1.3: Agent Detection + Pipeline<br/>v1.4: TaskTreeView + Rust Rewrite<br/>v1.5: Security + MD-Editor<br/>v1.6: QA-Haertung (912 Tests, 83% Cov)"]
     end
 
-    subgraph v2_0["v2.0 — Pipeline Fundament"]
-        B["Workflow-Profile aus Skills/Hooks<br/>Cross-Session Tracking<br/>Parallel Agent Dashboard<br/>Real-Time Activity-Timeline<br/>Monitoring (lokal, ohne Cloud)"]
-    end
-
-    subgraph v2_1["v2.1 — QA und Audit"]
-        C["Audit-Logs persistent<br/>Agent-Action-Timeline<br/>Error Analysis und Tracing<br/>Performance-Metriken<br/>Coverage Gate 70% enforced"]
+    subgraph v2_0["v2.0 — Pipeline Fundament (NAECHSTER)"]
+        B["Cross-Session Agent Tracking<br/>Audit-Logs persistent<br/>Real-Mode Pipeline<br/>Activity Timeline<br/>Parallel Agent Dashboard<br/>Workflow-Profile UI"]
     end
 
     subgraph v2_5["v2.5 — Multi-LLM und Monitoring"]
-        D["LLM-Abstraktionsschicht<br/>(Claude, ollama, gpt-cli)<br/>Plugin-Architektur fuer CLI-Integration<br/>Enhanced Monitoring (lokal)<br/>Workflow-Editor"]
+        D["LLM-Abstraktionsschicht<br/>(Claude, ollama, gpt-cli)<br/>Plugin-Architektur<br/>Enhanced Monitoring"]
     end
 
     subgraph v3_0["v3.0+ — Cloud und Orchestrierung"]
-        E["Cloud-Backend (optional)<br/>Multi-User und Roles<br/>Approval-Workflows<br/>Gamification<br/>Code-Simplification"]
+        E["Cloud-Backend (optional)<br/>Multi-User und Roles<br/>Gamification<br/>Code-Simplification"]
     end
 
-    v1 --> v2_0
-    v2_0 --> v2_1
-    v2_1 --> v2_5
+    v1_done --> v2_0
+    v2_0 --> v2_5
     v2_5 --> v3_0
 
-    style v1 fill:#e1f5ff
+    style v1_done fill:#c8e6c9
     style v2_0 fill:#fff3e0
-    style v2_1 fill:#f3e5f5
     style v2_5 fill:#f1f8e9
     style v3_0 fill:#ffe0b2
 ```
 
-| Phase | Kern-Features | Strategische Entscheidung |
-|-------|---------------|--------------------------|
-| **v1.4 (Jetzt)** | Agent-Erkennung, Task-Tree | Agent-Detection aus PTY-Output via Regex |
-| **v2.0** | Workflow-Start, Cross-Session Tracking | `agentStore` sessionuebergreifend; Workflows aus Skills/Hooks |
-| **v2.1** | QA-Haertung, Audit-Trail, Metriken | Coverage 70% Gate; Agent-Aktionen persistent geloggt |
-| **v2.5** | Multi-LLM, Plugin-Architektur | Abstraktionsschicht fuer andere CLI-Tools (ollama, gpt-cli) |
-| **v3.0+** | Cloud, Multi-User, Gamification | Erst wenn lokales Fundament stabil steht |
+| Phase | Kern-Features | Status |
+|-------|---------------|--------|
+| **v1.0–v1.6** | Session Manager, Agent Detection, QA-Haertung | ABGESCHLOSSEN (912 Tests, 83% Cov) |
+| **v2.0** | Cross-Session Tracking, Audit-Logs, Real-Mode Pipeline, Dashboard | IN PLANUNG |
+| **v2.5** | Multi-LLM-Abstraktionsschicht, Plugin-Architektur | GEPLANT |
+| **v3.0+** | Cloud, Multi-User, Gamification | ZUKUNFT |
 
 ### 4.4 Entwicklungs-Workflow: Plan-First mit GitHub Issues
 
@@ -380,7 +373,7 @@ graph TD
     style Shell fill:#4f46e5,color:#fff
 ```
 
-**Zustand Stores:**
+**Zustand Stores (13 aktiv, Stand v1.6.0):**
 
 | Store | Typ | Verantwortung |
 |-------|-----|---------------|
@@ -388,9 +381,15 @@ graph TD
 | `settingsStore` | Persistent | Favoriten, Notizen, Theme, API-Keys |
 | `uiStore` | Ephemeral | Tabs, Toasts, UI-Flags |
 | `pipelineStore` | Ephemeral | Pipeline-State, Worktrees, QA-Gate |
-| `agentStore` | Ephemeral | Erkannte Agenten, Hierarchie |
+| `agentStore` | Ephemeral | Erkannte Agenten, Hierarchie, Cross-Session |
 | `workflowStore` | Ephemeral | Skill/Hook-basierte Workflows |
-| `editorStore` | Ephemeral | Markdown-Editor-State |
+| `editorStore` | Ephemeral | Markdown-Editor-State, Dirty-Tracking |
+| `configDiscoveryStore` | Ephemeral | Skills, Agents, Hooks, Configs Discovery (NEU v1.6.0) |
+| `libraryStore` | Ephemeral | Library-Index, Skill-/Hook-Metadata (NEU v1.5.0) |
+| `logViewerStore` | Ephemeral | Log-Entries, Filter, Error-Grouping (NEU v1.3.0) |
+| `projectConfigStore` | Ephemeral | Projekt-Konfiguration laden/parsen (NEU v1.4.0) |
+| `sessionHistoryStore` | Ephemeral | Abgeschlossene Sessions, Metadaten (NEU v1.3.0) |
+| `tauriStorage` | Utility | Persistenz-Layer fuer Zustand (localStorage-Adapter) |
 
 ### 5.3 Level 2 — Backend-Module (Rust)
 
@@ -973,15 +972,18 @@ graph TD
     SMOKE --> PROD["Production"]
 ```
 
-#### Test-Pyramide (Ziel-Verteilung)
+#### Test-Pyramide (Stand v1.6.0)
 
-| Schicht | Anteil | Tests (Ziel) | Tool | Status |
+| Schicht | Anteil | Tests (Ziel) | Tool | Status (v1.6.0) |
 |---------|--------|-------------|------|--------|
-| **Unit Tests** | 40% | ~250 (Stores, Pure Functions) | Vitest + jsdom | 251 vorhanden |
-| **Component Tests** | 20% | ~50 (Rendering, State Changes) | Vitest + @testing-library/react | 0 — offen |
-| **Integration Tests** | 30% | ~60 (IPC, Persistenz, Security) | Vitest + MSW (Tauri-IPC-Mocks) | 0 — offen |
-| **E2E Tests** | 10% | ~10 (Kritische Smoke-Tests) | WebdriverIO + tauri-driver | 0 — offen |
-| **Gesamt** | 100% | ~370 Tests | — | 251 aktuell |
+| **Unit Tests** | 35% | ~350 (Stores, Pure Functions) | Vitest + jsdom | ~400 vorhanden |
+| **Component Tests** | 35% | ~350 (Rendering, State Changes) | Vitest + @testing-library/react | ~400 vorhanden |
+| **Rust Tests** | 20% | ~100 (Agent Detection, Path Safety) | cargo test | 111 vorhanden |
+| **E2E Tests** | 10% | ~10 (Kritische Smoke-Tests) | WebdriverIO + tauri-driver | 0 — geplant v2.0 |
+| **Gesamt** | 100% | ~810+ | — | **912 Frontend + 111 Rust = 1023 Tests** |
+
+> **Coverage-Schwellen (enforced):** Statements 75%, Functions 75%, Branches 65%, Lines 75%
+> **Tatsaechliche Coverage:** ~83% (v1.6.0 CHANGELOG)
 
 #### E2E-Testing-Strategie (WebdriverIO + Tauri)
 
@@ -1059,29 +1061,31 @@ graph LR
 
 ## 11. Risiken und technische Schulden
 
-### 11.1 Risiken
+### 11.1 Risiken (aktualisiert v1.6.0)
 
 | # | Risiko | Wahrsch. | Impact | Mitigation (QA-Gate) | Status |
 |---|--------|----------|--------|----------------------|--------|
 | R-1 | Agent-Erkennung bricht bei Claude CLI Update | HOCH | HOCH | Gate 3: Regex versioniert; Monitoring Post-Release | Mitigiert |
-| R-2 | Persistenz-Korruption bei Crash | MITTEL | KRITISCH | Gate 4: Pre-Release Audit; Atomic Write fehlt | Offen |
+| R-2 | Persistenz-Korruption bei Crash | MITTEL | KRITISCH | Gate 4: Pre-Release Audit; Backup-Rotation aktiv | Teilweise mitigiert |
 | R-3 | CSP `unsafe-eval` als Angriffsvektor | NIEDRIG | MITTEL | Akzeptiert (Vite-Zwang); nur lokale App | Akzeptiert |
 | R-4 | `gh` CLI nicht installiert | MITTEL | NIEDRIG | Graceful Degradation; GitHub-Tab zeigt Hinweis | Mitigiert |
-| R-5 | PTY-Kompatibilitaet Windows/PowerShell | NIEDRIG | HOCH | Gate 2: Integration Tests; portable-pty ausgereift | Offen |
-| R-6 | Memory-Leak bei Multi-Session | NIEDRIG | MITTEL | Gate 2: Perf-Tests; Gate 5: RAM-Monitoring | Offen |
+| R-5 | PTY-Kompatibilitaet Windows/PowerShell | NIEDRIG | HOCH | 17 Rust Integration Tests; portable-pty ausgereift | Mitigiert (v1.6.0) |
+| R-6 | Memory-Leak bei Multi-Session | NIEDRIG | MITTEL | Log-Virtualisierung implementiert (v1.6.0) | Teilweise mitigiert |
 | R-7 | Settings ueberschreiben sich parallel | MITTEL | KRITISCH | Backup-Rotation + Lock-Datei | Mitigiert |
-| R-8 | Fehlende Test-Coverage (24% aktuell) | HOCH | MITTEL | Gate 2: Coverage-Gate >= 70% (CI-erzwungen) | Offen |
+| ~~R-8~~ | ~~Fehlende Test-Coverage (24%)~~ | — | — | **ABGESCHLOSSEN: 83% Coverage, 75/75/65/75 enforced** | **Geloest (v1.6.0)** |
+| R-9 | Real-Mode Pipeline Performance bei 50+ Agents | MITTEL | HOCH | Virtual Scrolling vorbereitet; Benchmark noetig | NEU — v2.0 |
 
-### 11.2 Technische Schulden
+### 11.2 Technische Schulden (aktualisiert v1.6.0)
 
-| # | Schuld | Bereich | Schwere | Naechster Schritt |
-|---|--------|---------|---------|-------------------|
-| TD-1 | 0% Component-/E2E-Tests | Testing | KRITISCH | 130 Tests schreiben (Component + Integration + E2E) |
-| TD-2 | Kein Atomic Write | Persistenz | MITTEL | Rust: temp-file + rename Pattern implementieren |
-| TD-3 | Coverage-Schwelle zu niedrig | Testing | HOCH | vitest.config.ts: 24% auf 70% erhoehen |
-| TD-4 | Kein Remote-Error-Tracking | Monitoring | MITTEL | Error-Logs an Discord/Slack (Post-Release) |
-| TD-5 | Pipeline nur Mock-Modus | Feature | NIEDRIG | Real-Mode in v2.0 |
-| TD-6 | Secret-Management fehlt | Security | MITTEL | API-Keys verschluesseln (OS Keychain) |
+| # | Schuld | Bereich | Schwere | Status |
+|---|--------|---------|---------|--------|
+| ~~TD-1~~ | ~~0% Component-Tests~~ | Testing | — | **GELOEST: 912 Tests, 84 Test-Dateien (v1.6.0)** |
+| TD-2 | Kein Atomic Write | Persistenz | MITTEL | Offen — Backup-Rotation ist Workaround |
+| ~~TD-3~~ | ~~Coverage-Schwelle zu niedrig~~ | Testing | — | **GELOEST: 75/75/65/75 enforced (v1.6.0)** |
+| TD-4 | Kein Remote-Error-Tracking | Monitoring | NIEDRIG | Verschoben auf v2.5+ (PO-Entscheidung) |
+| TD-5 | Pipeline nur Mock-Modus | Feature | MITTEL | Geplant fuer v2.0 (FEAT-03) |
+| TD-6 | Secret-Management fehlt | Security | MITTEL | Offen — API-Keys unverschluesselt |
+| TD-7 | E2E-Tests fehlen | Testing | MITTEL | Geplant fuer v2.0 Sprint 3 (QA-05/06) |
 
 ---
 

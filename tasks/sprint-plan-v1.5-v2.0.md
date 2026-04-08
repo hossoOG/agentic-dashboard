@@ -1,60 +1,93 @@
-# Sprint-Plan: v1.5 (Stabilisierung) → v2.0 (Pipeline Fundament)
+# Sprint-Plan: v1.5 → v1.6 → v2.0
 
-> **Stand:** 2026-04-04 | **Basis:** v1.4.0 | **PO-Vorgabe:** Plan-First, GitHub Issues
+> **Stand:** 2026-04-08 | **Basis:** v1.6.0 | **PO-Vorgabe:** Plan-First, GitHub Issues
 > **Kapazitaet:** 1 Entwickler, ~6h/Tag effektiv
 
 ---
 
-## 1. Sprint-Uebersicht (Gantt)
+## 0. Abschluss-Report Sprint 1+2 (v1.5 / v1.6)
+
+### Ergebnis
+
+Sprint 1 und 2 sind **abgeschlossen und released** als v1.4.1, v1.5.0, v1.5.1 und v1.6.0.
 
 ```mermaid
 gantt
-    title AgenticExplorer v1.5 → v2.0 Roadmap
+    title Sprint 1+2 — Tatsaechlicher Verlauf
     dateFormat  YYYY-MM-DD
     axisFormat  %d.%m
 
-    section Sprint 1 — Stabilisierung + Security
-    SEC-01 DOMPurify XSS Fix           :s1_1, 2026-04-07, 1d
-    SEC-02 Path Traversal Haertung      :s1_2, 2026-04-07, 1d
-    SEC-03 Shell Command Centralization :s1_3, 2026-04-08, 1d
-    SEC-04 Input Validation Module      :s1_4, 2026-04-09, 1d
-    DEBT-01 Issue-Hygiene + Labels      :s1_5, 2026-04-07, 1d
-    DEBT-02 DashboardMap Legacy entf.   :s1_6, 2026-04-09, 1d
-    DEBT-03 ConnectionLines Dead Code   :s1_7, 2026-04-09, 1d
-    DEBT-04 Store Deduplizierung        :s1_8, 2026-04-10, 1d
-    DEBT-05 Zustand Selektoren Editor   :s1_9, 2026-04-10, 1d
-    Sprint 1 Review                     :milestone, s1_rev, 2026-04-11, 0d
+    section Sprint 1 — Security + Debt
+    SEC-01 DOMPurify XSS             :done, s1_1, 2026-04-04, 1d
+    SEC-02 Path Traversal            :done, s1_2, 2026-04-04, 1d
+    SEC-03 Shell Centralization      :done, s1_3, 2026-04-04, 1d
+    SEC-04 Input Validation          :done, s1_4, 2026-04-04, 1d
+    DEBT-01 Label-Hygiene            :done, s1_5, 2026-04-04, 1d
+    DEBT-02 DashboardMap Legacy      :done, s1_6, 2026-04-04, 1d
+    DEBT-03 ConnectionLines          :done, s1_7, 2026-04-04, 1d
+    DEBT-05 Zustand Selektoren       :done, s1_9, 2026-04-04, 1d
+    v1.4.1 Release                   :milestone, v141, 2026-04-04, 0d
+    v1.5.0 Release                   :milestone, v150, 2026-04-05, 0d
 
-    section Sprint 2 — QA-Infrastruktur
-    QA-01 projectConfigStore Tests      :s2_1, 2026-04-14, 2d
-    QA-02 Persistenz-Layer Tests        :s2_2, 2026-04-14, 2d
-    QA-03 Component-Tests Coverage 70%  :s2_3, 2026-04-16, 3d
-    QA-04 Editor-Komponenten Tests      :s2_4, 2026-04-16, 1d
-    DEVOPS-01 CI Coverage Enforcement   :s2_5, 2026-04-21, 1d
-    DEVOPS-02 Dependency Audit CI       :s2_6, 2026-04-21, 1d
-    DEVOPS-03 Branch Protection Rules   :s2_7, 2026-04-22, 1d
-    SEC-05 Rate Limiting GitHub API     :s2_8, 2026-04-22, 1d
-    SEC-06 IPC Command Rate Limiting    :s2_9, 2026-04-23, 1d
-    SEC-07 Secrets Detection Settings   :s2_10, 2026-04-23, 1d
-    Sprint 2 Review                     :milestone, s2_rev, 2026-04-24, 0d
+    section Sprint 2 — QA + Features
+    QA-10 Component-Tests            :done, s2_1, 2026-04-05, 2d
+    QA-11 Editor-Tests               :done, s2_2, 2026-04-05, 1d
+    QA-15 Coverage 75%               :done, s2_3, 2026-04-06, 1d
+    QA-16 Rust Integration Tests     :done, s2_4, 2026-04-06, 1d
+    DEVOPS-02 Dependency Audit       :done, s2_5, 2026-04-05, 1d
+    DEVOPS-04 Release-Workflow       :done, s2_6, 2026-04-05, 1d
+    Frontend-Review (5 Experten)     :done, s2_7, 2026-04-06, 1d
+    8 Bug-Fixes aus Review           :done, s2_8, 2026-04-06, 1d
+    Library-Ansicht komplett         :done, s2_9, 2026-04-06, 1d
+    v1.6.0 Release                   :milestone, v160, 2026-04-07, 0d
+```
+
+### Metriken
+
+| Metrik | Start (v1.4.0) | Ende (v1.6.0) | Delta |
+|--------|---------------|--------------|-------|
+| Frontend-Tests | 472 | 912 | +440 (+93%) |
+| Rust-Tests | 60 | 111 | +51 (+85%) |
+| Coverage | 24% | 83% | +59pp |
+| Coverage-Schwellen | 24/32/58/24 | 75/75/65/75 | Enforced |
+| Offene Issues | 24 | 4 | -20 |
+| Releases | v1.4.0 | v1.6.0 | 5 Releases in 4 Tagen |
+| Dead Code entfernt | — | 730+ LOC | DashboardMap, ConnectionLines |
+
+### Zusaetzliche Arbeit (nicht im Original-Plan)
+
+- Frontend-Review mit 5 Experten-Personas → 8 Bug-Fixes
+- Library-Ansicht komplett neu (Skills, Agents, Hooks, Configs)
+- Error-Grouping + Log-Virtualisierung
+- UI-Polish: Umlaute, WCAG AA Light-Mode, CTA-Buttons
+- Session-Status-Farben korrigiert
+- Parallel-Implement Skill gebaut und eingesetzt
+
+---
+
+## 1. Sprint-Uebersicht v2.0 (Gantt)
+
+```mermaid
+gantt
+    title AgenticExplorer v2.0 Roadmap
+    dateFormat  YYYY-MM-DD
+    axisFormat  %d.%m
 
     section Sprint 3 — v2.0 Foundation
-    FEAT-01 Cross-Session Agent Track.  :s3_1, 2026-04-28, 4d
-    FEAT-02 Audit-Log Infrastruktur     :s3_2, 2026-05-02, 3d
-    FEAT-03 Real-Mode Pipeline Basics   :s3_3, 2026-05-05, 3d
-    QA-05 E2E Setup WebdriverIO         :s3_4, 2026-04-28, 3d
-    QA-06 8 Smoke-Tests                 :s3_5, 2026-05-01, 2d
-    Sprint 3 Review                     :milestone, s3_rev, 2026-05-09, 0d
+    FEAT-01 Cross-Session Tracking   :s3_1, 2026-04-14, 4d
+    FEAT-02 Audit-Log Infrastruktur  :s3_2, 2026-04-18, 3d
+    FEAT-03 Real-Mode Pipeline       :s3_3, 2026-04-21, 3d
+    QA-05 E2E Setup WebdriverIO      :s3_4, 2026-04-14, 3d
+    QA-06 8 Smoke-Tests              :s3_5, 2026-04-17, 2d
+    Sprint 3 Review                  :milestone, s3_rev, 2026-04-25, 0d
 
     section Sprint 4 — v2.0 Features
-    FEAT-04 Activity Timeline           :s4_1, 2026-05-12, 2d
-    FEAT-05 Kanban + pipelineStore      :s4_2, 2026-05-12, 1d
-    FEAT-06 LogViewer Virtualisierung   :s4_3, 2026-05-14, 3d
-    FEAT-07 Loading/Error/Empty States  :s4_4, 2026-05-14, 3d
-    SEC-08 Library Item ID Validation   :s4_5, 2026-05-19, 1d
-    FEAT-08 SessionManagerView Refactor :s4_6, 2026-05-19, 3d
-    QA-07 Regressionstests v2.0         :s4_7, 2026-05-22, 1d
-    v2.0 Release                        :milestone, v2_rel, 2026-05-23, 0d
+    FEAT-04 Activity Timeline        :s4_1, 2026-04-28, 2d
+    FEAT-05 Parallel Agent Dashboard :s4_2, 2026-04-28, 2d
+    FEAT-06 Workflow-Profile UI      :s4_3, 2026-04-30, 2d
+    FEAT-07 Loading/Error States     :s4_4, 2026-05-02, 2d
+    QA-07 Regressionstests v2.0      :s4_5, 2026-05-05, 1d
+    v2.0 Release                     :milestone, v2_rel, 2026-05-06, 0d
 ```
 
 ---
@@ -62,240 +95,111 @@ gantt
 ## 2. Swimlane-Diagramm
 
 ```mermaid
-block-beta
-    columns 4
-
-    block:header:4
-        A["Sprint 1\n07.04 – 11.04"]
-        B["Sprint 2\n14.04 – 24.04"]
-        C["Sprint 3\n28.04 – 09.05"]
-        D["Sprint 4\n12.05 – 23.05"]
+graph TD
+    subgraph S3["Sprint 3: v2.0 Foundation (14.04–25.04)"]
+        direction LR
+        S3_FEAT["Features:<br/>FEAT-01 Agent Tracking (L)<br/>FEAT-02 Audit-Log (L)<br/>FEAT-03 Real-Mode (L)"]
+        S3_QA["QA:<br/>QA-05 E2E Setup (L)<br/>QA-06 Smoke-Tests (M)"]
     end
 
-    block:sec["Security & Debt"]:4
-        SEC1["SEC-01 XSS Fix\nSEC-02 Path Traversal\nSEC-03 Shell Central.\nSEC-04 Input Valid.\nDEBT-01..05 Cleanup"]
-        SEC2["SEC-05 Rate Limit GH\nSEC-06 IPC Rate Limit\nSEC-07 Secrets Detect."]
-        SEC3["—"]
-        SEC4["SEC-08 Library ID Val."]
+    subgraph S4["Sprint 4: v2.0 Features (28.04–06.05)"]
+        direction LR
+        S4_FEAT["Features:<br/>FEAT-04 Timeline (M)<br/>FEAT-05 Dashboard (M)<br/>FEAT-06 Workflows (M)<br/>FEAT-07 States (S)"]
+        S4_QA["QA:<br/>QA-07 Regression (M)<br/>Release v2.0"]
     end
 
-    block:qa["Testing & QA"]:4
-        QA1["—"]
-        QA2["QA-01 ConfigStore\nQA-02 Persistenz\nQA-03 Coverage 70%\nQA-04 Editor Tests"]
-        QA3["QA-05 E2E Setup\nQA-06 Smoke-Tests"]
-        QA4["QA-07 Regression v2.0"]
-    end
+    S3 --> S4
 
-    block:feat["Features & UI"]:4
-        FEAT1["—"]
-        FEAT2["—"]
-        FEAT3["FEAT-01 Agent Track.\nFEAT-02 Audit-Log\nFEAT-03 Real-Mode"]
-        FEAT4["FEAT-04 Timeline\nFEAT-05 Kanban\nFEAT-06 LogViewer\nFEAT-07 States\nFEAT-08 Refactor"]
-    end
-
-    block:devops["DevOps & CI"]:4
-        DEV1["DEBT-01 Issue-Hygiene\nLabels arc42"]
-        DEV2["DEVOPS-01 CI Coverage\nDEVOPS-02 Dep. Audit\nDEVOPS-03 Branch Prot."]
-        DEV3["—"]
-        DEV4["Release v2.0"]
-    end
+    style S3 fill:#fff3e0
+    style S4 fill:#f1f8e9
 ```
 
 ---
 
 ## 3. Sprint-Details
 
-### Sprint 1: Stabilisierung + Security (07.04 – 11.04, 1 Woche)
+### Sprint 3: v2.0 Foundation (14.04–25.04, 2 Wochen)
 
-**Ziel:** Alle bekannten Sicherheitsluecken schliessen, technische Schulden abbauen, Issue-Hygiene herstellen. Ergebnis: saubere Basis fuer QA-Sprint.
+**Ziel:** Architekturelle Grundlagen fuer v2.0: Cross-Session Agent Tracking, Audit-Logs, Real-Mode Pipeline, E2E-Infrastruktur.
 
-| ID | Task | Size | Bezug |
+| ID | Task | Size | Beschreibung |
 |---|---|---|---|
-| SEC-01 | DOMPurify XSS-Fix in MarkdownPreview.tsx | S (2h) | #68 follow-up |
-| SEC-02 | Path Traversal Haertung file_reader.rs (non-existent paths) | S (3h) | Neu |
-| SEC-03 | Shell Command Centralization (4 Module → 1 Utility) | M (4h) | Lessons 2026-03-29 |
-| SEC-04 | Centralized Input Validation Module | M (4h) | Neu |
-| DEBT-01 | Issue-Hygiene: Duplikat #61/#70 schliessen, Labels nach arc42 | S (2h) | #61, #70 |
-| DEBT-02 | DashboardMap + pipelineAdapter Legacy-Code entfernen | S (3h) | #62 |
-| DEBT-03 | ConnectionLines Dead Code entfernen | XS (0.5h) | Neu |
-| DEBT-04 | agentStore vs pipelineStore deduplizieren | M (5h) | Neu |
-| DEBT-05 | Zustand Selektoren fuer editorStore | S (3h) | #68 follow-up |
+| FEAT-01 | Cross-Session Agent Tracking | L (20h) | GlobalAgentRegistry in Rust, session-uebergreifende Selektoren |
+| FEAT-02 | Audit-Log Infrastruktur | L (15h) | Strukturierte Events nach AppData/audit.jsonl, Rotation |
+| FEAT-03 | Real-Mode Pipeline | L (15h) | Mock durch echte Session-Daten ersetzen, Real/Mock Toggle |
+| QA-05 | WebdriverIO + tauri-driver Setup | L (12h) | E2E-Testinfrastruktur aufsetzen |
+| QA-06 | 8 Smoke-Tests | M (8h) | App-Start, Session, Terminal, Config, Theme, Favoriten, Navigation, Toast |
 
-**Velocity:** ~26h | **Definition of Done:**
-- `npx tsc --noEmit` + `npm run build` gruen
-- `cargo check` gruen
-- Kein `innerHTML` ohne Sanitization
-- Alle Shell-Commands ueber zentrale Utility
-- GitHub Issues mit Labels versehen
-
-**Abhaengigkeiten:** Keine. Kann sofort starten.
-
----
-
-### Sprint 2: QA-Infrastruktur (14.04 – 24.04, 1.5 Wochen)
-
-**Ziel:** Test-Coverage auf 70% heben, CI-Pipeline haerten, Security-Hardening abschliessen. Ergebnis: Jeder Commit wird automatisch geprueft.
-
-| ID | Task | Size | Bezug |
-|---|---|---|---|
-| QA-01 | projectConfigStore Tests (0% → 80%) | M (8h) | Neu |
-| QA-02 | Persistenz-Layer Tests (tauriStorage + settings.rs) | M (8h) | #60 follow-up |
-| QA-03 | Component-Tests schreiben bis Coverage 70% | L (15h) | #66 |
-| QA-04 | Editor-Komponenten Tests (Toolbar, Preview, View) | M (4h) | #68 follow-up |
-| DEVOPS-01 | CI Coverage Gate Enforcement (70% Schwelle) | S (3h) | #71 follow-up |
-| DEVOPS-02 | Dependency Audit in CI (npm audit + cargo audit) | S (3h) | #57 follow-up |
-| DEVOPS-03 | Branch Protection Rules (PR required, checks must pass) | S (2h) | Neu |
-| SEC-05 | Rate Limiting fuer GitHub API Commands | M (4h) | Neu |
-| SEC-06 | IPC Command Rate Limiting | M (4h) | Neu |
-| SEC-07 | Secrets Detection in Settings | M (4h) | Neu |
-
-**Velocity:** ~55h (1.5 Wochen) | **Definition of Done:**
-- Coverage >= 70% Statements/Functions/Lines, >= 50% Branches
-- CI blockiert PRs bei Coverage-Drop
-- `npm audit` + `cargo audit` in CI
-- Branch Protection aktiv auf `master`
-- Rate Limiting mit Tests
+**Velocity:** ~70h | **Definition of Done:**
+- GlobalAgentRegistry: Agents session-uebergreifend trackbar
+- Audit-Log: Session-Start/Stop, Agent-Events persistent
+- Real-Mode: Pipeline-View zeigt echte Daten
+- E2E: `npm run test:e2e` mit 8 Smoke-Tests
 
 **Abhaengigkeiten:**
-- QA-03 haengt von Sprint 1 Cleanup ab (weniger tote Imports = weniger falsche Coverage-Luecken)
-- DEVOPS-01 haengt von QA-03 ab (erst Coverage heben, dann Gate setzen)
+- FEAT-03 braucht FEAT-01 (echte Agent-Daten)
+- QA-06 braucht QA-05 (E2E-Setup zuerst)
 
 ---
 
-### Sprint 3: v2.0 Foundation (28.04 – 09.05, 2 Wochen)
+### Sprint 4: v2.0 Features + Release (28.04–06.05, 1.5 Wochen)
 
-**Ziel:** Architekturelle Grundlagen fuer v2.0 legen: Cross-Session Agent Tracking, Audit-Log, Real-Mode Pipeline Basics, E2E-Test-Infrastruktur.
+**Ziel:** User-facing Features auf Foundation aufbauen, v2.0 releasen.
 
-| ID | Task | Size | Bezug |
+| ID | Task | Size | Beschreibung |
 |---|---|---|---|
-| FEAT-01 | Cross-Session Agent Tracking (GlobalAgentRegistry in Rust) | L (20h) | US-P4, Neu |
-| FEAT-02 | Audit-Log Infrastruktur (Structured Events → Datei) | L (15h) | US-A4, Neu |
-| FEAT-03 | Real-Mode Pipeline Basics (Mock → echte Session-Daten) | L (15h) | US-O2, #12 |
-| QA-05 | WebdriverIO + tauri-driver E2E Setup | L (12h) | Neu |
-| QA-06 | 8 Smoke-Tests (App-Start, Session, Terminal, Config-Tabs) | M (8h) | Neu |
+| FEAT-04 | Activity Timeline | M (8h) | Chronologische Ansicht aller Agent-Events |
+| FEAT-05 | Parallel Agent Dashboard | M (10h) | Kanban-Board fuer Agent-Status (Pending/Running/Done/Error) |
+| FEAT-06 | Workflow-Profile UI | M (10h) | Skills/Hooks erkennen, "Start Workflow" Button |
+| FEAT-07 | Loading/Error/Empty States | S (6h) | Polish fuer 6 Komponenten |
+| QA-07 | Regressionstests v2.0 | M (8h) | Bestehende + neue Tests, E2E-Suite erweitern |
 
-**Velocity:** ~70h (2 Wochen) | **Definition of Done:**
-- GlobalAgentRegistry: Agents ueber Sessions hinweg trackbar, Events emittiert
-- Audit-Log: Mindestens Session-Start/Stop, Agent-Erkennung, Fehler geloggt
-- Real-Mode: Pipeline-View zeigt echte Daten statt Mock
-- E2E: `npm run test:e2e` laeuft mit mindestens 8 Smoke-Tests
-- Alle bestehenden Tests weiterhin gruen
-
-**Abhaengigkeiten:**
-- FEAT-01 → braucht sauberen agentStore (Sprint 1 DEBT-04)
-- FEAT-03 → braucht FEAT-01 (echte Agent-Daten)
-- QA-06 → braucht QA-05 (E2E-Setup zuerst)
+**Velocity:** ~42h | **Release-Kriterien:**
+- 912+ Tests, 75%+ Coverage
+- E2E Smoke-Tests gruen
+- Security-Review abgeschlossen
+- v2.0 Roadmap-Features implementiert
 
 ---
 
-### Sprint 4: v2.0 Features + Release (12.05 – 23.05, 2 Wochen)
-
-**Ziel:** User-facing Features auf Foundation aufbauen, UI polieren, v2.0 releasen.
-
-| ID | Task | Size | Bezug |
-|---|---|---|---|
-| FEAT-04 | Activity Timeline Komponente | M (8h) | Neu |
-| FEAT-05 | Kanban mit pipelineStore verbinden | S (3h) | #17 follow-up |
-| FEAT-06 | LogViewer Virtualisierung (react-window) | L (12h) | Neu |
-| FEAT-07 | Loading/Error/Empty States fuer 6 Komponenten | M (10h) | #65 follow-up |
-| FEAT-08 | SessionManagerView zerlegen (Refactoring) | L (12h) | #62 |
-| SEC-08 | Library Item ID Validation | M (4h) | Neu |
-| QA-07 | Regressionstests v2.0 Features | M (6h) | Neu |
-
-**Velocity:** ~55h (2 Wochen) | **Definition of Done:**
-- Activity Timeline zeigt Agent-Events chronologisch
-- Kanban-Board reflektiert echte Pipeline-Daten
-- LogViewer scrollt fluessig bei 10.000+ Zeilen
-- Alle 6 Komponenten haben Loading/Error/Empty Zustaende
-- SessionManagerView < 300 Zeilen nach Refactoring
-- Coverage bleibt >= 70%
-- **v2.0 Release-Tag + Changelog**
-
-**Abhaengigkeiten:**
-- FEAT-04 → braucht FEAT-02 (Audit-Log als Datenquelle)
-- FEAT-06 → unabhaengig, kann parallel
-- QA-07 → nach allen Features
-
----
-
-## 4. Kanban-Board (Initialer Zustand)
+## 4. Kanban-Board (Aktueller Stand)
 
 ```mermaid
-block-beta
-    columns 6
-
-    A["Backlog"]:1
-    B["In Planning"]:1
-    C["Ready"]:1
-    D["In Progress"]:1
-    E["Review"]:1
-    F["Done"]:1
-
-    block:backlog:1
-        b1["FEAT-01 Agent Track."]
-        b2["FEAT-02 Audit-Log"]
-        b3["FEAT-03 Real-Mode"]
-        b4["FEAT-04 Timeline"]
-        b5["FEAT-05 Kanban"]
-        b6["FEAT-06 LogViewer"]
-        b7["FEAT-07 States"]
-        b8["FEAT-08 SM Refactor"]
-        b9["QA-01..07"]
-        b10["DEVOPS-01..03"]
-        b11["SEC-05..08"]
+graph LR
+    subgraph Done["Done (v1.6.0)"]
+        D1["SEC-01..04"]
+        D2["DEBT-01..05"]
+        D3["QA-10..16"]
+        D4["DEVOPS-02,04"]
+        D5["20 weitere Issues"]
     end
 
-    block:planning:1
-        p1["SEC-01 XSS Fix"]
-        p2["SEC-02 Path Trav."]
-        p3["SEC-03 Shell Centr."]
-        p4["SEC-04 Input Valid."]
+    subgraph Backlog["Backlog (v2.0)"]
+        B1["FEAT-01 Agent Tracking"]
+        B2["FEAT-02 Audit-Log"]
+        B3["FEAT-03 Real-Mode"]
+        B4["FEAT-04 Timeline"]
+        B5["FEAT-05 Dashboard"]
+        B6["FEAT-06 Workflows"]
+        B7["FEAT-07 States"]
+        B8["QA-05 E2E Setup"]
+        B9["QA-06 Smoke-Tests"]
+        B10["QA-07 Regression"]
     end
 
-    block:ready:1
-        r1["DEBT-01 Issue-Hyg."]
-        r2["DEBT-02 Legacy Rm"]
-        r3["DEBT-03 Dead Code"]
-        r4["DEBT-04 Store Dedup"]
-        r5["DEBT-05 Selektoren"]
-    end
-
-    block:progress:1
-        ip1["—"]
-    end
-
-    block:review:1
-        rv1["—"]
-    end
-
-    block:done:1
-        d1["v1.4.0 Release"]
+    subgraph Later["Spaeter (v3.0+)"]
+        L1["#15 Gamification"]
+        L2["#14 Graph-Viz"]
     end
 ```
 
 ---
 
-## 5. Risiken und Mitigationen
+## 5. Risiken
 
 | Risiko | Impact | Mitigation |
 |---|---|---|
-| Coverage 70% nicht erreichbar in 1.5 Wochen | Sprint 2 verzoegert | Schwelle auf 60% senken, Rest in Sprint 3 nachholen |
-| WebdriverIO + Tauri-Driver Kompatibilitaet | E2E-Setup blockiert | Fallback: Playwright mit HTTP-Bridge |
-| GlobalAgentRegistry Komplexitaet (Rust) | Sprint 3 Overrun | MVP: nur Session-uebergreifende Map, kein Persistence |
-| Store-Deduplizierung bricht bestehende Tests | Sprint 1 Instabilitaet | Erst Tests lesen, dann refactorn. Feature-Flag falls noetig |
-
----
-
-## 6. Metriken pro Sprint
-
-| Metrik | Sprint 1 | Sprint 2 | Sprint 3 | Sprint 4 |
-|---|---|---|---|---|
-| Test-Coverage | Baseline halten | >= 70% | >= 70% | >= 70% |
-| Offene Security-Issues | 0 | 0 | 0 | 0 |
-| Offene Bugs | <= 2 | <= 2 | <= 3 | 0 |
-| E2E-Tests | — | — | >= 8 | >= 12 |
-| Build-Zeit | Baseline | Baseline | < 90s | < 90s |
-
----
-
-*Erstellt: 2026-04-04 | Naechste Review: Sprint 1 Retro (2026-04-11)*
+| GlobalAgentRegistry Komplexitaet (Rust) | Sprint 3 Overrun | MVP: nur session-uebergreifende Map, kein Persistence |
+| WebdriverIO + tauri-driver Kompatibilitaet | E2E blockiert | Fallback: Playwright mit HTTP-Bridge |
+| Real-Mode Performance bei 50+ Agents | UI-Lag | Virtual Scrolling fuer Agent-Panel |
+| Feature-Scope-Creep in Sprint 4 | Release verzoegert | Strict Scope: nur geplante FEAT-04..07 |
