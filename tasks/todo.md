@@ -194,19 +194,17 @@
 - [x] Pin umbenennen per Doppelklick/Inline-Edit (v1.5.1)
 - [x] Unsaved-Changes-Warnung beim Pin-Tab-Wechsel (v1.5.1)
 - [x] Dead-Code-Audit: `ContentTabs.tsx` entfernt (v1.5.1)
-- [ ] Pin-Reordering per Drag & Drop (offen)
-- [ ] Komponenten-Tests fuer ConfigPanel (offen, v1.6.0 QA-Sprint)
 
 ## Abgeschlossen: v1.5.1 — Kompass Aufraeum-Patch (2026-04-05)
 
 > Release: https://github.com/hossoOG/agentic-dashboard/releases/tag/v1.5.1
 > GitHub-Milestones aufgeraeumt: v1.5.0 geschlossen, 11 Issues → v1.6.0.
 
-## Aktueller Sprint: v1.6.0 — Tech-Debt & QA-Haertung
+## Abgeschlossen: v1.6.0 — Tech-Debt & QA-Härtung (2026-04-07)
 
-> **Milestone**: https://github.com/hossoOG/agentic-dashboard/milestone/5 (11 Issues)
-> **Ziel**: Test-Coverage von Baseline auf 60% heben, DevOps-Infrastruktur haerten,
-> God-Components entschlacken. Basis fuer v2.0 schaffen.
+> **Release**: https://github.com/hossoOG/agentic-dashboard/releases/tag/v1.6.0
+> **Milestone**: https://github.com/hossoOG/agentic-dashboard/milestone/5
+> **Ergebnis**: 912 Tests, 83% Coverage, 43 Commits, UI-Polish aus 5-Experten-Review.
 
 ### Welle 1 — DevOps Quick Wins
 
@@ -272,19 +270,12 @@
 
 ## Backlog (Future)
 
-- [x] **DEBT-04**: Store-Deduplizierung agentStore vs pipelineStore (#85) — rawLogs entfernt, agentId Cross-Ref, Log-Flow 3→2
 - [ ] **US-P3**: Session-Start nach erkanntem Workflow (abhaengig von US-P2)
-- [x] refactor(ui): SessionManagerView zerlegen (#62) — PR #98 merged
-- [x] refactor(tauri): ADPError in Tauri-Commands deployen (#63) — PR #99 merged
-- [x] refactor(ui): Component-Library formalisieren (#65) — PR #105 merged
-- [x] feat: In-App Markdown-Editor mit Speicherfunktion (#68) — Core implementiert + QA-Haertung
 - [ ] feat(editor): Unsaved-Changes-Warnung bei Tab-Wechsel/Close/Datei-Oeffnen (#68 follow-up)
 - [ ] feat(editor): Projekt-Dateibrowser fuer .md Dateien (#68 follow-up)
 - [ ] feat(editor): Library-Integration (Klick auf Datei → Editor oeffnet) (#68 follow-up)
-- [x] perf(editor): @codemirror/language-data auf ~20 Sprachen reduzieren (#113) — PR #122 merged
-- [x] test(editor): Komponenten-Tests (EditorToolbar, MarkdownPreview XSS, MarkdownEditorView) (#68 follow-up) — via #88 PR #95
-- [x] test(all): Test-Coverage auf 83%+ erreicht (#66) — via PRs #125-#131
 - [ ] Gamification-System (#15)
+- [ ] Pin-Reordering per Drag & Drop (aus v1.5.0 Follow-ups)
 
 ---
 
