@@ -127,7 +127,7 @@ export function NotesPanel({ variant = "header" }: { variant?: "header" | "sideb
 
       {open && (
         <div className={`absolute z-50 w-96 bg-surface-overlay border border-neutral-700 rounded-sm shadow-xl ${
-          variant === "sidebar" ? "left-full top-0 ml-2" : "top-full right-0 mt-2"
+          variant === "sidebar" ? "left-full bottom-0 ml-2" : "top-full right-0 mt-2"
         }`}>
           {/* Tab Bar */}
           <div className="flex border-b border-neutral-700">
