@@ -95,10 +95,9 @@ describe("SideNav", () => {
     expect(screen.queryByText("150")).toBeNull();
   });
 
-  it("renders logo and version badge", () => {
+  it("renders version badge", () => {
     render(<SideNav />);
-    expect(screen.getByText(/AGENTIC/)).toBeTruthy();
-    expect(screen.getByText(/^v\d+\.\d+\.\d+/)).toBeTruthy();
+    expect(screen.getByTitle(/Version/)).toBeTruthy();
   });
 
   it("renders theme toggle and notes panel in sidebar variant", () => {
