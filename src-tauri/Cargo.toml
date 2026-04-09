@@ -1,6 +1,6 @@
 [package]
 name = "agenticexplorer"
-version = "1.6.2"
+version = "1.6.21"
 description = "AgenticExplorer - Manage and monitor Claude CLI sessions"
 authors = ["hossoOG"]
 license = "MIT"

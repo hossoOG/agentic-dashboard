@@ -34,7 +34,7 @@ export function GridCell({
     <div
       onClick={onFocus}
       className={`
-        flex flex-col min-h-0 overflow-hidden rounded-sm transition-all duration-150
+        flex flex-col h-full min-h-0 overflow-hidden rounded-sm transition-all duration-150
         ${isFocused
           ? "border-2 border-accent glow-accent"
           : "border border-neutral-700"
