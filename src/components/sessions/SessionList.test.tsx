@@ -91,9 +91,9 @@ describe("SessionList", () => {
     expect(screen.getByText("SESSIONS")).toBeTruthy();
   });
 
-  it("does not show SESSIONS header when no favorites", () => {
+  it("always shows SESSIONS header", () => {
     render(<SessionList onNewSession={vi.fn()} onQuickStart={vi.fn()} />);
-    expect(screen.queryByText("SESSIONS")).toBeNull();
+    expect(screen.getByText("SESSIONS")).toBeTruthy();
   });
 
   it("sorts active sessions before done sessions", () => {
