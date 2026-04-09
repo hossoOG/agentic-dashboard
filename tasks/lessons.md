@@ -228,3 +228,17 @@
 **Kontext:** Statt eines einzelnen "schau mal drüber" wurden 5 spezialisierte Personas parallel eingesetzt (UX, Design, A11y, Performance, Copy). Jede Persona hat unabhängig analysiert, dann hat ein Moderator-Agent die Findings konsolidiert, Konsens identifiziert und priorisiert.
 **Erkenntnis:** Der Konsens-Mechanismus (3+ Experten einig = High-Confidence) filtert Rauschen effektiv. Einzelne Experten-Meinungen können subjektiv sein, aber wenn UX + Design + A11y alle dasselbe Problem sehen (z.B. "SideNav braucht Labels"), ist es ein echtes Problem. Die Priorisierung (P0-P3) nach Impact × Aufwand macht die Findings direkt actionable.
 **Regel:** Bei UI-Reviews: /frontend-review Skill nutzen. 5 Personas parallel, Moderator-Synthese, dann Issues erstellen. Nicht "einer schaut drüber" — das findet nur die offensichtlichen Probleme.
+
+---
+
+## 2026-04-09 — Library-View zeigt keine Inhalte (Regression)
+
+### Hardcodierte Pfade brechen bei neuen Quellen
+**Kontext:** `SkillCard` Loader hatte `commands/${dirName}/SKILL.md` hardcodiert fuer ALLE globalen Skills. Als `~/.claude/skills/` als zweite Quelle hinzugefuegt wurde, zeigten Skills aus `skills/` "Kein Inhalt" — weil der Loader am falschen Pfad suchte, obwohl `skill.body` den korrekten Content bereits hatte.
+**Erkenntnis:** Wenn Daten bereits waehrend Discovery geladen werden, darf die Anzeige-Komponente sie nicht nochmal von einem hardcodierten Pfad nachzuladen versuchen. Das ist fragil und bricht bei jeder neuen Quelle.
+**Regel:** Content der bei Discovery schon geladen wird, direkt aus dem Model (`skill.body`) verwenden — nicht aus einem hardcodierten Pfad re-fetchen. Single Source of Truth gilt auch fuer UI-Loader.
+
+### Neue Scopes brauchen vollstaendige Discovery
+**Kontext:** `discoverGlobal` lud Settings, Commands, Skills, Agents und Memory — aber NICHT die globale `~/.claude/CLAUDE.md`. Der "CLAUDE.md"-Section im Global-Scope blieb unsichtbar, weil `config.claudeMd` immer `""` war.
+**Erkenntnis:** Wenn ein neuer Scope oder eine neue Quelle hinzugefuegt wird, muessen ALLE Content-Typen des Scopes geprueft werden — nicht nur die neu hinzugefuegten. Luecken in der Discovery fallen nicht sofort auf, weil die UI fehlende Daten einfach nicht anzeigt (kein Error, nur leere Sections).
+**Regel:** Bei Erweiterung von Discovery-Funktionen: Checkliste aller ScopeConfig-Felder durchgehen (skills, agents, hooks, settingsRaw, claudeMd, memoryFiles). Jedes Feld muss fuer den Scope geladen werden oder explizit als "nicht relevant" markiert sein.
