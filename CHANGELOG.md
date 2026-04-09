@@ -4,6 +4,39 @@ Alle relevanten Änderungen an AgenticExplorer werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.6.2] — 2026-04-09 — "Session-Restore & Library-Fix"
+
+> Sessions werden beim App-Start automatisch wiederhergestellt. Library-View
+> zeigt jetzt globale Inhalte korrekt an. Pipeline-View und Agent-Events
+> entfernt (nicht production-ready). Session-Rename per Doppelklick.
+
+### Features
+- **Session-Restore**: Offene Sessions werden beim Schliessen persistiert und beim naechsten Start automatisch wiederhergestellt (Folder, Shell, Layout-Modus)
+- **Session-Rename**: Doppelklick auf Session-Titel oeffnet Inline-Edit (Enter/Escape/Blur)
+- **Library: Globale CLAUDE.md**: ~/.claude/CLAUDE.md wird jetzt im Global-Scope angezeigt
+- **Library: Skills-Verzeichnis**: ~/.claude/skills/ wird neben commands/ gescannt
+- **Library: Agent-Descriptions**: ~/.claude/agents/*.md Frontmatter wird geparst und angezeigt
+
+### Fixes
+- **Library Skill-Content**: Skills aus ~/.claude/skills/ zeigten "Kein Inhalt" (Loader nutzte falschen Pfad)
+- **NotesPanel Position**: Sidebar-Variante oeffnet jetzt nach oben statt nach unten
+- **UpdateNotification**: Als Fixed-Toast unten links statt inline im SideNav
+
+### Refactoring
+- Pipeline-Tab aus SideNav entfernt
+- AgentBottomPanel aus SessionManagerView entfernt
+- Agent/Pipeline Event-Listener aus useSessionEvents entfernt (nicht production-ready)
+- SideNav-Dialoge aus nav-Element extrahiert (Layout-Verbesserung)
+
+### Docs & Housekeeping
+- CLAUDE.md konsolidiert und gestrafft (~95 Zeilen)
+- Lessons Learned: Library-View Regression dokumentiert (hardcodierte Pfade, unvollstaendige Discovery)
+
+### Lessons Learned (tasks/lessons.md)
+- Pre-loaded Content aus Model verwenden — nicht von hardcodiertem Pfad re-fetchen
+- Discovery-Erweiterungen muessen alle ScopeConfig-Felder abdecken
+
+
 ## [1.6.1] — 2026-04-08 — "Pipeline-Entkopplung"
 
 > Pipeline-Engine vom Session-System entkoppelt. Pipeline-View funktioniert jetzt
