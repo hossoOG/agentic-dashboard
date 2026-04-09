@@ -202,7 +202,9 @@
 > Release: https://github.com/hossoOG/agentic-dashboard/releases/tag/v1.5.1
 > GitHub-Milestones aufgeraeumt: v1.5.0 geschlossen, 11 Issues → v1.6.0.
 
-## Aktueller Sprint: v1.6.0 — Tech-Debt & QA-Haertung
+## Abgeschlossen: v1.6.0–v1.6.2 — Tech-Debt & QA-Haertung (2026-04-09)
+
+> Release v1.6.2: https://github.com/hossoOG/agentic-dashboard/releases/tag/v1.6.2
 
 > **Milestone**: https://github.com/hossoOG/agentic-dashboard/milestone/5 (11 Issues)
 > **Ziel**: Test-Coverage von Baseline auf 60% heben, DevOps-Infrastruktur haerten,
@@ -281,7 +283,7 @@
 
 > Session Manager ist ab v1.6.0 feature-frozen. Nur Bugfixes erlaubt.
 
-- [ ] feat(ui): Sessions umbenennen (#147)
+- [x] feat(ui): Sessions umbenennen (#147) — v1.6.2, Doppelklick auf SessionCard
 - [ ] Node/Graph-basierte Session-Visualisierung (#14)
 - [ ] Gamification-System (#15)
 - [ ] Pin-Reordering per Drag & Drop
