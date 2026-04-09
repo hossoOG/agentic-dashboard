@@ -12,11 +12,6 @@ vi.mock("@tauri-apps/api/core", () => ({
 const mockUpdateLastOutput = vi.fn();
 const mockSetExitCode = vi.fn();
 const mockUpdateStatus = vi.fn();
-const mockAddAgent = vi.fn();
-const mockUpdateAgentStatus = vi.fn();
-const mockUpdateAgentDetails = vi.fn();
-const mockSetTaskSummary = vi.fn();
-const mockAddWorktree = vi.fn();
 
 vi.mock("../../../store/sessionStore", () => ({
   useSessionStore: {
@@ -24,21 +19,6 @@ vi.mock("../../../store/sessionStore", () => ({
       updateLastOutput: mockUpdateLastOutput,
       setExitCode: mockSetExitCode,
       updateStatus: mockUpdateStatus,
-    }),
-  },
-}));
-
-let mockAgents: Record<string, { id: string; sessionId: string; status: string }> = {};
-
-vi.mock("../../../store/agentStore", () => ({
-  useAgentStore: {
-    getState: () => ({
-      agents: mockAgents,
-      addAgent: mockAddAgent,
-      updateAgentStatus: mockUpdateAgentStatus,
-      updateAgentDetails: mockUpdateAgentDetails,
-      setTaskSummary: mockSetTaskSummary,
-      addWorktree: mockAddWorktree,
     }),
   },
 }));
@@ -71,26 +51,24 @@ describe("useSessionEvents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
-    mockAgents = {};
   });
 
-  it("registers 8 event listeners on mount", () => {
+  it("registers 3 core event listeners on mount", () => {
     renderHook(() => useSessionEvents());
 
     const expectedEvents = [
       "session-output",
       "session-exit",
       "session-status",
-      "agent-detected",
-      "agent-completed",
-      "agent-status-update",
-      "task-summary",
-      "worktree-detected",
     ];
 
     for (const event of expectedEvents) {
       expect(listen).toHaveBeenCalledWith(event, expect.any(Function));
     }
+
+    // Agent events should NOT be registered
+    expect(listen).not.toHaveBeenCalledWith("agent-detected", expect.any(Function));
+    expect(listen).not.toHaveBeenCalledWith("agent-completed", expect.any(Function));
   });
 
   it("calls cleanup functions on unmount", async () => {
@@ -154,135 +132,5 @@ describe("useSessionEvents", () => {
 
     cb({ payload: { id: "s1", status: "unknown-status" } });
     expect(mockUpdateStatus).not.toHaveBeenCalled();
-  });
-
-  it("agent-detected: adds agent to store", () => {
-    renderHook(() => useSessionEvents());
-    const cb = getListenCallback("agent-detected");
-
-    cb({
-      payload: {
-        session_id: "s1",
-        agent_id: "a1",
-        name: "architect",
-        task: "analyze",
-        task_number: 1,
-        phase_number: 2,
-        parent_agent_id: null,
-        depth: 0,
-        detected_at: 1000,
-      },
-    });
-
-    expect(mockAddAgent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: "a1",
-        sessionId: "s1",
-        name: "architect",
-        task: "analyze",
-        status: "running",
-      }),
-    );
-  });
-
-  it("agent-completed: updates agent status", () => {
-    renderHook(() => useSessionEvents());
-    const cb = getListenCallback("agent-completed");
-
-    cb({
-      payload: {
-        session_id: "s1",
-        agent_id: "a1",
-        status: "completed",
-        completed_at: 2000,
-      },
-    });
-
-    expect(mockUpdateAgentStatus).toHaveBeenCalledWith(
-      "a1",
-      "completed",
-      2000,
-    );
-  });
-
-  it("agent-status-update: updates agent details", () => {
-    renderHook(() => useSessionEvents());
-    const cb = getListenCallback("agent-status-update");
-
-    cb({
-      payload: {
-        session_id: "s1",
-        agent_id: "a1",
-        status: "running",
-        duration_str: "5m 30s",
-        token_count: "1200",
-        blocked_by: null,
-      },
-    });
-
-    expect(mockUpdateAgentDetails).toHaveBeenCalledWith(
-      "a1",
-      expect.objectContaining({
-        status: "running",
-        durationStr: "5m 30s",
-        tokenCount: "1200",
-      }),
-    );
-  });
-
-  it("task-summary: updates summary counts", () => {
-    renderHook(() => useSessionEvents());
-    const cb = getListenCallback("task-summary");
-
-    cb({
-      payload: { session_id: "s1", pending_count: 3, completed_count: 7 },
-    });
-
-    expect(mockSetTaskSummary).toHaveBeenCalledWith(3, 7);
-  });
-
-  it("worktree-detected: adds worktree to store", () => {
-    renderHook(() => useSessionEvents());
-    const cb = getListenCallback("worktree-detected");
-
-    cb({
-      payload: {
-        session_id: "s1",
-        path: "/tmp/worktree",
-        branch: "feat/test",
-        agent_id: "a1",
-      },
-    });
-
-    expect(mockAddWorktree).toHaveBeenCalledWith({
-      path: "/tmp/worktree",
-      branch: "feat/test",
-      agentId: "a1",
-      sessionId: "s1",
-      active: true,
-    });
-  });
-
-  it("session-exit: marks running agents as completed", () => {
-    mockAgents = {
-      a1: { id: "a1", sessionId: "s1", status: "running" },
-      a2: { id: "a2", sessionId: "s1", status: "completed" },
-      a3: { id: "a3", sessionId: "s2", status: "running" },
-    };
-
-    renderHook(() => useSessionEvents());
-    const cb = getListenCallback("session-exit");
-
-    cb({ payload: { id: "s1", exit_code: 0 } });
-
-    // Only running agents from session s1 should be marked completed
-    expect(mockUpdateAgentStatus).toHaveBeenCalledWith(
-      "a1",
-      "completed",
-      expect.any(Number),
-    );
-    // a2 already completed — should not be called again
-    // a3 belongs to s2 — should not be touched
-    expect(mockUpdateAgentStatus).toHaveBeenCalledTimes(1);
   });
 });

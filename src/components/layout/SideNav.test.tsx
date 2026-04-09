@@ -41,14 +41,15 @@ describe("SideNav", () => {
     vi.clearAllMocks();
   });
 
-  it("renders all 6 visible nav items with German labels", () => {
+  it("renders all 5 visible nav items with German labels", () => {
     render(<SideNav />);
     expect(screen.getByLabelText("Sitzungen")).toBeTruthy();
-    expect(screen.getByLabelText("Pipeline")).toBeTruthy();
     expect(screen.getByLabelText("Kanban")).toBeTruthy();
     expect(screen.getByLabelText("Bibliothek")).toBeTruthy();
     expect(screen.getByLabelText("Editor")).toBeTruthy();
     expect(screen.getByLabelText("Protokolle")).toBeTruthy();
+    // Pipeline tab is disabled (not production-ready)
+    expect(screen.queryByLabelText("Pipeline")).toBeNull();
     // Settings tab is hidden (#138)
     expect(screen.queryByLabelText("Einstellungen")).toBeNull();
   });
@@ -60,18 +61,18 @@ describe("SideNav", () => {
     // active tab has "text-accent" class
     expect(sessionsBtn.className).toContain("text-accent");
 
-    const pipelineBtn = screen.getByLabelText("Pipeline");
+    const kanbanBtn = screen.getByLabelText("Kanban");
     // non-active tab should not have text-accent
-    expect(pipelineBtn.className).not.toContain("text-accent");
+    expect(kanbanBtn.className).not.toContain("text-accent");
 
-    fireEvent.click(pipelineBtn);
-    expect(useUIStore.getState().activeTab).toBe("pipeline");
+    fireEvent.click(kanbanBtn);
+    expect(useUIStore.getState().activeTab).toBe("kanban");
   });
 
   it("shows permanent text labels (not just icon tooltips)", () => {
     render(<SideNav />);
     expect(screen.getByText("Sitzungen")).toBeTruthy();
-    expect(screen.getByText("Pipeline")).toBeTruthy();
+    expect(screen.getByText("Kanban")).toBeTruthy();
     expect(screen.getByText("Bibliothek")).toBeTruthy();
     expect(screen.getByText("Protokolle")).toBeTruthy();
   });
@@ -89,7 +90,7 @@ describe("SideNav", () => {
   });
 
   it("caps badge at 99+ when count > 99", () => {
-    render(<SideNav badges={{ pipeline: 150 }} />);
+    render(<SideNav badges={{ sessions: 150 }} />);
     expect(screen.getByText("99+")).toBeTruthy();
     expect(screen.queryByText("150")).toBeNull();
   });

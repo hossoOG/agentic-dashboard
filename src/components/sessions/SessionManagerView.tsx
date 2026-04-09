@@ -9,7 +9,6 @@ import { SessionStatusBar } from "./SessionStatusBar";
 import { EmptyState } from "./EmptyState";
 import { ConfigPanel } from "./ConfigPanel";
 import { FavoritePreview } from "./FavoritePreview";
-import { AgentBottomPanel } from "./AgentBottomPanel";
 import { useSessionStore, selectActiveSession } from "../../store/sessionStore";
 import { useUIStore } from "../../store/uiStore";
 import { useResizeHandle } from "./hooks/useResizeHandle";
@@ -91,7 +90,6 @@ export function SessionManagerView() {
                     <div className="flex-1 min-h-0">
                       <SessionTerminal sessionId={activeSessionId} />
                     </div>
-                    <AgentBottomPanel sessionId={activeSessionId} />
                   </div>
 
                   {/* Resize handle + Config panel — conditionally shown */}

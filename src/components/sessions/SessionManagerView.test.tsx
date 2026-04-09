@@ -101,7 +101,6 @@ describe("SessionManagerView", () => {
     render(<SessionManagerView />);
 
     expect(screen.getByTestId("session-terminal")).toBeTruthy();
-    expect(screen.getByTestId("agent-bottom-panel")).toBeTruthy();
   });
 
   it("shows favorite preview even when a session is active", () => {
