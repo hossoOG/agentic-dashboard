@@ -64,6 +64,23 @@ export interface PinnedDoc {
   addedAt: number;
 }
 
+// Session restore types
+import type { SessionShell, LayoutMode } from "./sessionStore";
+
+export interface RestorableSession {
+  folder: string;
+  title: string;
+  shell: SessionShell;
+}
+
+export interface SessionRestoreData {
+  enabled: boolean;
+  sessions: RestorableSession[];
+  activeIndex: number | null;
+  layoutMode: LayoutMode;
+  gridIndices: number[];
+}
+
 /** Normalize a project folder path for use as a Record key. */
 export function normalizeProjectKey(folder: string): string {
   return folder.replace(/\\/g, "/").toLowerCase().replace(/\/+$/, "");
@@ -108,6 +125,8 @@ export interface SettingsState {
   projectNotes: Record<string, string>;
   /** Pinned docs per project (key: normalized folder path). */
   pinnedDocs: Record<string, PinnedDoc[]>;
+  /** Session restore state — persisted to restore sessions on next startup. */
+  sessionRestore: SessionRestoreData;
 
   // Actions
   setTheme: (partial: Partial<ThemeSettings>) => void;
@@ -119,6 +138,8 @@ export interface SettingsState {
   setDefaultProjectPath: (path: string) => void;
   setGlobalNotes: (notes: string) => void;
   setProjectNotes: (folder: string, notes: string) => void;
+
+  setSessionRestore: (data: SessionRestoreData) => void;
 
   addApiKeyMetadata: (entry: ApiKeyMetadataEntry) => void;
   removeApiKeyMetadata: (id: string) => void;
@@ -166,6 +187,14 @@ const defaultPipeline: PipelineSettings = {
   maxConcurrentWorktrees: 5,
   autoRetryOnError: false,
   logBufferSize: 200,
+};
+
+const defaultSessionRestore: SessionRestoreData = {
+  enabled: true,
+  sessions: [],
+  activeIndex: null,
+  layoutMode: "single",
+  gridIndices: [],
 };
 
 // ============================================================================
@@ -244,6 +273,9 @@ export const useSettingsStore = create<SettingsState>()(
       globalNotes: "",
       projectNotes: {},
       pinnedDocs: {},
+      sessionRestore: defaultSessionRestore,
+
+      setSessionRestore: (data) => set({ sessionRestore: data }),
 
       setTheme: (partial) =>
         set((state) => ({
@@ -413,11 +445,12 @@ export const useSettingsStore = create<SettingsState>()(
           locale: "de",
           defaultShell: "auto",
           defaultProjectPath: "",
-          // apiKeys, favorites, globalNotes and projectNotes are intentionally NOT reset
+          // apiKeys, favorites, globalNotes, projectNotes and sessionRestore are intentionally NOT reset
           apiKeys: state.apiKeys,
           favorites: state.favorites,
           globalNotes: state.globalNotes,
           projectNotes: state.projectNotes,
+          sessionRestore: state.sessionRestore,
         })),
     }),
     {
@@ -436,6 +469,7 @@ export const useSettingsStore = create<SettingsState>()(
         globalNotes: state.globalNotes,
         projectNotes: state.projectNotes,
         pinnedDocs: state.pinnedDocs,
+        sessionRestore: state.sessionRestore,
       }),
       version: 2,
       migrate: (persisted: unknown, _version: number) => {
@@ -455,6 +489,7 @@ export const useSettingsStore = create<SettingsState>()(
           globalNotes: "",
           projectNotes: {},
           pinnedDocs: {} as Record<string, PinnedDoc[]>,
+          sessionRestore: defaultSessionRestore,
         };
         if (!persisted || typeof persisted !== "object") return defaults as unknown as SettingsState;
         const p = persisted as Record<string, unknown>;
@@ -491,6 +526,9 @@ export const useSettingsStore = create<SettingsState>()(
           globalNotes: typeof p.globalNotes === "string" ? p.globalNotes : defaults.globalNotes,
           projectNotes: p.projectNotes && typeof p.projectNotes === "object" && !Array.isArray(p.projectNotes) ? p.projectNotes : defaults.projectNotes,
           pinnedDocs: validatePinnedDocs(p.pinnedDocs),
+          sessionRestore: p.sessionRestore && typeof p.sessionRestore === "object" && !Array.isArray(p.sessionRestore)
+            ? { ...defaults.sessionRestore, ...(p.sessionRestore as object) }
+            : defaults.sessionRestore,
         } as unknown as SettingsState; // Actions are added by Zustand during merge
       },
       onRehydrateStorage: () => (_state, error) => {

@@ -2,11 +2,14 @@ import { useEffect, useRef } from "react";
 import { AppShell } from "./components/layout/AppShell";
 import { installGlobalErrorHandlers } from "./utils/globalErrorHandler";
 import { useThemeEffect } from "./hooks/useThemeEffect";
+import { useSessionRestore } from "./hooks/useSessionRestore";
 import { initSessionHistoryListener } from "./store/sessionHistoryStore";
+import { initSessionRestoreSync } from "./store/sessionRestoreSync";
 import { flushPendingSaves } from "./store/tauriStorage";
 
 function App() {
   useThemeEffect();
+  useSessionRestore();
 
   // Guard against double-registration in React Strict Mode: the ref persists
   // across the mount → unmount → remount cycle that Strict Mode triggers in dev.
@@ -33,10 +36,13 @@ function App() {
 
     // Start session history listener (records completed sessions)
     const unsubscribeHistory = initSessionHistoryListener();
+    // Sync open sessions to settingsStore for restore on next startup
+    const unsubscribeRestore = initSessionRestoreSync();
 
     return () => {
       unlistenClose?.();
       unsubscribeHistory();
+      unsubscribeRestore();
       listenerActive.current = false;
     };
   }, []);
