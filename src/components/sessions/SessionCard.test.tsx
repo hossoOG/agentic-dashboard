@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { SessionCard } from "./SessionCard";
+import { useSessionStore } from "../../store/sessionStore";
 import type { ClaudeSession } from "../../store/sessionStore";
 
 // ── Mocks ─────────────────────────────────────────────────────────────
@@ -122,5 +123,56 @@ describe("SessionCard", () => {
     // starting → status-breathe-animation + bg-success
     const dot = container.querySelector(".status-breathe-animation.bg-success");
     expect(dot).toBeTruthy();
+  });
+
+  // ── Rename Tests ─────────────────────────────────────────────────────
+
+  it("enters edit mode on double-click and commits on Enter", () => {
+    const session = makeSession({ id: "sess-rename", title: "Old Title" });
+    useSessionStore.getState().addSession({
+      id: session.id,
+      title: session.title,
+      folder: session.folder,
+      shell: session.shell,
+    });
+
+    renderCard(session);
+
+    // Double-click title to enter edit mode
+    fireEvent.doubleClick(screen.getByText("Old Title"));
+    const input = screen.getByLabelText("Session umbenennen");
+    expect(input).toBeTruthy();
+    expect((input as HTMLInputElement).value).toBe("Old Title");
+
+    // Type new name and press Enter
+    fireEvent.change(input, { target: { value: "New Title" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    // Input should disappear, store should be updated
+    expect(screen.queryByLabelText("Session umbenennen")).toBeNull();
+    const updated = useSessionStore.getState().sessions.find((s) => s.id === "sess-rename");
+    expect(updated?.title).toBe("New Title");
+  });
+
+  it("cancels rename on Escape without changing title", () => {
+    const session = makeSession({ id: "sess-esc", title: "Keep This" });
+    useSessionStore.getState().addSession({
+      id: session.id,
+      title: session.title,
+      folder: session.folder,
+      shell: session.shell,
+    });
+
+    renderCard(session);
+
+    fireEvent.doubleClick(screen.getByText("Keep This"));
+    const input = screen.getByLabelText("Session umbenennen");
+    fireEvent.change(input, { target: { value: "Changed" } });
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    // Input gone, title unchanged in store
+    expect(screen.queryByLabelText("Session umbenennen")).toBeNull();
+    const stored = useSessionStore.getState().sessions.find((s) => s.id === "sess-esc");
+    expect(stored?.title).toBe("Keep This");
   });
 });

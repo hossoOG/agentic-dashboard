@@ -60,6 +60,7 @@ export interface SessionState {
   setActiveSession: (id: string | null) => void;
   updateStatus: (id: string, status: SessionStatus) => void;
   setExitCode: (id: string, exitCode: number) => void;
+  renameSession: (id: string, title: string) => void;
   updateLastOutput: (id: string, snippet: string) => void;
 
   // Layout actions
@@ -166,6 +167,13 @@ export const useSessionStore = create<SessionState>((set) => ({
               finishedAt: Date.now(),
             }
           : s
+      ),
+    })),
+
+  renameSession: (id, title) =>
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === id ? { ...s, title } : s
       ),
     })),
 

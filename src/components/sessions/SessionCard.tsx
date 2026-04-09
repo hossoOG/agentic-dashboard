@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { X, LayoutGrid, FolderOpen, Terminal } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
+import { useSessionStore } from "../../store/sessionStore";
 import type { ClaudeSession } from "../../store/sessionStore";
 import { getActivityLevel, type ActivityLevel } from "./activityLevel";
 import { SessionStatusDot } from "./SessionStatusDot";
@@ -65,6 +66,37 @@ function TimeDisplay({
 
 const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: SessionCardProps) => {
   const now = useNowTick();
+  const renameSession = useSessionStore((s) => s.renameSession);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState("");
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isEditing && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const startRename = useCallback(() => {
+    setIsEditing(true);
+    setEditValue(session.title);
+  }, [session.title]);
+
+  const commitRename = useCallback(() => {
+    const trimmed = editValue.trim();
+    if (trimmed && trimmed !== session.title) {
+      renameSession(session.id, trimmed);
+    }
+    setIsEditing(false);
+    setEditValue("");
+  }, [editValue, session.id, session.title, renameSession]);
+
+  const cancelRename = useCallback(() => {
+    setIsEditing(false);
+    setEditValue("");
+  }, []);
 
   const isRunning = session.status === "running" || session.status === "starting";
   const activityLevel = isRunning ? getActivityLevel(session.lastOutputAt, now) : null;
@@ -120,9 +152,32 @@ const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: Ses
       {/* Title row */}
       <div className="flex items-center gap-2 pr-5">
         <SessionStatusDot status={session.status} activityLevel={activityLevel} useIcons />
-        <span className="font-bold text-sm text-neutral-200 truncate">
-          {session.title}
-        </span>
+        {isEditing ? (
+          <input
+            ref={editInputRef}
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitRename();
+              if (e.key === "Escape") cancelRename();
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="font-bold text-sm text-neutral-200 bg-neutral-800 border border-neutral-600 rounded px-1 py-0 w-full min-w-0 outline-none focus:border-neon-green"
+            aria-label="Session umbenennen"
+          />
+        ) : (
+          <span
+            className="font-bold text-sm text-neutral-200 truncate"
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              startRename();
+            }}
+            title="Doppelklick zum Umbenennen"
+          >
+            {session.title}
+          </span>
+        )}
         {isInGrid && (
           <LayoutGrid className="w-3 h-3 text-accent shrink-0" aria-label="Im Grid" />
         )}
