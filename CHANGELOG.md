@@ -4,10 +4,16 @@ Alle relevanten Änderungen an AgenticExplorer werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
-## [1.6.21] — 2026-04-09 — "Session-Resume Fix"
+## [1.6.22] — 2026-04-09 — "Session-Resume Fix"
 
 ### Fixes
 - **Session-Resume**: Claude CLI Session-ID wird jetzt persistiert — beim App-Restart wird die exakte Session fortgesetzt statt eine neue zu starten
+
+---
+
+## [1.6.21] — 2026-04-09 — "GridCell-Fix"
+
+### Fixes
 - **Terminal-Layout**: GridCell fuellt jetzt die volle Grid-Hoehe aus (`h-full`), keine weisse Flaeche mehr unter den Terminal-Boxen
 
 ---
