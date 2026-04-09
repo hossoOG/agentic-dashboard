@@ -129,14 +129,8 @@ function SkillCard({ skill }: { skill: DiscoveredSkill }) {
   const [expanded, setExpanded] = useState(false);
 
   const contentKey = `${skill.scope}:skill:${skill.dirName}`;
-  const loader = useCallback(async () => {
-    if (skill.scope === "global") {
-      return invoke<string>("read_user_claude_file", {
-        relativePath: `commands/${skill.dirName}/SKILL.md`,
-      });
-    }
-    return skill.body;
-  }, [skill.scope, skill.dirName, skill.body]);
+  // Body is pre-loaded during discovery for both commands/ and skills/ dirs
+  const loader = useCallback(async () => skill.body, [skill.body]);
 
   return (
     <div className="rounded border border-neutral-700 bg-surface-raised mb-1.5">
@@ -195,14 +189,23 @@ function SkillCard({ skill }: { skill: DiscoveredSkill }) {
 
 function AgentCard({ agent }: { agent: DiscoveredAgent }) {
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 rounded border border-neutral-700 bg-surface-raised mb-1.5">
-      <Bot className="w-3 h-3 text-purple-400 shrink-0" />
-      <span className="text-xs font-semibold text-neutral-200">
-        {agent.name}
-      </span>
-      <span className="text-[10px] px-1.5 rounded-full bg-purple-500/15 text-purple-400 ml-auto">
-        {agent.model}
-      </span>
+    <div className="flex items-start gap-2 px-3 py-1.5 rounded border border-neutral-700 bg-surface-raised mb-1.5">
+      <Bot className="w-3 h-3 text-purple-400 shrink-0 mt-0.5" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-semibold text-neutral-200">
+            {agent.name}
+          </span>
+          <span className="text-[10px] px-1.5 rounded-full bg-purple-500/15 text-purple-400 ml-auto shrink-0">
+            {agent.model}
+          </span>
+        </div>
+        {agent.description && (
+          <p className="text-[11px] text-neutral-400 mt-0.5 line-clamp-1">
+            {agent.description}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

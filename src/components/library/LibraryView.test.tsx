@@ -110,7 +110,7 @@ describe("LibraryView", () => {
     useConfigDiscoveryStore.setState({
       globalConfig: makeConfig({
         agents: [
-          { name: "architect", model: "opus", scope: "global" },
+          { name: "architect", model: "opus", description: "", scope: "global" },
         ],
       }),
     });

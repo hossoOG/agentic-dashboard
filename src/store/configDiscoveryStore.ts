@@ -20,6 +20,7 @@ export interface DiscoveredSkill {
 export interface DiscoveredAgent {
   name: string;
   model: string;
+  description: string;
   scope: ConfigScope;
 }
 
@@ -120,11 +121,40 @@ function parseAgentsFromSettings(raw: string, scope: ConfigScope): DiscoveredAge
     return Object.entries(agents).map(([name, config]) => ({
       name,
       model: (config as { model?: string })?.model ?? "unknown",
+      description: (config as { description?: string })?.description ?? "",
       scope,
     }));
   } catch {
     return [];
   }
+}
+
+/** Parse agent frontmatter from .md files in ~/.claude/agents/ */
+function parseAgentMdFrontmatter(
+  fileName: string,
+  content: string,
+  scope: ConfigScope,
+): DiscoveredAgent {
+  const defaults: DiscoveredAgent = {
+    name: fileName.replace(/\.md$/, ""),
+    model: "unknown",
+    description: "",
+    scope,
+  };
+  const match = content.match(/^---\s*\n([\s\S]*?)\n---/);
+  if (!match) return defaults;
+
+  const fm = match[1];
+  const nameMatch = fm.match(/^name:\s*(.+)$/m);
+  const modelMatch = fm.match(/^model:\s*(.+)$/m);
+  const descMatch = fm.match(/^description:\s*(.+)$/m);
+
+  return {
+    name: nameMatch?.[1]?.trim() ?? defaults.name,
+    model: modelMatch?.[1]?.trim() ?? defaults.model,
+    description: descMatch?.[1]?.trim() ?? defaults.description,
+    scope,
+  };
 }
 
 function parseHooksFromSettings(
@@ -176,11 +206,20 @@ export const useConfigDiscoveryStore = create<ConfigDiscoveryState>((set, get) =
     try {
       const config: ScopeConfig = { ...EMPTY_SCOPE };
 
-      // Read global settings.json
-      const [settingsResult, commandsDirResult] = await Promise.allSettled([
-        invoke<string>("read_user_claude_file", { relativePath: "settings.json" }),
-        invoke<string[]>("list_user_claude_dir", { relativePath: "commands" }),
-      ]);
+      // Read global CLAUDE.md, settings.json, commands/, skills/, agents/
+      const [claudeMdResult, settingsResult, commandsDirResult, skillsDirResult, agentsDirResult] =
+        await Promise.allSettled([
+          invoke<string>("read_user_claude_file", { relativePath: "CLAUDE.md" }),
+          invoke<string>("read_user_claude_file", { relativePath: "settings.json" }),
+          invoke<string[]>("list_user_claude_dir", { relativePath: "commands" }),
+          invoke<string[]>("list_user_claude_dir", { relativePath: "skills" }),
+          invoke<string[]>("list_user_claude_dir", { relativePath: "agents" }),
+        ]);
+
+      // Global CLAUDE.md
+      if (claudeMdResult.status === "fulfilled" && claudeMdResult.value) {
+        config.claudeMd = claudeMdResult.value;
+      }
 
       // Parse settings
       if (settingsResult.status === "fulfilled" && settingsResult.value) {
@@ -189,12 +228,12 @@ export const useConfigDiscoveryStore = create<ConfigDiscoveryState>((set, get) =
         config.hooks = parseHooksFromSettings(settingsResult.value, "global", "settings.json");
       }
 
-      // Global commands (skills) — each subdir is a skill
+      // Global commands + skills — each subdir is a skill
+      const allSkillEntries: SkillDirEntry[] = [];
+
+      // Scan ~/.claude/commands/
       if (commandsDirResult.status === "fulfilled" && commandsDirResult.value.length > 0) {
-        const skillEntries: SkillDirEntry[] = [];
-        // Load SKILL.md for each command dir (lazy approach: just list names)
         for (const dirName of commandsDirResult.value) {
-          // Try to read the SKILL.md inside the command dir
           let content = "";
           try {
             content = await invoke<string>("read_user_claude_file", {
@@ -203,9 +242,51 @@ export const useConfigDiscoveryStore = create<ConfigDiscoveryState>((set, get) =
           } catch {
             // Skill may not have SKILL.md
           }
-          skillEntries.push({ dir_name: dirName, content, has_reference_dir: false });
+          allSkillEntries.push({ dir_name: dirName, content, has_reference_dir: false });
         }
-        config.skills = parseSkillEntries(skillEntries, "global");
+      }
+
+      // Scan ~/.claude/skills/
+      if (skillsDirResult.status === "fulfilled" && skillsDirResult.value.length > 0) {
+        const existingNames = new Set(allSkillEntries.map((e) => e.dir_name));
+        for (const dirName of skillsDirResult.value) {
+          if (existingNames.has(dirName)) continue; // avoid duplicates
+          let content = "";
+          try {
+            content = await invoke<string>("read_user_claude_file", {
+              relativePath: `skills/${dirName}/SKILL.md`,
+            });
+          } catch {
+            // Skill may not have SKILL.md
+          }
+          allSkillEntries.push({ dir_name: dirName, content, has_reference_dir: false });
+        }
+      }
+
+      if (allSkillEntries.length > 0) {
+        config.skills = parseSkillEntries(allSkillEntries, "global");
+      }
+
+      // Global agents from ~/.claude/agents/*.md
+      if (agentsDirResult.status === "fulfilled" && agentsDirResult.value.length > 0) {
+        const mdAgents: DiscoveredAgent[] = [];
+        for (const fileName of agentsDirResult.value) {
+          if (!fileName.endsWith(".md")) continue;
+          try {
+            const content = await invoke<string>("read_user_claude_file", {
+              relativePath: `agents/${fileName}`,
+            });
+            mdAgents.push(parseAgentMdFrontmatter(fileName, content, "global"));
+          } catch {
+            // Skip unreadable agent files
+          }
+        }
+        // Merge: settings.json agents + .md file agents (no duplicates)
+        const existingAgentNames = new Set(config.agents.map((a) => a.name));
+        config.agents = [
+          ...config.agents,
+          ...mdAgents.filter((a) => !existingAgentNames.has(a.name)),
+        ];
       }
 
       // Discover memory files in projects dir
