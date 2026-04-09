@@ -22,6 +22,7 @@ export function initSessionRestoreSync(): () => void {
       folder: s.folder,
       title: s.title,
       shell: s.shell,
+      claudeSessionId: s.claudeSessionId,
     }));
 
     // Compute layout indices relative to the alive-sessions array

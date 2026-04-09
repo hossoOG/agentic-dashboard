@@ -1,4 +1,5 @@
-import { FolderPlus } from "lucide-react";
+import { FolderPlus, ChevronDown, ChevronRight } from "lucide-react";
+import { useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useSettingsStore } from "../../store/settingsStore";
@@ -11,6 +12,7 @@ interface FavoritesListProps {
 }
 
 export function FavoritesList({ onQuickStart }: FavoritesListProps) {
+  const [expanded, setExpanded] = useState(true);
   const favorites = useSettingsStore((s) => s.favorites);
   const addFavorite = useSettingsStore((s) => s.addFavorite);
   const removeFavorite = useSettingsStore((s) => s.removeFavorite);
@@ -39,10 +41,16 @@ export function FavoritesList({ onQuickStart }: FavoritesListProps) {
   return (
     <div>
       {/* Section header */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-neutral-700">
-        <span className="text-xs text-neutral-500 tracking-widest">FAVORITEN</span>
+      <div
+        className="flex items-center justify-between px-3 py-1.5 border-b border-neutral-700 cursor-pointer hover:bg-hover-overlay transition-colors"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <div className="flex items-center gap-1.5">
+          {expanded ? <ChevronDown className="w-3 h-3 text-neutral-500" /> : <ChevronRight className="w-3 h-3 text-neutral-500" />}
+          <span className="text-xs text-neutral-500 tracking-widest">FAVORITEN</span>
+        </div>
         <button
-          onClick={handleAddFavorite}
+          onClick={(e) => { e.stopPropagation(); handleAddFavorite(); }}
           className="text-neutral-500 hover:text-accent transition-colors"
           aria-label="Ordner als Favorit hinzufügen"
         >
@@ -51,22 +59,26 @@ export function FavoritesList({ onQuickStart }: FavoritesListProps) {
       </div>
 
       {/* Favorites list */}
-      <AnimatePresence>
-        {sorted.map((fav) => (
-          <FavoriteCard
-            key={fav.id}
-            favorite={fav}
-            onStart={() => onQuickStart(fav)}
-            onRemove={() => removeFavorite(fav.id)}
-          />
-        ))}
-      </AnimatePresence>
+      {expanded && (
+        <>
+          <AnimatePresence>
+            {sorted.map((fav) => (
+              <FavoriteCard
+                key={fav.id}
+                favorite={fav}
+                onStart={() => onQuickStart(fav)}
+                onRemove={() => removeFavorite(fav.id)}
+              />
+            ))}
+          </AnimatePresence>
 
-      {/* Empty state */}
-      {favorites.length === 0 && (
-        <div className="px-3 py-2 text-xs text-neutral-600">
-          Ordner hinzufügen für Schnellstart
-        </div>
+          {/* Empty state */}
+          {favorites.length === 0 && (
+            <div className="px-3 py-2 text-xs text-neutral-600">
+              Ordner hinzufügen für Schnellstart
+            </div>
+          )}
+        </>
       )}
     </div>
   );

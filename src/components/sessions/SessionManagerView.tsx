@@ -108,13 +108,27 @@ export function SessionManagerView() {
                 <EmptyState onNewSession={() => setShowNewDialog(true)} />
               )
             ) : (
-              <SessionGrid
-                sessionIds={gridSessionIds}
-                focusedSessionId={focusedGridSessionId}
-                onFocusSession={setFocusedGridSession}
-                onMaximizeSession={maximizeGridSession}
-                onRemoveFromGrid={removeFromGrid}
-              />
+              <div className="flex flex-row h-full" ref={containerRef}>
+              <div className="flex-1 min-w-0">
+                <SessionGrid
+                  sessionIds={gridSessionIds}
+                  focusedSessionId={focusedGridSessionId}
+                  onFocusSession={setFocusedGridSession}
+                  onMaximizeSession={maximizeGridSession}
+                  onRemoveFromGrid={removeFromGrid}
+                />
+              </div>
+              {previewFolder && (
+                <>
+                  <div
+                    onMouseDown={handleResizeStart}
+                    className="w-1 cursor-col-resize bg-neutral-700 hover:bg-accent transition-colors shrink-0"
+                    title="Breite anpassen"
+                  />
+                  <ConfigPanel folder={previewFolder} width={configPanelWidth} onResumeSession={handleResumeSession} onClose={closePreview} />
+                </>
+              )}
+            </div>
             )}
           </div>
         </div>

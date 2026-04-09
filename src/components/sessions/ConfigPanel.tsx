@@ -7,9 +7,10 @@ interface ConfigPanelProps {
   folder: string;
   width?: number;
   onResumeSession?: (sessionId: string, cwd: string) => void;
+  onClose?: () => void;
 }
 
-export function ConfigPanel({ folder, width, onResumeSession }: ConfigPanelProps) {
+export function ConfigPanel({ folder, width, onResumeSession, onClose }: ConfigPanelProps) {
   const configSubTab = useUIStore((s) => s.configSubTab);
   const setConfigPanelOpen = useUIStore((s) => s.setConfigPanelOpen);
 
@@ -24,7 +25,7 @@ export function ConfigPanel({ folder, width, onResumeSession }: ConfigPanelProps
           <ConfigPanelTabList folder={folder} size="md" />
         </div>
         <button
-          onClick={() => setConfigPanelOpen(false)}
+          onClick={() => onClose ? onClose() : setConfigPanelOpen(false)}
           className="p-1.5 mr-1 text-neutral-500 hover:text-neutral-300 transition-colors"
           title="Panel schließen"
           aria-label="Konfig-Panel schließen"

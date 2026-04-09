@@ -121,6 +121,35 @@ mod commands {
 
         Ok(())
     }
+
+    #[tauri::command]
+    pub async fn open_detached_window(
+        app: tauri::AppHandle,
+        view: String,
+        title: String,
+    ) -> Result<(), ADPError> {
+        use tauri::{Manager, WebviewWindowBuilder};
+
+        let label = format!("detached-{}", view);
+
+        if let Some(win) = app.get_webview_window(&label) {
+            let _ = win.set_focus();
+            return Ok(());
+        }
+
+        WebviewWindowBuilder::new(
+            &app,
+            &label,
+            tauri::WebviewUrl::App(format!("index.html?view={}", view).into()),
+        )
+        .title(format!("AgenticExplorer — {}", title))
+        .inner_size(1200.0, 800.0)
+        .resizable(true)
+        .build()
+        .map_err(|e| ADPError::internal(format!("Failed to create {} window: {}", view, e)))?;
+
+        Ok(())
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -155,6 +184,7 @@ pub fn run() {
         .manage(session_manager)
         .invoke_handler(tauri::generate_handler![
             commands::open_log_window,
+            commands::open_detached_window,
             // Session-Commands
             session::commands::commands::create_session,
             session::commands::commands::write_session,

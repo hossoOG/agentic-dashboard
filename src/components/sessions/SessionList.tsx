@@ -1,8 +1,8 @@
-import { useCallback } from "react";
-import { Plus } from "lucide-react";
+import { useCallback, useState } from "react";
+import { Plus, ChevronDown, ChevronRight } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useSessionStore } from "../../store/sessionStore";
-import { useSettingsStore } from "../../store/settingsStore";
+
 import { useUIStore } from "../../store/uiStore";
 import { SessionCard } from "./SessionCard";
 import { FavoritesList } from "./FavoritesList";
@@ -27,13 +27,12 @@ function sortSessions(sessions: ClaudeSession[]): ClaudeSession[] {
 }
 
 export function SessionList({ onNewSession, onQuickStart }: SessionListProps) {
+  const [sessionsExpanded, setSessionsExpanded] = useState(true);
   const sessions = useSessionStore((s) => s.sessions);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const layoutMode = useSessionStore((s) => s.layoutMode);
   const gridSessionIds = useSessionStore((s) => s.gridSessionIds);
   const focusedGridSessionId = useSessionStore((s) => s.focusedGridSessionId);
-  const favorites = useSettingsStore((s) => s.favorites);
-
   const sorted = sortSessions(sessions);
 
   const handleClick = useCallback((sessionId: string) => {
@@ -77,35 +76,41 @@ export function SessionList({ onNewSession, onQuickStart }: SessionListProps) {
         {/* Favorites section */}
         <FavoritesList onQuickStart={onQuickStart} />
 
-        {/* Sessions section header (only when favorites exist) */}
-        {favorites.length > 0 && (
-          <div className="px-3 py-1.5 text-xs text-neutral-500 tracking-widest border-b border-neutral-700">
-            SESSIONS
-          </div>
-        )}
+        {/* Sessions section header */}
+        <div
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-neutral-500 tracking-widest border-b border-neutral-700 cursor-pointer hover:bg-hover-overlay transition-colors"
+          onClick={() => setSessionsExpanded((v) => !v)}
+        >
+          {sessionsExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+          SESSIONS
+        </div>
 
         {/* Session cards */}
-        {sorted.map((session) => {
-          const isInGrid = gridSessionIds.includes(session.id);
-          return (
-            <SessionCard
-              key={session.id}
-              session={session}
-              isActive={
-                layoutMode === "grid"
-                  ? session.id === focusedGridSessionId
-                  : session.id === activeSessionId
-              }
-              isInGrid={isInGrid}
-              onClick={handleClick}
-              onClose={handleClose}
-            />
-          );
-        })}
-        {sessions.length === 0 && (
-          <div className="p-4 text-center text-neutral-600 text-xs">
-            Keine Sessions vorhanden
-          </div>
+        {sessionsExpanded && (
+          <>
+            {sorted.map((session) => {
+              const isInGrid = gridSessionIds.includes(session.id);
+              return (
+                <SessionCard
+                  key={session.id}
+                  session={session}
+                  isActive={
+                    layoutMode === "grid"
+                      ? session.id === focusedGridSessionId
+                      : session.id === activeSessionId
+                  }
+                  isInGrid={isInGrid}
+                  onClick={handleClick}
+                  onClose={handleClose}
+                />
+              );
+            })}
+            {sessions.length === 0 && (
+              <div className="p-4 text-center text-neutral-600 text-xs">
+                Keine Sessions vorhanden
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

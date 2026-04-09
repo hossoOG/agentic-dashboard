@@ -71,6 +71,7 @@ export interface RestorableSession {
   folder: string;
   title: string;
   shell: SessionShell;
+  claudeSessionId?: string;      // Claude CLI Session-UUID fuer Resume
 }
 
 export interface SessionRestoreData {

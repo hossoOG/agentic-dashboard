@@ -6,6 +6,11 @@ import { useUIStore } from "../store/uiStore";
 import { logWarn } from "../utils/errorLogger";
 import type { SessionShell } from "../store/sessionStore";
 
+interface ClaudeSessionSummary {
+  session_id: string;
+  started_at: string;
+}
+
 function generateSessionId(): string {
   return `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -41,6 +46,24 @@ async function restoreSessions(
   for (const entry of sessionsToRestore) {
     const id = generateSessionId();
     try {
+      // Use persisted Claude CLI session ID if available, otherwise scan for most recent
+      let resumeSessionId: string | undefined = entry.claudeSessionId;
+      if (!resumeSessionId) {
+        try {
+          const history = await wrapInvoke<ClaudeSessionSummary[]>(
+            "scan_claude_sessions",
+            { folder: entry.folder },
+          );
+          if (history && history.length > 0) {
+            // Sessions are sorted by date desc — first entry is the most recent
+            resumeSessionId = history[0].session_id;
+          }
+        } catch {
+          // Non-critical: if scan fails, just start a fresh session
+          logWarn("sessionRestore", `Claude-History für "${entry.folder}" nicht lesbar, starte frisch`);
+        }
+      }
+
       const result = await wrapInvoke<{
         id: string;
         title: string;
@@ -51,6 +74,7 @@ async function restoreSessions(
         folder: entry.folder,
         title: entry.title,
         shell: entry.shell,
+        resumeSessionId,
       });
 
       const sessionId = result?.id ?? id;
@@ -59,6 +83,7 @@ async function restoreSessions(
         title: result?.title ?? entry.title,
         folder: result?.folder ?? entry.folder,
         shell: (result?.shell ?? entry.shell) as SessionShell,
+        claudeSessionId: resumeSessionId,
       });
       createdIds.push(sessionId);
     } catch (err) {

@@ -50,7 +50,7 @@ export function UpdateNotification({
     <div
       role="status"
       aria-live="polite"
-      className={`fixed bottom-10 left-36 z-50 flex items-center gap-2 text-xs border ${borderColor} px-3 py-1.5 rounded-sm shadow-lg animate-in fade-in`}
+      className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 text-xs border ${borderColor} px-3 py-1.5 rounded-sm shadow-lg animate-in fade-in`}
     >
       {status === "upToDate" && (
         <>

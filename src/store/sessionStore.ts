@@ -22,6 +22,7 @@ export interface ClaudeSession {
   title: string;
   folder: string;
   shell: SessionShell;
+  claudeSessionId?: string;      // Claude CLI Session-UUID fuer Resume
   status: SessionStatus;
   createdAt: number;
   finishedAt: number | null;
@@ -55,12 +56,14 @@ export interface SessionState {
     title: string;
     folder: string;
     shell: SessionShell;
+    claudeSessionId?: string;
   }) => void;
   removeSession: (id: string) => void;
   setActiveSession: (id: string | null) => void;
   updateStatus: (id: string, status: SessionStatus) => void;
   setExitCode: (id: string, exitCode: number) => void;
   renameSession: (id: string, title: string) => void;
+  setClaudeSessionId: (id: string, claudeSessionId: string) => void;
   updateLastOutput: (id: string, snippet: string) => void;
 
   // Layout actions
@@ -94,6 +97,7 @@ export const useSessionStore = create<SessionState>((set) => ({
         title: params.title,
         folder: params.folder,
         shell: params.shell,
+        claudeSessionId: params.claudeSessionId,
         status: "starting",
         createdAt: Date.now(),
         finishedAt: null,
@@ -174,6 +178,13 @@ export const useSessionStore = create<SessionState>((set) => ({
     set((state) => ({
       sessions: state.sessions.map((s) =>
         s.id === id ? { ...s, title } : s
+      ),
+    })),
+
+  setClaudeSessionId: (id, claudeSessionId) =>
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === id ? { ...s, claudeSessionId } : s
       ),
     })),
 

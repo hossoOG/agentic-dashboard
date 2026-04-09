@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 import { createEventTracker } from "../../../utils/perfLogger";
 import { useSessionStore } from "../../../store/sessionStore";
-import { logError } from "../../../utils/errorLogger";
+import { logError, logWarn } from "../../../utils/errorLogger";
 
 const trackSessionOutput = createEventTracker("session-output");
 
@@ -60,7 +61,8 @@ export function useSessionEvents(): void {
       }),
     );
 
-    // session-status -> update status
+    // session-status -> update status + detect Claude session ID
+    const scannedSessions = new Set<string>();
     unlisteners.push(
       listen<{ id: string; status: string }>("session-status", (event) => {
         try {
@@ -75,6 +77,27 @@ export function useSessionEvents(): void {
             status === "error"
           ) {
             useSessionStore.getState().updateStatus(id, status);
+          }
+          // Once a session is running, detect its Claude CLI session ID
+          if (status === "running" && !scannedSessions.has(id)) {
+            scannedSessions.add(id);
+            const session = useSessionStore.getState().sessions.find((s) => s.id === id);
+            if (session && !session.claudeSessionId) {
+              // Delay to let Claude CLI create its session file
+              setTimeout(async () => {
+                try {
+                  const history = await invoke<Array<{ session_id: string }>>(
+                    "scan_claude_sessions",
+                    { folder: session.folder },
+                  );
+                  if (history && history.length > 0) {
+                    useSessionStore.getState().setClaudeSessionId(id, history[0].session_id);
+                  }
+                } catch {
+                  logWarn("useSessionEvents", `Claude-Session-ID für "${session.folder}" nicht ermittelt`);
+                }
+              }, 3000);
+            }
           }
         } catch (err) {
           logError("useSessionEvents.sessionStatus", err);
