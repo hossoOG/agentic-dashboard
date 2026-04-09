@@ -4,6 +4,14 @@ Alle relevanten Änderungen an AgenticExplorer werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.6.23] — 2026-04-09 — "Test-Fix"
+
+### Fixes
+- **SideNav-Test**: Test an neues Layout angepasst (AGENTIC Logo entfernt)
+- **CI**: DetachedViewApp committen + SessionList-Test angepasst
+
+---
+
 ## [1.6.22] — 2026-04-09 — "Session-Resume Fix"
 
 ### Fixes
