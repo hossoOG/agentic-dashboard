@@ -4,6 +4,18 @@ Alle relevanten Änderungen an AgenticExplorer werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.6.24] — 2026-04-10 — "Session-Name-Fix"
+
+> Bugfix-Release: Session-Namen werden beim App-Restart korrekt zugeordnet und bleiben über Restarts erhalten.
+
+### Fixes
+- **Session-Restore Namens-Vertauschung**: `SessionRestoreData` verwendet jetzt stabile Folder-Pfade als Keys statt Array-Indizes. Wenn eine Session beim Restore fehlschlug, verschoben sich die Indizes und Session A bekam den Namen von Session B — das ist behoben.
+- **Custom-Namen persistent**: Benutzerdefinierte Session-Namen (`sessionTitleOverrides`) werden per `claudeSessionId` persistiert. Umbenennungen überleben App-Restarts zuverlässig — der gespeicherte Name hat immer Vorrang vor dem Backend-Rückgabewert.
+- **Session-History zeigt Custom-Namen**: Der `SessionHistoryViewer` zeigt jetzt den benutzerdefinierten Namen statt des Original-Claude-CLI-Titels, wenn ein Override gesetzt ist.
+- **Resume aus History übernimmt Titel**: Beim Resume aus der Session-History wird der Custom-Name (oder der History-Titel) korrekt in die neue Session übernommen — kein hardcodiertes "Resume Session" mehr.
+
+---
+
 ## [1.6.23] — 2026-04-09 — "Test-Fix"
 
 ### Fixes
