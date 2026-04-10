@@ -80,7 +80,8 @@ async function restoreSessions(
       const sessionId = result?.id ?? id;
       useSessionStore.getState().addSession({
         id: sessionId,
-        title: result?.title ?? entry.title,
+        // Persisted title (may be user-renamed) always wins over backend response
+        title: entry.title ?? result?.title ?? entry.folder,
         folder: result?.folder ?? entry.folder,
         shell: (result?.shell ?? entry.shell) as SessionShell,
         claudeSessionId: resumeSessionId,
@@ -94,24 +95,34 @@ async function restoreSessions(
 
   if (createdIds.length === 0) return;
 
-  // Restore layout
+  // Build folder→sessionId lookup from successfully created sessions
+  const folderToId = new Map<string, string>();
+  const createdSessions = useSessionStore.getState().sessions;
+  for (const id of createdIds) {
+    const session = createdSessions.find((s) => s.id === id);
+    if (session) {
+      folderToId.set(session.folder, session.id);
+    }
+  }
+
+  // Restore layout using stable folder-keys
   const store = useSessionStore.getState();
 
-  if (restore.layoutMode === "grid" && restore.gridIndices.length > 0) {
+  if (restore.layoutMode === "grid" && restore.gridFolders.length > 0) {
     store.setLayoutMode("grid");
-    for (const idx of restore.gridIndices) {
-      if (idx >= 0 && idx < createdIds.length) {
-        useSessionStore.getState().addToGrid(createdIds[idx]);
+    for (const folder of restore.gridFolders) {
+      const sessionId = folderToId.get(folder);
+      if (sessionId) {
+        useSessionStore.getState().addToGrid(sessionId);
       }
     }
   }
 
-  if (
-    restore.activeIndex !== null &&
-    restore.activeIndex >= 0 &&
-    restore.activeIndex < createdIds.length
-  ) {
-    useSessionStore.getState().setActiveSession(createdIds[restore.activeIndex]);
+  if (restore.activeFolder) {
+    const activeId = folderToId.get(restore.activeFolder);
+    if (activeId) {
+      useSessionStore.getState().setActiveSession(activeId);
+    }
   }
 
   // Toast feedback

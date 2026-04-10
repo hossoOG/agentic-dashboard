@@ -12,15 +12,15 @@ function generateSessionId(): string {
 }
 
 export interface UseSessionCreationReturn {
-  handleResumeSession: (resumeSessionId: string, cwd: string) => Promise<void>;
+  handleResumeSession: (resumeSessionId: string, cwd: string, title?: string) => Promise<void>;
   handleQuickStart: (favorite: FavoriteFolder) => Promise<void>;
 }
 
 export function useSessionCreation(): UseSessionCreationReturn {
   const handleResumeSession = useCallback(
-    async (resumeSessionId: string, cwd: string) => {
+    async (resumeSessionId: string, cwd: string, resumeTitle?: string) => {
       const id = generateSessionId();
-      const title = "Resume Session";
+      const title = resumeTitle ?? "Resume Session";
       const shell = "powershell";
 
       try {
@@ -43,6 +43,7 @@ export function useSessionCreation(): UseSessionCreationReturn {
           title: result?.title ?? title,
           folder: result?.folder ?? cwd,
           shell: (result?.shell ?? shell) as SessionShell,
+          claudeSessionId: resumeSessionId,
         });
       } catch (err) {
         logError("useSessionCreation.resumeSession", err);

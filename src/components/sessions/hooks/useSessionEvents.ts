@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { createEventTracker } from "../../../utils/perfLogger";
 import { useSessionStore } from "../../../store/sessionStore";
+import { useSettingsStore } from "../../../store/settingsStore";
 import { logError, logWarn } from "../../../utils/errorLogger";
 
 const trackSessionOutput = createEventTracker("session-output");
@@ -91,7 +92,14 @@ export function useSessionEvents(): void {
                     { folder: session.folder },
                   );
                   if (history && history.length > 0) {
-                    useSessionStore.getState().setClaudeSessionId(id, history[0].session_id);
+                    const discoveredSessionId = history[0].session_id;
+                    useSessionStore.getState().setClaudeSessionId(id, discoveredSessionId);
+                    // Persist current session title under the discovered Claude session ID.
+                    // This preserves user renames even if they happened before ID discovery.
+                    const current = useSessionStore.getState().sessions.find((s) => s.id === id);
+                    if (current?.title?.trim()) {
+                      useSettingsStore.getState().setSessionTitleOverride(discoveredSessionId, current.title);
+                    }
                   }
                 } catch {
                   logWarn("useSessionEvents", `Claude-Session-ID für "${session.folder}" nicht ermittelt`);

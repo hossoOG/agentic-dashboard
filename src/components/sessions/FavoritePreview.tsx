@@ -6,7 +6,7 @@ import { ConfigPanelTabList } from "./ConfigPanelTabList";
 interface FavoritePreviewProps {
   folder: string;
   onClose: () => void;
-  onResumeSession?: (sessionId: string, cwd: string) => void;
+  onResumeSession?: (sessionId: string, cwd: string, title?: string) => void;
 }
 
 export function FavoritePreview({ folder, onClose, onResumeSession }: FavoritePreviewProps) {

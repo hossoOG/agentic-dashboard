@@ -39,7 +39,7 @@ export const CONFIG_TABS: ConfigTab[] = [
 interface ConfigPanelContentProps {
   folder: string;
   activeTab: ConfigSubTab;
-  onResumeSession?: (sessionId: string, cwd: string) => void;
+  onResumeSession?: (sessionId: string, cwd: string, title?: string) => void;
 }
 
 export function ConfigPanelContent({ folder, activeTab, onResumeSession }: ConfigPanelContentProps) {

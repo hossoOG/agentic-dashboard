@@ -25,14 +25,14 @@ export function initSessionRestoreSync(): () => void {
       claudeSessionId: s.claudeSessionId,
     }));
 
-    // Compute layout indices relative to the alive-sessions array
-    const activeIndex = state.activeSessionId
-      ? alive.findIndex((s) => s.id === state.activeSessionId)
-      : null;
+    // Resolve active/grid sessions by folder (stable across restore failures)
+    const activeSession = state.activeSessionId
+      ? alive.find((s) => s.id === state.activeSessionId)
+      : undefined;
 
-    const gridIndices = state.gridSessionIds
-      .map((gid) => alive.findIndex((s) => s.id === gid))
-      .filter((i) => i >= 0);
+    const gridFolders = state.gridSessionIds
+      .map((gid) => alive.find((s) => s.id === gid)?.folder)
+      .filter((f): f is string => !!f);
 
     // Shallow comparison to avoid redundant writes
     const json = JSON.stringify(sessions);
@@ -42,9 +42,9 @@ export function initSessionRestoreSync(): () => void {
     settings.setSessionRestore({
       enabled: true,
       sessions,
-      activeIndex: activeIndex !== null && activeIndex >= 0 ? activeIndex : null,
+      activeFolder: activeSession?.folder ?? null,
       layoutMode: state.layoutMode,
-      gridIndices,
+      gridFolders,
     });
   });
 }

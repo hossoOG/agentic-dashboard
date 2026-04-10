@@ -6,7 +6,7 @@ import { ConfigPanelTabList } from "./ConfigPanelTabList";
 interface ConfigPanelProps {
   folder: string;
   width?: number;
-  onResumeSession?: (sessionId: string, cwd: string) => void;
+  onResumeSession?: (sessionId: string, cwd: string, title?: string) => void;
   onClose?: () => void;
 }
 

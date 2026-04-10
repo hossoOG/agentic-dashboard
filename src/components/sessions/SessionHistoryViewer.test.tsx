@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import SessionHistoryViewer from "./SessionHistoryViewer";
+import { useSettingsStore } from "../../store/settingsStore";
 
 // Mock @tauri-apps/api/core
 const mockInvoke = vi.fn();
@@ -37,6 +38,7 @@ const mockSession2 = {
 describe("SessionHistoryViewer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useSettingsStore.setState({ sessionTitleOverrides: {} });
   });
 
   it("shows loading state initially", () => {
@@ -108,7 +110,31 @@ describe("SessionHistoryViewer", () => {
     const resumeBtn = screen.getByTitle("Session fortsetzen");
     fireEvent.click(resumeBtn);
 
-    expect(handleResume).toHaveBeenCalledWith("sess-001", "/projects/app");
+    expect(handleResume).toHaveBeenCalledWith("sess-001", "/projects/app", "Fix login bug");
+  });
+
+  it("prefers user override title for rendering and resume", async () => {
+    mockInvoke.mockResolvedValue([mockSession]);
+    useSettingsStore.getState().setSessionTitleOverride("sess-001", "test123");
+    const handleResume = vi.fn();
+
+    render(
+      <SessionHistoryViewer
+        folder="/test/project"
+        onResumeSession={handleResume}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("test123")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText("Fix login bug")).not.toBeInTheDocument();
+
+    const resumeBtn = screen.getByTitle("Session fortsetzen");
+    fireEvent.click(resumeBtn);
+
+    expect(handleResume).toHaveBeenCalledWith("sess-001", "/projects/app", "test123");
   });
 
   it("does not show resume button when onResumeSession is not provided", async () => {

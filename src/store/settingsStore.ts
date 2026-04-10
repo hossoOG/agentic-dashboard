@@ -77,9 +77,11 @@ export interface RestorableSession {
 export interface SessionRestoreData {
   enabled: boolean;
   sessions: RestorableSession[];
-  activeIndex: number | null;
+  /** Folder-key of the active session (stable across restore failures). */
+  activeFolder: string | null;
   layoutMode: LayoutMode;
-  gridIndices: number[];
+  /** Folder-keys of sessions shown in the grid. */
+  gridFolders: string[];
 }
 
 /** Normalize a project folder path for use as a Record key. */
@@ -128,6 +130,8 @@ export interface SettingsState {
   pinnedDocs: Record<string, PinnedDoc[]>;
   /** Session restore state — persisted to restore sessions on next startup. */
   sessionRestore: SessionRestoreData;
+  /** User-defined titles for Claude session IDs (history/resume override). */
+  sessionTitleOverrides: Record<string, string>;
 
   // Actions
   setTheme: (partial: Partial<ThemeSettings>) => void;
@@ -141,6 +145,8 @@ export interface SettingsState {
   setProjectNotes: (folder: string, notes: string) => void;
 
   setSessionRestore: (data: SessionRestoreData) => void;
+  setSessionTitleOverride: (sessionId: string, title: string) => void;
+  clearSessionTitleOverride: (sessionId: string) => void;
 
   addApiKeyMetadata: (entry: ApiKeyMetadataEntry) => void;
   removeApiKeyMetadata: (id: string) => void;
@@ -193,9 +199,9 @@ const defaultPipeline: PipelineSettings = {
 const defaultSessionRestore: SessionRestoreData = {
   enabled: true,
   sessions: [],
-  activeIndex: null,
+  activeFolder: null,
   layoutMode: "single",
-  gridIndices: [],
+  gridFolders: [],
 };
 
 // ============================================================================
@@ -275,8 +281,32 @@ export const useSettingsStore = create<SettingsState>()(
       projectNotes: {},
       pinnedDocs: {},
       sessionRestore: defaultSessionRestore,
+      sessionTitleOverrides: {},
 
       setSessionRestore: (data) => set({ sessionRestore: data }),
+
+      setSessionTitleOverride: (sessionId, title) =>
+        set((state) => {
+          const key = sessionId.trim();
+          const value = title.trim();
+          if (!key || !value) return state;
+          if (state.sessionTitleOverrides[key] === value) return state;
+          return {
+            sessionTitleOverrides: {
+              ...state.sessionTitleOverrides,
+              [key]: value,
+            },
+          };
+        }),
+
+      clearSessionTitleOverride: (sessionId) =>
+        set((state) => {
+          const key = sessionId.trim();
+          if (!key || !(key in state.sessionTitleOverrides)) return state;
+          const next = { ...state.sessionTitleOverrides };
+          delete next[key];
+          return { sessionTitleOverrides: next };
+        }),
 
       setTheme: (partial) =>
         set((state) => ({
@@ -446,12 +476,13 @@ export const useSettingsStore = create<SettingsState>()(
           locale: "de",
           defaultShell: "auto",
           defaultProjectPath: "",
-          // apiKeys, favorites, globalNotes, projectNotes and sessionRestore are intentionally NOT reset
+          // apiKeys, favorites, globalNotes, projectNotes, sessionRestore and sessionTitleOverrides are intentionally NOT reset
           apiKeys: state.apiKeys,
           favorites: state.favorites,
           globalNotes: state.globalNotes,
           projectNotes: state.projectNotes,
           sessionRestore: state.sessionRestore,
+          sessionTitleOverrides: state.sessionTitleOverrides,
         })),
     }),
     {
@@ -471,6 +502,7 @@ export const useSettingsStore = create<SettingsState>()(
         projectNotes: state.projectNotes,
         pinnedDocs: state.pinnedDocs,
         sessionRestore: state.sessionRestore,
+        sessionTitleOverrides: state.sessionTitleOverrides,
       }),
       version: 2,
       migrate: (persisted: unknown, _version: number) => {
@@ -491,6 +523,7 @@ export const useSettingsStore = create<SettingsState>()(
           projectNotes: {},
           pinnedDocs: {} as Record<string, PinnedDoc[]>,
           sessionRestore: defaultSessionRestore,
+          sessionTitleOverrides: {} as Record<string, string>,
         };
         if (!persisted || typeof persisted !== "object") return defaults as unknown as SettingsState;
         const p = persisted as Record<string, unknown>;
@@ -530,6 +563,13 @@ export const useSettingsStore = create<SettingsState>()(
           sessionRestore: p.sessionRestore && typeof p.sessionRestore === "object" && !Array.isArray(p.sessionRestore)
             ? { ...defaults.sessionRestore, ...(p.sessionRestore as object) }
             : defaults.sessionRestore,
+          sessionTitleOverrides: p.sessionTitleOverrides && typeof p.sessionTitleOverrides === "object" && !Array.isArray(p.sessionTitleOverrides)
+            ? Object.fromEntries(
+              Object.entries(p.sessionTitleOverrides as Record<string, unknown>).filter(
+                ([k, v]) => typeof k === "string" && !!k.trim() && typeof v === "string" && !!v.trim(),
+              ),
+            )
+            : defaults.sessionTitleOverrides,
         } as unknown as SettingsState; // Actions are added by Zustand during merge
       },
       onRehydrateStorage: () => (_state, error) => {

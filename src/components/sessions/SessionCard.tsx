@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { X, LayoutGrid, FolderOpen, Terminal } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useSessionStore } from "../../store/sessionStore";
+import { useSettingsStore } from "../../store/settingsStore";
 import type { ClaudeSession } from "../../store/sessionStore";
 import { getActivityLevel, type ActivityLevel } from "./activityLevel";
 import { SessionStatusDot } from "./SessionStatusDot";
@@ -88,10 +89,13 @@ const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: Ses
     const trimmed = editValue.trim();
     if (trimmed && trimmed !== session.title) {
       renameSession(session.id, trimmed);
+      if (session.claudeSessionId) {
+        useSettingsStore.getState().setSessionTitleOverride(session.claudeSessionId, trimmed);
+      }
     }
     setIsEditing(false);
     setEditValue("");
-  }, [editValue, session.id, session.title, renameSession]);
+  }, [editValue, session.id, session.title, session.claudeSessionId, renameSession]);
 
   const cancelRename = useCallback(() => {
     setIsEditing(false);

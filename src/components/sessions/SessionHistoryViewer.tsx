@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { RefreshCw, GitBranch, Bot, MessageSquare, Clock, Play } from "lucide-react";
 import { getErrorMessage } from "../../utils/adpError";
 import { logError } from "../../utils/errorLogger";
+import { useSettingsStore } from "../../store/settingsStore";
 
 // ============================================================================
 // Types (matches Rust ClaudeSessionSummary)
@@ -27,7 +28,7 @@ interface ClaudeSessionSummary {
 
 interface SessionHistoryViewerProps {
   folder: string;
-  onResumeSession?: (sessionId: string, cwd: string) => void;
+  onResumeSession?: (sessionId: string, cwd: string, title?: string) => void;
 }
 
 // ============================================================================
@@ -89,6 +90,7 @@ const SessionHistoryViewer: React.FC<SessionHistoryViewerProps> = ({ folder, onR
   const [sessions, setSessions] = useState<ClaudeSessionSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const sessionTitleOverrides = useSettingsStore((s) => s.sessionTitleOverrides);
 
   const loadSessions = async () => {
     setLoading(true);
@@ -158,19 +160,23 @@ const SessionHistoryViewer: React.FC<SessionHistoryViewerProps> = ({ folder, onR
 
       {/* Session list */}
       <div className="flex flex-col gap-1.5">
-        {sessions.map((session) => (
-          <div
-            key={session.session_id}
-            className="bg-surface-raised border border-neutral-700 rounded-md px-3 py-2 text-sm group"
-          >
+        {sessions.map((session) => {
+          const overrideTitle = sessionTitleOverrides[session.session_id]?.trim();
+          const effectiveTitle = overrideTitle || session.title;
+
+          return (
+            <div
+              key={session.session_id}
+              className="bg-surface-raised border border-neutral-700 rounded-md px-3 py-2 text-sm group"
+            >
             {/* Title + Resume button */}
             <div className="flex items-start gap-2">
               <div className="text-neutral-200 font-medium leading-snug line-clamp-2 flex-1">
-                {session.title}
+                {effectiveTitle}
               </div>
               {onResumeSession && (
                 <button
-                  onClick={() => onResumeSession(session.session_id, session.cwd)}
+                  onClick={() => onResumeSession(session.session_id, session.cwd, effectiveTitle)}
                   className="shrink-0 mt-0.5 p-1 rounded hover:bg-accent-a15 text-neutral-400 hover:text-accent transition-colors opacity-0 group-hover:opacity-100"
                   title="Session fortsetzen"
                 >
@@ -210,8 +216,9 @@ const SessionHistoryViewer: React.FC<SessionHistoryViewerProps> = ({ folder, onR
                 </span>
               )}
             </div>
-          </div>
-        ))}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

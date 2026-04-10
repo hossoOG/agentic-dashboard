@@ -84,6 +84,7 @@ describe("useSessionCreation", () => {
           title: "Resume Session",
           folder: "C:/Projects/test",
           shell: "powershell",
+          claudeSessionId: "old-session-id",
         }),
       );
     });
@@ -102,6 +103,7 @@ describe("useSessionCreation", () => {
           title: "Resume Session",
           folder: "C:/test",
           shell: "powershell",
+          claudeSessionId: "old-id",
         }),
       );
     });
