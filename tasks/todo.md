@@ -272,6 +272,15 @@
 - [x] `/parallel-implement` 2. Lauf (2026-04-06) — #113, #115, #116 parallel, alle 3 merged inkl. Auto-Merge + Konflikt-Resolution
 - [x] `/implement` + `/parallel-implement` Skills: Auto-Merge + Merge-Konflikt-Resolution ergaenzt (2026-04-06)
 
+## Abgeschlossen: v1.6.24 — "Session-Name-Fix" (2026-04-10)
+
+> Release v1.6.24: https://github.com/hossoOG/agentic-dashboard/releases/tag/v1.6.24
+
+- [x] fix(store): Session-Restore Namens-Vertauschung — Folder-Keys statt Array-Indizes
+- [x] fix(store): Custom-Namen persistent via sessionTitleOverrides (claudeSessionId)
+- [x] fix(ui): SessionHistoryViewer zeigt Override-Namen + gibt sie beim Resume mit
+- [x] fix(ui): Resume aus History übernimmt Titel (kein hardcodiertes "Resume Session")
+
 ## Backlog (v2.0 — Pipeline Engine)
 
 - [ ] **US-P3**: Session-Start nach erkanntem Workflow (abhaengig von US-P2)
