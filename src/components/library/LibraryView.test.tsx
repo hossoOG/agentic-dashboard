@@ -1,11 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { LibraryView } from "./LibraryView";
+
+// Mock framer-motion to render synchronously (no exit-animation delays)
+vi.mock("framer-motion", () => ({
+  motion: {
+    div: ({
+      children,
+      ...props
+    }: React.PropsWithChildren<Record<string, unknown>>) => {
+      const { initial: _i, animate: _a, exit: _e, transition: _t, ...rest } = props;
+      return <div {...rest}>{children}</div>;
+    },
+  },
+  AnimatePresence: ({ children }: React.PropsWithChildren) => <>{children}</>,
+}));
 import { useConfigDiscoveryStore } from "../../store/configDiscoveryStore";
 import type { ScopeConfig } from "../../store/configDiscoveryStore";
 import { useSettingsStore } from "../../store/settingsStore";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- vitest mock requires runtime cast; vi.MockedFunction<> would need extra setup
 const mockUseSettingsStore = useSettingsStore as any;
 
 // ── Mocks ─────────────────────────────────────────────────────────────
@@ -37,6 +51,16 @@ const makeConfig = (overrides?: Partial<ScopeConfig>): ScopeConfig => ({
   ...overrides,
 });
 
+const mockSkill = {
+  name: "implement",
+  dirName: "implement",
+  description: "Issue to PR",
+  args: [],
+  hasReference: false,
+  scope: "global" as const,
+  body: "# Implement Skill\nFull body content here.",
+};
+
 beforeEach(() => {
   useConfigDiscoveryStore.setState({
     globalConfig: null,
@@ -48,6 +72,7 @@ beforeEach(() => {
     error: null,
     contentCache: {},
     contentLoading: {},
+    selectedDetail: null,
   });
 });
 
@@ -85,19 +110,7 @@ describe("LibraryView", () => {
 
   it("renders global scope panel with skills", () => {
     useConfigDiscoveryStore.setState({
-      globalConfig: makeConfig({
-        skills: [
-          {
-            name: "implement",
-            dirName: "implement",
-            description: "Issue to PR",
-            args: [],
-            hasReference: false,
-            scope: "global",
-            body: "# Implement Skill\nFull body content here.",
-          },
-        ],
-      }),
+      globalConfig: makeConfig({ skills: [mockSkill] }),
     });
 
     render(<LibraryView />);
@@ -217,5 +230,55 @@ describe("LibraryView", () => {
     render(<LibraryView />);
     // "Other App" should not appear since config is not loaded
     expect(screen.queryByText(/Other App/)).toBeNull();
+  });
+
+  // ── Modal Integration Tests ──────────────────────────────────────────
+
+  it("opens detail modal when skill card is clicked", () => {
+    useConfigDiscoveryStore.setState({
+      globalConfig: makeConfig({ skills: [mockSkill] }),
+    });
+
+    render(<LibraryView />);
+    // skill name appears in the card button
+    const skillButton = screen.getByRole("button", { name: /implement/i });
+    fireEvent.click(skillButton);
+
+    expect(screen.getByRole("dialog")).toBeTruthy();
+  });
+
+  it("detail modal closes when close button is clicked", async () => {
+    // Open modal via store action directly
+    useConfigDiscoveryStore.getState().openDetail({ category: "skills", item: mockSkill });
+
+    render(<LibraryView />);
+    expect(screen.getByRole("dialog")).toBeTruthy();
+
+    const closeBtn = screen.getByLabelText("Schliessen");
+    fireEvent.click(closeBtn);
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("detail modal shows skill name in header", () => {
+    useConfigDiscoveryStore.getState().openDetail({ category: "skills", item: mockSkill });
+
+    render(<LibraryView />);
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toBeTruthy();
+    // skill name appears in the modal header (in addition to card in background)
+    const allImplementTexts = screen.getAllByText("implement");
+    expect(allImplementTexts.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("closes detail modal on Escape key", async () => {
+    useConfigDiscoveryStore.getState().openDetail({ category: "skills", item: mockSkill });
+
+    render(<LibraryView />);
+    expect(screen.getByRole("dialog")).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 });

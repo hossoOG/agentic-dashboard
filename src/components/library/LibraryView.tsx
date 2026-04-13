@@ -18,6 +18,7 @@ import { useSessionStore, selectActiveSession } from "../../store/sessionStore";
 import { useSettingsStore } from "../../store/settingsStore";
 import {
   useConfigDiscoveryStore,
+  selectOpenDetail,
   type ScopeConfig,
   type ConfigScope,
   type DiscoveredSkill,
@@ -25,6 +26,8 @@ import {
   type DiscoveredHook,
   type DiscoveredMemoryFile,
 } from "../../store/configDiscoveryStore";
+import { LibraryDetailModal } from "./LibraryDetailModal";
+import { SkillArgBadge } from "./SkillArgBadge";
 
 // ── Content Preview Panel ────────────────────────────────────────────
 
@@ -126,16 +129,12 @@ function Section({
 // ── Skill Card ───────────────────────────────────────────────────────
 
 function SkillCard({ skill }: { skill: DiscoveredSkill }) {
-  const [expanded, setExpanded] = useState(false);
-
-  const contentKey = `${skill.scope}:skill:${skill.dirName}`;
-  // Body is pre-loaded during discovery for both commands/ and skills/ dirs
-  const loader = useCallback(async () => skill.body, [skill.body]);
+  const openDetail = useConfigDiscoveryStore(selectOpenDetail);
 
   return (
     <div className="rounded border border-neutral-700 bg-surface-raised mb-1.5">
       <button
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => openDetail({ category: "skills", item: skill })}
         className="w-full text-left px-3 py-2 hover:bg-hover-overlay transition-colors"
       >
         <div className="flex items-center gap-2">
@@ -157,30 +156,11 @@ function SkillCard({ skill }: { skill: DiscoveredSkill }) {
         {skill.args.length > 0 && (
           <div className="flex gap-1 mt-1 ml-5 flex-wrap">
             {skill.args.map((a) => (
-              <span
-                key={a.name}
-                className={`text-[10px] px-1 rounded ${
-                  a.required
-                    ? "bg-amber-500/15 text-amber-400"
-                    : "bg-neutral-800 text-neutral-500"
-                }`}
-              >
-                {a.name}
-                {a.required ? "*" : ""}
-              </span>
+              <SkillArgBadge key={a.name} arg={a} />
             ))}
           </div>
         )}
       </button>
-      {expanded && (
-        <div className="px-3 pb-2">
-          <ContentPreview
-            title="SKILL.md"
-            contentKey={contentKey}
-            loader={loader}
-          />
-        </div>
-      )}
     </div>
   );
 }
@@ -470,6 +450,9 @@ export function LibraryView() {
           </button>
         </div>
       </div>
+
+      {/* Detail modal — mounts here, reads state from store */}
+      <LibraryDetailModal />
 
       {/* Scrollable content */}
       <div className="flex-1 min-h-0 overflow-auto p-4 space-y-4">
