@@ -118,11 +118,12 @@ function parseSkillEntries(
   scope: ConfigScope,
 ): DiscoveredSkill[] {
   return dirs.map((dir) => {
+    const fallbackName = dir.dir_name.replace(/\.md$/, "");
     const parsed: ParsedSkill = dir.content
       ? parseSkillFrontmatter(dir.content)
-      : { metadata: { name: dir.dir_name, description: "", userInvokable: false, args: [] }, body: "" };
+      : { metadata: { name: fallbackName, description: "", userInvokable: false, args: [] }, body: "" };
     return {
-      name: parsed.metadata.name,
+      name: parsed.metadata.name && parsed.metadata.name !== "Unknown" ? parsed.metadata.name : fallbackName,
       dirName: dir.dir_name,
       description: parsed.metadata.description,
       args: parsed.metadata.args,
@@ -258,9 +259,10 @@ export const useConfigDiscoveryStore = create<ConfigDiscoveryState>((set, get) =
         for (const dirName of commandsDirResult.value) {
           let content = "";
           try {
-            content = await invoke<string>("read_user_claude_file", {
-              relativePath: `commands/${dirName}/SKILL.md`,
-            });
+            const relativePath = dirName.endsWith(".md")
+              ? `commands/${dirName}`
+              : `commands/${dirName}/SKILL.md`;
+            content = await invoke<string>("read_user_claude_file", { relativePath });
           } catch {
             // Skill may not have SKILL.md
           }
@@ -275,9 +277,10 @@ export const useConfigDiscoveryStore = create<ConfigDiscoveryState>((set, get) =
           if (existingNames.has(dirName)) continue; // avoid duplicates
           let content = "";
           try {
-            content = await invoke<string>("read_user_claude_file", {
-              relativePath: `skills/${dirName}/SKILL.md`,
-            });
+            const relativePath = dirName.endsWith(".md")
+              ? `skills/${dirName}`
+              : `skills/${dirName}/SKILL.md`;
+            content = await invoke<string>("read_user_claude_file", { relativePath });
           } catch {
             // Skill may not have SKILL.md
           }
