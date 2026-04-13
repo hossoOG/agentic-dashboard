@@ -7,7 +7,7 @@ import { IconButton } from "./IconButton";
 // Types
 // ============================================================================
 
-export type ModalSize = "sm" | "md" | "lg";
+export type ModalSize = "sm" | "md" | "lg" | "none";
 
 export interface ModalProps {
   open: boolean;
@@ -26,6 +26,7 @@ const sizeClasses: Record<ModalSize, string> = {
   sm: "w-full max-w-sm",
   md: "w-full max-w-md",
   lg: "w-full max-w-lg",
+  none: "",
 };
 
 // ============================================================================
@@ -88,7 +89,7 @@ export function Modal({
             aria-modal="true"
             aria-labelledby={title !== undefined ? titleId : undefined}
             tabIndex={-1}
-            className={`relative max-h-[80vh] flex flex-col bg-surface-raised border-2 border-neutral-700 focus:outline-none ${sizeClasses[size]} ${className}`}
+            className={`relative flex flex-col bg-surface-raised border-2 border-neutral-700 focus:outline-none ${sizeClasses[size]} ${className}`}
             onClick={(e) => e.stopPropagation()}
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}

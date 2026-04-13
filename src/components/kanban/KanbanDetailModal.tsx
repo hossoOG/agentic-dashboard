@@ -153,6 +153,7 @@ export function KanbanDetailModal({
       open={isOpen}
       onClose={onClose}
       title={headerTitle}
+      size="none"
       className="w-[960px] max-w-[95vw] max-h-[85vh] rounded-md shadow-2xl"
     >
       {loading ? (
