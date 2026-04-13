@@ -56,6 +56,7 @@ export function LibraryDetailModal(): JSX.Element {
       open={selectedDetail !== null}
       onClose={closeDetail}
       title={selectedDetail ? <DetailHeader detail={selectedDetail} /> : undefined}
+      size="none"
       className="w-[min(1100px,90vw)] max-h-[85vh] rounded-md shadow-2xl flex flex-col"
     >
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
