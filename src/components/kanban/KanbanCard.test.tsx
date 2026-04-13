@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { KanbanCard, type KanbanIssue } from "./KanbanCard";
 
 // ── Mocks ─────────────────────────────────────────────────────────────
@@ -25,6 +25,42 @@ function makeIssue(overrides: Partial<KanbanIssue> = {}): KanbanIssue {
     url: "https://github.com/org/repo/issues/42",
     ...overrides,
   };
+}
+
+/**
+ * jsdom does not propagate clientX/clientY from fireEvent.pointerMove init
+ * into React's SyntheticEvent. Use native PointerEvent constructors instead.
+ * Wrap in act() so React state updates (setIsDragging) are flushed synchronously.
+ */
+function nativePointerDown(element: Element, clientX = 0, clientY = 0) {
+  act(() => {
+    element.dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true, cancelable: true, clientX, clientY, button: 0 }),
+    );
+  });
+}
+
+function nativePointerMove(element: Element, clientX: number, clientY = 0) {
+  act(() => {
+    element.dispatchEvent(
+      new PointerEvent("pointermove", { bubbles: true, cancelable: true, clientX, clientY }),
+    );
+  });
+}
+
+function nativePointerUp(element: Element) {
+  act(() => {
+    element.dispatchEvent(
+      new PointerEvent("pointerup", { bubbles: true, cancelable: true }),
+    );
+  });
+}
+
+/** Simulate a full drag gesture beyond the 5px threshold */
+function simulateDrag(element: Element, dx = 20) {
+  nativePointerDown(element);
+  nativePointerMove(element, dx);
+  nativePointerUp(element);
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────
@@ -65,11 +101,10 @@ describe("KanbanCard", () => {
 
   it("hides assignee when empty", () => {
     render(<KanbanCard issue={makeIssue({ assignee: "" })} />);
-
     expect(screen.queryByText("alice")).toBeNull();
   });
 
-  it("calls onClick when card is clicked", () => {
+  it("calls onClick when card is clicked (no drag)", () => {
     const onClick = vi.fn();
     render(<KanbanCard issue={makeIssue()} onClick={onClick} />);
 
@@ -77,18 +112,75 @@ describe("KanbanCard", () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 
-  it("calls onDragStart and sets dataTransfer on drag", () => {
+  it("card has cursor-grab class for drag affordance", () => {
+    const { container } = render(<KanbanCard issue={makeIssue()} />);
+    const card = container.firstElementChild!;
+    expect(card.className).toContain("cursor-grab");
+  });
+
+  it("calls onDragStart when pointer moves beyond threshold", () => {
     const onDragStart = vi.fn();
     const { container } = render(
       <KanbanCard issue={makeIssue()} onDragStart={onDragStart} />,
     );
 
     const card = container.firstElementChild!;
-    const dataTransfer = { setData: vi.fn(), effectAllowed: "" };
-    fireEvent.dragStart(card, { dataTransfer });
+    nativePointerDown(card, 0, 0);
+    nativePointerMove(card, 10); // 10px > 5px threshold
 
-    expect(dataTransfer.setData).toHaveBeenCalledWith("text/plain", "42");
     expect(onDragStart).toHaveBeenCalledOnce();
+  });
+
+  it("does NOT call onDragStart for sub-threshold pointer move", () => {
+    const onDragStart = vi.fn();
+    const { container } = render(
+      <KanbanCard issue={makeIssue()} onDragStart={onDragStart} />,
+    );
+
+    const card = container.firstElementChild!;
+    nativePointerDown(card, 0, 0);
+    nativePointerMove(card, 3); // 3px < 5px threshold
+
+    expect(onDragStart).not.toHaveBeenCalled();
+  });
+
+  it("calls onDragEnd on pointerUp after a drag", () => {
+    const onDragEnd = vi.fn();
+    const { container } = render(
+      <KanbanCard issue={makeIssue()} onDragEnd={onDragEnd} />,
+    );
+
+    const card = container.firstElementChild!;
+    simulateDrag(card);
+
+    expect(onDragEnd).toHaveBeenCalledOnce();
+  });
+
+  it("does NOT call onDragEnd when pointerUp follows no drag (pure click)", () => {
+    const onDragEnd = vi.fn();
+    const { container } = render(
+      <KanbanCard issue={makeIssue()} onDragEnd={onDragEnd} />,
+    );
+
+    const card = container.firstElementChild!;
+    nativePointerDown(card);
+    nativePointerUp(card);
+
+    expect(onDragEnd).not.toHaveBeenCalled();
+  });
+
+  it("suppresses onClick during active drag", () => {
+    const onClick = vi.fn();
+    const { container } = render(
+      <KanbanCard issue={makeIssue()} onClick={onClick} />,
+    );
+
+    const card = container.firstElementChild!;
+    nativePointerDown(card, 0, 0);
+    nativePointerMove(card, 10); // drag threshold exceeded → isDraggingRef = true
+    fireEvent.click(card);       // click while dragging → suppressed
+
+    expect(onClick).not.toHaveBeenCalled();
   });
 
   it("opens URL in browser when external link button is clicked", async () => {
@@ -104,7 +196,6 @@ describe("KanbanCard", () => {
 
   it("does not render external link button when url is empty", () => {
     render(<KanbanCard issue={makeIssue({ url: "" })} />);
-
     expect(screen.queryByTitle("Im Browser öffnen")).toBeNull();
   });
 
@@ -115,62 +206,6 @@ describe("KanbanCard", () => {
     const linkButton = screen.getByTitle("Im Browser öffnen");
     fireEvent.click(linkButton);
 
-    // stopPropagation prevents onClick on card
     expect(onClick).not.toHaveBeenCalled();
-  });
-
-  it("card has cursor-grab class for drag affordance", () => {
-    const { container } = render(<KanbanCard issue={makeIssue()} />);
-    const card = container.firstElementChild!;
-    expect(card.className).toContain("cursor-grab");
-  });
-
-  it("suppresses onClick when dragging (isDraggingRef guard)", () => {
-    const onClick = vi.fn();
-    const { container } = render(
-      <KanbanCard issue={makeIssue()} onClick={onClick} />,
-    );
-
-    const card = container.firstElementChild!;
-    const dataTransfer = { setData: vi.fn(), effectAllowed: "" };
-
-    // Start drag then immediately click — click should be suppressed
-    fireEvent.dragStart(card, { dataTransfer });
-    fireEvent.click(card);
-
-    expect(onClick).not.toHaveBeenCalled();
-  });
-
-  it("calls onDragEnd when drag finishes", () => {
-    const onDragEnd = vi.fn();
-    const { container } = render(
-      <KanbanCard issue={makeIssue()} onDragEnd={onDragEnd} />,
-    );
-
-    const card = container.firstElementChild!;
-    const dataTransfer = { setData: vi.fn(), effectAllowed: "" };
-
-    fireEvent.dragStart(card, { dataTransfer });
-    fireEvent.dragEnd(card);
-
-    expect(onDragEnd).toHaveBeenCalledOnce();
-  });
-
-  it("allows onClick again after drag ends", () => {
-    const onClick = vi.fn();
-    const { container } = render(
-      <KanbanCard issue={makeIssue()} onClick={onClick} />,
-    );
-
-    const card = container.firstElementChild!;
-    const dataTransfer = { setData: vi.fn(), effectAllowed: "" };
-
-    // Drag cycle: start → end
-    fireEvent.dragStart(card, { dataTransfer });
-    fireEvent.dragEnd(card);
-
-    // After drag ends, click should work again
-    fireEvent.click(card);
-    expect(onClick).toHaveBeenCalledOnce();
   });
 });

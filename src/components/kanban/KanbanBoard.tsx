@@ -108,16 +108,13 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
     };
   }, [load]);
 
-  const handleDrop = useCallback(
-    async (targetLane: string, e: React.DragEvent) => {
-      e.preventDefault();
-      setDragOverColumn(null);
-
+  const handleDropLane = useCallback(
+    async (targetLane: string) => {
       const issueNumber = draggedIssueNumberRef.current;
       draggedIssueNumberRef.current = null;
+      setDragOverColumn(null);
       if (issueNumber == null) return;
 
-      // Check if already in this lane
       const issue = issues.find((i) => i.number === issueNumber);
       if (!issue) return;
       const currentLane = classifyIssue(issue);
@@ -131,7 +128,6 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
           number: issueNumber,
           targetLane,
         });
-        // Refresh after move
         cache.delete(folder);
         await load(true);
       } catch (err) {
@@ -143,6 +139,32 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
     },
     [folder, issues, load]
   );
+
+  const startGlobalDragListeners = useCallback(() => {
+    const onMove = (e: PointerEvent) => {
+      if (draggedIssueNumberRef.current == null) return;
+      const els = document.elementsFromPoint(e.clientX, e.clientY);
+      const laneEl = els.find((el) => el.hasAttribute("data-lane-id"));
+      setDragOverColumn(laneEl?.getAttribute("data-lane-id") ?? null);
+    };
+
+    const onUp = (e: PointerEvent) => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      if (draggedIssueNumberRef.current == null) return;
+      const els = document.elementsFromPoint(e.clientX, e.clientY);
+      const laneEl = els.find((el) => el.hasAttribute("data-lane-id"));
+      const laneId = laneEl?.getAttribute("data-lane-id") ?? null;
+      if (laneId) void handleDropLane(laneId);
+      else {
+        draggedIssueNumberRef.current = null;
+        setDragOverColumn(null);
+      }
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }, [handleDropLane]);
 
   if (loading) {
     return (
@@ -207,22 +229,12 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
           {columns.map((col) => (
             <div
               key={col.id}
+              data-lane-id={col.id}
               className={`flex flex-col w-[260px] min-w-[260px] bg-surface-raised border rounded-sm transition-colors ${
                 dragOverColumn === col.id
                   ? "border-accent bg-accent-a10/5"
                   : "border-neutral-700"
               }`}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = "move";
-                setDragOverColumn(col.id);
-              }}
-              onDragLeave={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-                  setDragOverColumn(null);
-                }
-              }}
-              onDrop={(e) => handleDrop(col.id, e)}
             >
               {/* Column header */}
               <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-700 shrink-0">
@@ -253,6 +265,7 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
                         onClick={() => setSelectedIssue(issue.number)}
                         onDragStart={() => {
                           draggedIssueNumberRef.current = issue.number;
+                          startGlobalDragListeners();
                         }}
                         onDragEnd={() => {
                           draggedIssueNumberRef.current = null;

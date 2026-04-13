@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, waitFor, fireEvent, createEvent, act } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { KanbanBoard } from "./KanbanBoard";
 import { invoke } from "@tauri-apps/api/core";
 import type { KanbanIssue } from "./KanbanCard";
@@ -202,61 +202,35 @@ describe("KanbanBoard", () => {
     expect(emptyMessages.length).toBe(4);
   });
 
-  /** Helper: fire dragOver with a mock dataTransfer to avoid jsdom TypeError */
-  function fireDragOver(element: Element) {
-    const ev = createEvent.dragOver(element);
-    Object.defineProperty(ev, "dataTransfer", {
-      value: { dropEffect: "" },
-      configurable: true,
-    });
-    act(() => {
-      element.dispatchEvent(ev);
-    });
-  }
-
-  it("onDragOver sets column highlight", async () => {
+  it("each column has data-lane-id attribute for PointerEvent DnD", async () => {
     mockInvoke.mockResolvedValueOnce(makeIssues());
 
-    const { container } = render(<KanbanBoard folder="/test/dragover" />);
+    const { container } = render(<KanbanBoard folder="/test/lane-ids" />);
 
     await waitFor(() => {
       expect(screen.getByText("Kanban (6 Issues)")).toBeTruthy();
     });
 
-    const columns = container.querySelectorAll(".flex.flex-col.w-\\[260px\\]");
-    const backlogColumn = columns[0] as HTMLElement;
+    const laneIds = Array.from(
+      container.querySelectorAll("[data-lane-id]"),
+    ).map((el) => el.getAttribute("data-lane-id"));
 
-    // dragOver should set highlight (dragOverColumn = "backlog")
-    fireDragOver(backlogColumn);
-
-    await waitFor(() => {
-      expect(backlogColumn.className).toContain("border-accent");
-    });
+    expect(laneIds).toEqual(["backlog", "todo", "in-progress", "done"]);
   });
 
-  it("onDragLeave clears highlight when leaving to an element outside the column", async () => {
+  it("column has no HTML5 DnD handlers (onDragOver/onDrop removed)", async () => {
     mockInvoke.mockResolvedValueOnce(makeIssues());
 
-    const { container } = render(<KanbanBoard folder="/test/dragleave-out" />);
+    const { container } = render(<KanbanBoard folder="/test/no-dnd" />);
 
     await waitFor(() => {
       expect(screen.getByText("Kanban (6 Issues)")).toBeTruthy();
     });
 
-    const columns = container.querySelectorAll(".flex.flex-col.w-\\[260px\\]");
-    const backlogColumn = columns[0] as HTMLElement;
-    const todoColumn = columns[1] as HTMLElement;
-
-    // Drag over backlog to set highlight
-    fireDragOver(backlogColumn);
-
-    await waitFor(() => {
-      expect(backlogColumn.className).toContain("border-accent");
+    const columns = container.querySelectorAll("[data-lane-id]");
+    // No dragover attribute means HTML5 DnD is not set
+    columns.forEach((col) => {
+      expect(col.getAttribute("draggable")).toBeNull();
     });
-
-    // DragLeave to a sibling column (outside) → contains() returns false → highlight clears
-    fireEvent.dragLeave(backlogColumn, { relatedTarget: todoColumn });
-
-    expect(backlogColumn.className).not.toContain("border-accent");
   });
 });
