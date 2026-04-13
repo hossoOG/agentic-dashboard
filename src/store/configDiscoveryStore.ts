@@ -7,6 +7,16 @@ import { parseSkillFrontmatter, type ParsedSkill } from "../utils/parseSkillFron
 
 export type ConfigScope = "global" | "project";
 
+export type LibraryCategory =
+  | "skills"
+  | "agents"
+  | "hooks"
+  | "settings"
+  | "claudeMd"
+  | "memory"
+  | "commands"
+  | "mcp";
+
 export interface DiscoveredSkill {
   name: string;
   dirName: string;
@@ -37,6 +47,12 @@ export interface DiscoveredMemoryFile {
   relativePath: string;
 }
 
+export type SelectedDetail =
+  | { category: "skills"; item: DiscoveredSkill }
+  | { category: "agents"; item: DiscoveredAgent }
+  | { category: "hooks"; item: DiscoveredHook }
+  | { category: "memory"; item: DiscoveredMemoryFile };
+
 export interface ScopeConfig {
   skills: DiscoveredSkill[];
   agents: DiscoveredAgent[];
@@ -63,11 +79,16 @@ interface ConfigDiscoveryState {
   contentCache: Record<string, string>;
   contentLoading: Record<string, boolean>;
 
+  /** Detail modal state */
+  selectedDetail: SelectedDetail | null;
+
   discoverGlobal: () => Promise<void>;
   discoverProject: (folder: string) => Promise<void>;
   discoverFavorites: (folders: string[]) => Promise<void>;
   loadContent: (key: string, loader: () => Promise<string>) => Promise<string>;
   clearProject: () => void;
+  openDetail: (detail: SelectedDetail) => void;
+  closeDetail: () => void;
 }
 
 const EMPTY_SCOPE: ScopeConfig = {
@@ -200,6 +221,7 @@ export const useConfigDiscoveryStore = create<ConfigDiscoveryState>((set, get) =
   error: null,
   contentCache: {},
   contentLoading: {},
+  selectedDetail: null,
 
   discoverGlobal: async () => {
     set({ loading: true, error: null });
@@ -453,6 +475,9 @@ export const useConfigDiscoveryStore = create<ConfigDiscoveryState>((set, get) =
   clearProject: () => {
     set({ projectConfig: null, projectPath: null, contentCache: {}, contentLoading: {} });
   },
+
+  openDetail: (detail: SelectedDetail) => set({ selectedDetail: detail }),
+  closeDetail: () => set({ selectedDetail: null }),
 }));
 
 // ── Selectors ──────────────────────────────────────────────────────────
@@ -463,3 +488,6 @@ export const selectFavoriteConfigs = (s: ConfigDiscoveryState) => s.favoriteConf
 export const selectDiscoveryLoading = (s: ConfigDiscoveryState) => s.loading;
 export const selectContentCache = (s: ConfigDiscoveryState) => s.contentCache;
 export const selectContentLoading = (s: ConfigDiscoveryState) => s.contentLoading;
+export const selectSelectedDetail = (s: ConfigDiscoveryState) => s.selectedDetail;
+export const selectOpenDetail = (s: ConfigDiscoveryState) => s.openDetail;
+export const selectCloseDetail = (s: ConfigDiscoveryState) => s.closeDetail;
