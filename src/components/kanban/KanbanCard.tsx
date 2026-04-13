@@ -10,6 +10,8 @@ export interface KanbanLabel {
 }
 
 export interface KanbanIssue {
+  /** Projects v2 item ID — used for move_project_item */
+  itemId: string;
   number: number;
   title: string;
   state: string;

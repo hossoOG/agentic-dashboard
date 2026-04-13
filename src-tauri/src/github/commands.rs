@@ -41,16 +41,6 @@ pub struct KanbanLabel {
 }
 
 #[derive(Serialize, Clone)]
-pub struct KanbanIssue {
-    pub number: u64,
-    pub title: String,
-    pub state: String,
-    pub labels: Vec<KanbanLabel>,
-    pub assignee: String,
-    pub url: String,
-}
-
-#[derive(Serialize, Clone)]
 pub struct IssueComment {
     pub author: String,
     pub body: String,
@@ -90,18 +80,7 @@ pub struct LinkedPR {
     pub checks: Vec<CheckRun>,
 }
 
-/// Lane labels used for Kanban classification.
-const LANE_LABELS: &[&str] = &[
-    "backlog",
-    "todo",
-    "to do",
-    "in-progress",
-    "in progress",
-    "sprint",
-    "done",
-];
-
-fn run_command(folder: &str, program: &str, args: &[&str]) -> Result<String, ADPError> {
+pub(crate) fn run_command(folder: &str, program: &str, args: &[&str]) -> Result<String, ADPError> {
     let mut cmd = silent_command(program);
     cmd.args(args).current_dir(folder);
     let output = crate::util::timed_output(cmd, crate::util::DEFAULT_COMMAND_TIMEOUT)?;
@@ -117,7 +96,7 @@ fn run_command(folder: &str, program: &str, args: &[&str]) -> Result<String, ADP
     }
 }
 
-fn is_command_available(cmd_name: &str) -> bool {
+pub(crate) fn is_command_available(cmd_name: &str) -> bool {
     let check_cmd = if cfg!(windows) { "where" } else { "which" };
     let mut cmd = silent_command(check_cmd);
     cmd.arg(cmd_name);
@@ -150,7 +129,7 @@ fn parse_assignees(value: &serde_json::Value) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// Extract the first assignee login (for KanbanIssue / GithubIssue which show only one).
+/// Extract the first assignee login from a GitHub JSON value.
 fn parse_assignee(value: &serde_json::Value) -> String {
     value["assignees"]
         .as_array()
@@ -295,74 +274,6 @@ pub mod commands {
                 labels: parse_labels(issue),
                 assignee: parse_assignee(issue),
                 url: issue["url"].as_str().unwrap_or("").to_string(),
-            })
-            .collect();
-
-        Ok(issues)
-    }
-
-    #[tauri::command]
-    pub async fn get_kanban_issues(folder: String) -> Result<Vec<KanbanIssue>, ADPError> {
-        if !is_command_available("gh") {
-            return Err(ADPError::new(
-                ADPErrorCode::ServiceRequestFailed,
-                "gh CLI not found. Install from https://cli.github.com",
-            ));
-        }
-
-        // Fetch open and closed issues in parallel
-        let open_output = run_command(
-            &folder,
-            "gh",
-            &[
-                "issue",
-                "list",
-                "--state",
-                "all",
-                "--json",
-                "number,title,state,labels,assignees,url",
-                "--limit",
-                "50",
-            ],
-        )?;
-
-        if open_output.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        let parsed: Vec<serde_json::Value> = serde_json::from_str(&open_output)
-            .map_err(|e| ADPError::parse(format!("Failed to parse gh output: {}", e)))?;
-
-        let issues = parsed
-            .iter()
-            .map(|issue| {
-                let labels = issue["labels"]
-                    .as_array()
-                    .map(|arr| {
-                        arr.iter()
-                            .map(|l| KanbanLabel {
-                                name: l["name"].as_str().unwrap_or("").to_string(),
-                                color: l["color"].as_str().unwrap_or("333333").to_string(),
-                            })
-                            .collect()
-                    })
-                    .unwrap_or_default();
-
-                let assignee = issue["assignees"]
-                    .as_array()
-                    .and_then(|arr| arr.first())
-                    .and_then(|a| a["login"].as_str())
-                    .unwrap_or("")
-                    .to_string();
-
-                KanbanIssue {
-                    number: issue["number"].as_u64().unwrap_or(0),
-                    title: issue["title"].as_str().unwrap_or("").to_string(),
-                    state: issue["state"].as_str().unwrap_or("OPEN").to_string(),
-                    labels,
-                    assignee,
-                    url: issue["url"].as_str().unwrap_or("").to_string(),
-                }
             })
             .collect();
 
@@ -548,87 +459,5 @@ pub mod commands {
         Ok(())
     }
 
-    #[tauri::command]
-    pub async fn move_issue_lane(
-        folder: String,
-        number: u64,
-        target_lane: String,
-    ) -> Result<(), ADPError> {
-        if !is_command_available("gh") {
-            return Err(ADPError::new(
-                ADPErrorCode::ServiceRequestFailed,
-                "gh CLI not found",
-            ));
-        }
-
-        let num_str = number.to_string();
-
-        // Remove all existing lane labels
-        let output = run_command(
-            &folder,
-            "gh",
-            &["issue", "view", &num_str, "--json", "labels,state"],
-        )?;
-
-        let val: serde_json::Value = serde_json::from_str(&output)
-            .map_err(|e| ADPError::parse(format!("Failed to parse issue: {}", e)))?;
-
-        let current_state = val["state"].as_str().unwrap_or("OPEN");
-
-        // Collect lane labels to remove
-        let labels_to_remove: Vec<String> = val["labels"]
-            .as_array()
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|l| {
-                        let name = l["name"].as_str()?;
-                        if LANE_LABELS.contains(&name.to_lowercase().as_str()) {
-                            Some(name.to_string())
-                        } else {
-                            None
-                        }
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
-
-        // Remove old lane labels
-        for label in &labels_to_remove {
-            let _ = run_command(
-                &folder,
-                "gh",
-                &["issue", "edit", &num_str, "--remove-label", label],
-            );
-        }
-
-        // Handle state transitions and add new label
-        match target_lane.as_str() {
-            "done" => {
-                // Close the issue if open
-                if current_state == "OPEN" {
-                    run_command(&folder, "gh", &["issue", "close", &num_str])?;
-                }
-            }
-            lane => {
-                // Reopen if closed
-                if current_state == "CLOSED" {
-                    run_command(&folder, "gh", &["issue", "reopen", &num_str])?;
-                }
-
-                // Add the target lane label
-                let label_name = match lane {
-                    "in-progress" => "in-progress",
-                    "todo" => "todo",
-                    _ => "backlog",
-                };
-                run_command(
-                    &folder,
-                    "gh",
-                    &["issue", "edit", &num_str, "--add-label", label_name],
-                )?;
-            }
-        }
-
-        Ok(())
-    }
 }
+

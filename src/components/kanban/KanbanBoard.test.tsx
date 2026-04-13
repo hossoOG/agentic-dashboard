@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { KanbanBoard } from "./KanbanBoard";
 import { invoke } from "@tauri-apps/api/core";
-import type { KanbanIssue } from "./KanbanCard";
 
 // ── Mocks ─────────────────────────────────────────────────────────────
 
@@ -26,209 +25,255 @@ vi.mock("framer-motion", () => ({
       children,
       ...props
     }: React.PropsWithChildren<Record<string, unknown>>) => {
-      // Filter out framer-motion specific props
-      const {
-        initial: _i,
-        animate: _a,
-        exit: _e,
-        transition: _t,
-        ...rest
-      } = props;
+      const { initial: _i, animate: _a, exit: _e, transition: _t, ...rest } =
+        props;
       return <div {...rest}>{children}</div>;
     },
   },
   AnimatePresence: ({ children }: React.PropsWithChildren) => <>{children}</>,
 }));
 
-// ── Helpers ───────────────────────────────────────────────────────────
+// Mock projectStore — gives controlled project selection without localStorage
+vi.mock("../../store/projectStore", () => ({
+  useProjectStore: vi.fn(),
+}));
 
+import { useProjectStore } from "../../store/projectStore";
+
+// ── Test fixtures ─────────────────────────────────────────────────────
+
+const MOCK_PROJECTS = [
+  { id: "PVT_abc123", number: 2, title: "Agentic Dashboard", items_total: 10 },
+];
+
+function makeBoard() {
+  return {
+    project_id: "PVT_abc123",
+    status_field_id: "PVTSSF_field1",
+    lanes: [
+      { option_id: "opt_backlog", name: "Backlog", order: 0 },
+      { option_id: "opt_ready", name: "Ready", order: 1 },
+      { option_id: "opt_inprog", name: "In progress", order: 2 },
+      { option_id: "opt_review", name: "In review", order: 3 },
+      { option_id: "opt_done", name: "Done", order: 4 },
+    ],
+    items: [
+      {
+        item_id: "PVTI_1",
+        issue_number: 1,
+        title: "Backlog issue",
+        assignee: "",
+        labels: [],
+        url: "https://github.com/org/repo/issues/1",
+        state: "OPEN",
+        current_lane_option_id: "opt_backlog",
+      },
+      {
+        item_id: "PVTI_2",
+        issue_number: 2,
+        title: "Ready issue",
+        assignee: "bob",
+        labels: [{ name: "feature", color: "0075ca" }],
+        url: "https://github.com/org/repo/issues/2",
+        state: "OPEN",
+        current_lane_option_id: "opt_ready",
+      },
+      {
+        item_id: "PVTI_3",
+        issue_number: 3,
+        title: "In review issue",
+        assignee: "alice",
+        labels: [],
+        url: "https://github.com/org/repo/issues/3",
+        state: "OPEN",
+        current_lane_option_id: "opt_review",
+      },
+      {
+        item_id: "PVTI_4",
+        issue_number: 4,
+        title: "Done issue",
+        assignee: "",
+        labels: [],
+        url: "https://github.com/org/repo/issues/4",
+        state: "CLOSED",
+        current_lane_option_id: "opt_done",
+      },
+      {
+        item_id: "PVTI_5",
+        issue_number: 5,
+        title: "No status issue",
+        assignee: "",
+        labels: [],
+        url: "https://github.com/org/repo/issues/5",
+        state: "OPEN",
+        current_lane_option_id: null,
+      },
+    ],
+  };
+}
+
+// ── Store setup ───────────────────────────────────────────────────────
+
+const mockSetFolderProject = vi.fn();
+const mockGetProjectForFolder = vi.fn();
 const mockInvoke = vi.mocked(invoke);
 
-function makeIssues(): KanbanIssue[] {
-  return [
-    {
-      number: 1,
-      title: "Backlog issue",
-      state: "OPEN",
-      labels: [],
-      assignee: "",
-      url: "https://github.com/org/repo/issues/1",
-    },
-    {
-      number: 2,
-      title: "Todo issue",
-      state: "OPEN",
-      labels: [{ name: "todo", color: "0075ca" }],
-      assignee: "bob",
-      url: "https://github.com/org/repo/issues/2",
-    },
-    {
-      number: 3,
-      title: "In progress issue",
-      state: "OPEN",
-      labels: [{ name: "in-progress", color: "e4e669" }],
-      assignee: "alice",
-      url: "https://github.com/org/repo/issues/3",
-    },
-    {
-      number: 4,
-      title: "Done issue",
-      state: "CLOSED",
-      labels: [],
-      assignee: "",
-      url: "https://github.com/org/repo/issues/4",
-    },
-    {
-      number: 5,
-      title: "Sprint issue",
-      state: "OPEN",
-      labels: [{ name: "sprint", color: "aabbcc" }],
-      assignee: "",
-      url: "https://github.com/org/repo/issues/5",
-    },
-    {
-      number: 6,
-      title: "Done label issue",
-      state: "OPEN",
-      labels: [{ name: "done", color: "00ff00" }],
-      assignee: "",
-      url: "https://github.com/org/repo/issues/6",
-    },
-  ];
+function setupStore(withProject = true) {
+  vi.mocked(useProjectStore).mockReturnValue({
+    projectByFolder: {},
+    setFolderProject: mockSetFolderProject,
+    getProjectForFolder: withProject
+      ? mockGetProjectForFolder.mockReturnValue({
+          projectNumber: 2,
+          projectId: "PVT_abc123",
+          title: "Agentic Dashboard",
+        })
+      : mockGetProjectForFolder.mockReturnValue(undefined),
+  } as ReturnType<typeof useProjectStore>);
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────
 
-describe("KanbanBoard", () => {
+describe("KanbanBoard — Projects v2", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
   });
 
   it("shows loading state initially", () => {
-    // Never resolve the invoke
+    setupStore();
     mockInvoke.mockReturnValue(new Promise(() => {}));
     render(<KanbanBoard folder="/test/loading" />);
 
     expect(screen.getByText("Lade Kanban-Daten...")).toBeTruthy();
   });
 
-  it("renders columns with classified issues after loading", async () => {
-    mockInvoke.mockResolvedValueOnce(makeIssues());
+  it("renders dynamic lanes from GitHub Projects v2 Status field", async () => {
+    setupStore();
+    mockInvoke
+      .mockResolvedValueOnce(MOCK_PROJECTS)  // list_user_projects
+      .mockResolvedValueOnce(makeBoard());    // get_project_board
 
-    render(<KanbanBoard folder="/test/columns" />);
+    render(<KanbanBoard folder="/test/lanes" />);
 
     await waitFor(() => {
-      expect(screen.getByText("Kanban (6 Issues)")).toBeTruthy();
+      // Lane names come from GitHub, not hardcoded strings
+      expect(screen.getByText("Backlog")).toBeTruthy();
+      expect(screen.getByText("Ready")).toBeTruthy();
+      expect(screen.getByText("In progress")).toBeTruthy();
+      expect(screen.getByText("In review")).toBeTruthy();
+      expect(screen.getByText("Done")).toBeTruthy();
     });
-
-    // Column headers
-    expect(screen.getByText("Backlog")).toBeTruthy();
-    expect(screen.getByText("To Do")).toBeTruthy();
-    expect(screen.getByText("In Arbeit")).toBeTruthy();
-    expect(screen.getByText("Erledigt")).toBeTruthy();
-
-    // Issue titles in correct columns
-    expect(screen.getByText("Backlog issue")).toBeTruthy();
-    expect(screen.getByText("Todo issue")).toBeTruthy();
-    expect(screen.getByText("In progress issue")).toBeTruthy();
-    expect(screen.getByText("Done issue")).toBeTruthy();
-    // sprint label → in-progress column
-    expect(screen.getByText("Sprint issue")).toBeTruthy();
-    // done label → done column
-    expect(screen.getByText("Done label issue")).toBeTruthy();
   });
 
-  it("shows error state with retry button on fetch failure", async () => {
-    mockInvoke.mockRejectedValueOnce(new Error("Network error"));
+  it("renders items in their correct GitHub Projects lane", async () => {
+    setupStore();
+    mockInvoke
+      .mockResolvedValueOnce(MOCK_PROJECTS)
+      .mockResolvedValueOnce(makeBoard());
+
+    render(<KanbanBoard folder="/test/items" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Backlog issue")).toBeTruthy();
+      expect(screen.getByText("Ready issue")).toBeTruthy();
+      expect(screen.getByText("In review issue")).toBeTruthy();
+      expect(screen.getByText("Done issue")).toBeTruthy();
+    });
+  });
+
+  it("renders 'Kein Status' column for items without a status set", async () => {
+    setupStore();
+    mockInvoke
+      .mockResolvedValueOnce(MOCK_PROJECTS)
+      .mockResolvedValueOnce(makeBoard());
+
+    render(<KanbanBoard folder="/test/nostatus" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Kein Status")).toBeTruthy();
+      expect(screen.getByText("No status issue")).toBeTruthy();
+    });
+  });
+
+  it("data-lane-id uses Projects v2 option_id (not hardcoded slug)", async () => {
+    setupStore();
+    mockInvoke
+      .mockResolvedValueOnce(MOCK_PROJECTS)
+      .mockResolvedValueOnce(makeBoard());
+
+    const { container } = render(<KanbanBoard folder="/test/laneids" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Backlog")).toBeTruthy();
+    });
+
+    const laneIds = Array.from(
+      container.querySelectorAll("[data-lane-id]")
+    ).map((el) => el.getAttribute("data-lane-id"));
+
+    expect(laneIds).toContain("opt_backlog");
+    expect(laneIds).toContain("opt_done");
+    expect(laneIds).not.toContain("backlog");  // old hardcoded id must be gone
+    expect(laneIds).not.toContain("in-progress");
+  });
+
+  it("shows error state on board load failure", async () => {
+    setupStore();
+    mockInvoke
+      .mockResolvedValueOnce(MOCK_PROJECTS)
+      .mockRejectedValueOnce(new Error("Network error"));
 
     render(<KanbanBoard folder="/test/error" />);
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Fehler beim Laden der Issues"),
-      ).toBeTruthy();
+      expect(screen.getByText("Fehler beim Laden des Boards")).toBeTruthy();
     });
 
-    expect(screen.getByText("Network error")).toBeTruthy();
     expect(screen.getByText("Erneut versuchen")).toBeTruthy();
   });
 
-  it("shows gh CLI hint when error contains 'not found'", async () => {
-    mockInvoke.mockRejectedValueOnce(new Error("gh not found"));
+  it("shows scope hint when error mentions 'project'", async () => {
+    setupStore();
+    mockInvoke
+      .mockResolvedValueOnce(MOCK_PROJECTS)
+      .mockRejectedValueOnce(new Error("Missing project scope"));
 
-    render(<KanbanBoard folder="/test/notfound" />);
+    render(<KanbanBoard folder="/test/scope" />);
 
     await waitFor(() => {
       expect(
-        screen.getByText(/gh CLI nicht gefunden/),
+        screen.getByText(/gh auth refresh -s project/)
       ).toBeTruthy();
     });
   });
 
-  it("shows 'Keine Issues' for empty columns", async () => {
-    // Return a single issue so board renders but most columns are empty
-    mockInvoke.mockResolvedValueOnce([
-      {
-        number: 1,
-        title: "Only issue",
-        state: "OPEN",
-        labels: [{ name: "todo", color: "0075ca" }],
-        assignee: "",
-        url: "",
-      },
-    ]);
+  it("shows project title in board header", async () => {
+    setupStore();
+    mockInvoke
+      .mockResolvedValueOnce(MOCK_PROJECTS)
+      .mockResolvedValueOnce(makeBoard());
 
-    render(<KanbanBoard folder="/test/empty-cols" />);
+    render(<KanbanBoard folder="/test/header" />);
 
     await waitFor(() => {
-      expect(screen.getByText("Kanban (1 Issues)")).toBeTruthy();
+      expect(screen.getByText("Agentic Dashboard")).toBeTruthy();
     });
-
-    // Three columns should show "Keine Issues" (backlog, in-progress, done)
-    const emptyMessages = screen.getAllByText("Keine Issues");
-    expect(emptyMessages.length).toBe(3);
   });
 
-  it("renders with zero issues (all columns empty)", async () => {
-    mockInvoke.mockResolvedValueOnce([]);
+  it("columns have no HTML5 DnD attributes", async () => {
+    setupStore();
+    mockInvoke
+      .mockResolvedValueOnce(MOCK_PROJECTS)
+      .mockResolvedValueOnce(makeBoard());
 
-    render(<KanbanBoard folder="/test/zero" />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Kanban (0 Issues)")).toBeTruthy();
-    });
-
-    const emptyMessages = screen.getAllByText("Keine Issues");
-    expect(emptyMessages.length).toBe(4);
-  });
-
-  it("each column has data-lane-id attribute for PointerEvent DnD", async () => {
-    mockInvoke.mockResolvedValueOnce(makeIssues());
-
-    const { container } = render(<KanbanBoard folder="/test/lane-ids" />);
+    const { container } = render(<KanbanBoard folder="/test/nodnd" />);
 
     await waitFor(() => {
-      expect(screen.getByText("Kanban (6 Issues)")).toBeTruthy();
-    });
-
-    const laneIds = Array.from(
-      container.querySelectorAll("[data-lane-id]"),
-    ).map((el) => el.getAttribute("data-lane-id"));
-
-    expect(laneIds).toEqual(["backlog", "todo", "in-progress", "done"]);
-  });
-
-  it("column has no HTML5 DnD handlers (onDragOver/onDrop removed)", async () => {
-    mockInvoke.mockResolvedValueOnce(makeIssues());
-
-    const { container } = render(<KanbanBoard folder="/test/no-dnd" />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Kanban (6 Issues)")).toBeTruthy();
+      expect(screen.getByText("Backlog")).toBeTruthy();
     });
 
     const columns = container.querySelectorAll("[data-lane-id]");
-    // No dragover attribute means HTML5 DnD is not set
     columns.forEach((col) => {
       expect(col.getAttribute("draggable")).toBeNull();
     });

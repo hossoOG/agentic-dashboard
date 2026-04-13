@@ -207,11 +207,13 @@ pub fn run() {
             github::commands::commands::get_git_info,
             github::commands::commands::get_github_prs,
             github::commands::commands::get_github_issues,
-            github::commands::commands::get_kanban_issues,
             github::commands::commands::get_issue_detail,
             github::commands::commands::get_issue_checks,
             github::commands::commands::post_issue_comment,
-            github::commands::commands::move_issue_lane,
+            // Projects v2 Kanban
+            github::project::commands::list_user_projects,
+            github::project::commands::get_project_board,
+            github::project::commands::move_project_item,
             // Library
             library::commands::commands::list_library_items,
             library::commands::commands::read_library_item,
