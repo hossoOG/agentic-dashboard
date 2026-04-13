@@ -119,7 +119,7 @@ export function SideNav({ badges = {} }: SideNavProps) {
         <div className="flex flex-col items-center px-3 pb-2 mb-1 border-b border-neutral-700">
           <button
             onClick={() => { checkForUpdate(); setShowChangelog(true); }}
-            className="flex items-center gap-1.5 text-xs text-neutral-400 border border-neutral-700 px-2.5 py-1 rounded-none hover:text-accent hover:border-accent transition-colors cursor-pointer font-bold"
+            className="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-accent transition-colors cursor-pointer font-bold"
             title={statusTitle}
           >
             v{version}
