@@ -17,6 +17,7 @@ vi.mock("../../utils/errorLogger", () => ({
 
 function makeIssue(overrides: Partial<KanbanIssue> = {}): KanbanIssue {
   return {
+    itemId: "PVTI_test42",
     number: 42,
     title: "Implement feature X",
     state: "OPEN",
