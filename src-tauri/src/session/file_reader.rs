@@ -547,14 +547,28 @@ pub mod commands {
             };
 
             let entry_path = entry.path();
-            if !entry_path.is_dir() {
-                continue;
-            }
-
             let dir_name = match entry.file_name().to_str() {
                 Some(name) => name.to_string(),
                 None => continue,
             };
+
+            if entry_path.is_file() {
+                // Simple .md skill file — read content directly
+                if !dir_name.ends_with(".md") {
+                    continue;
+                }
+                let content = std::fs::read_to_string(&entry_path).unwrap_or_default();
+                skills.push(SkillDirEntry {
+                    dir_name,
+                    content,
+                    has_reference_dir: false,
+                });
+                continue;
+            }
+
+            if !entry_path.is_dir() {
+                continue;
+            }
 
             // Look for SKILL.md in the subdirectory
             let skill_md = entry_path.join("SKILL.md");

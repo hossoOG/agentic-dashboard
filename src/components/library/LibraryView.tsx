@@ -128,8 +128,19 @@ function Section({
 
 // ── Skill Card ───────────────────────────────────────────────────────
 
+function skillBodyPreview(body: string): string {
+  return body
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/[*_`]/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .trim()
+    .slice(0, 80);
+}
+
 function SkillCard({ skill }: { skill: DiscoveredSkill }) {
   const openDetail = useConfigDiscoveryStore(selectOpenDetail);
+
+  const preview = skill.description || skillBodyPreview(skill.body);
 
   return (
     <div className="rounded border border-neutral-700 bg-surface-raised mb-1.5">
@@ -148,11 +159,9 @@ function SkillCard({ skill }: { skill: DiscoveredSkill }) {
             </span>
           )}
         </div>
-        {skill.description && (
-          <p className="text-[11px] text-neutral-400 mt-0.5 ml-5 line-clamp-2">
-            {skill.description}
-          </p>
-        )}
+        <p className={`text-[11px] mt-0.5 ml-5 line-clamp-2 ${preview ? "text-neutral-400" : "text-neutral-600"}`}>
+          {preview || "Keine Beschreibung"}
+        </p>
         {skill.args.length > 0 && (
           <div className="flex gap-1 mt-1 ml-5 flex-wrap">
             {skill.args.map((a) => (
