@@ -251,7 +251,7 @@ export const useConfigDiscoveryStore = create<ConfigDiscoveryState>((set, get) =
         config.hooks = parseHooksFromSettings(settingsResult.value, "global", "settings.json");
       }
 
-      // Global commands + skills — each subdir is a skill
+      // Global commands + skills — entries can be directories (with SKILL.md) or plain .md files
       const allSkillEntries: SkillDirEntry[] = [];
 
       // Scan ~/.claude/commands/
@@ -259,12 +259,13 @@ export const useConfigDiscoveryStore = create<ConfigDiscoveryState>((set, get) =
         for (const dirName of commandsDirResult.value) {
           let content = "";
           try {
+            // Plain .md file: read directly. Directory: try SKILL.md inside.
             const relativePath = dirName.endsWith(".md")
               ? `commands/${dirName}`
               : `commands/${dirName}/SKILL.md`;
             content = await invoke<string>("read_user_claude_file", { relativePath });
           } catch {
-            // Skill may not have SKILL.md
+            // Skill may not have content
           }
           allSkillEntries.push({ dir_name: dirName, content, has_reference_dir: false });
         }

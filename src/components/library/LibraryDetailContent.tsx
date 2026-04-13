@@ -62,6 +62,8 @@ function SkillInstanceLeft({ skill }: { skill: DiscoveredSkill }) {
       <div className="flex-1 min-h-0">
         {skill.body ? (
           <MarkdownPreview content={skill.body} />
+        ) : skill.description ? (
+          <MarkdownPreview content={skill.description} />
         ) : (
           <div className="flex items-center justify-center h-full text-xs text-neutral-600 p-4">
             Kein Inhalt vorhanden

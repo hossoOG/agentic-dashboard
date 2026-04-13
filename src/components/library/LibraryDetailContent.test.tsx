@@ -67,12 +67,23 @@ describe("LibraryDetailContent", () => {
     expect(screen.getByText(/kommt in M2/)).toBeTruthy();
   });
 
-  it("renders empty body placeholder when skill has no body", () => {
-    const emptySkillDetail: SelectedDetail = {
+  it("renders description as body fallback when body is empty", () => {
+    const emptyBodyDetail: SelectedDetail = {
       category: "skills",
       item: { ...mockSkill, body: "" },
     };
-    render(<LibraryDetailContent detail={emptySkillDetail} />);
+    render(<LibraryDetailContent detail={emptyBodyDetail} />);
+    // description ("Fetches weather data") is used as markdown fallback — rendered via MarkdownPreview
+    expect(screen.getAllByText("Fetches weather data").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Kein Inhalt vorhanden")).toBeNull();
+  });
+
+  it("renders empty body placeholder only when both body and description are empty", () => {
+    const noContentDetail: SelectedDetail = {
+      category: "skills",
+      item: { ...mockSkill, body: "", description: "" },
+    };
+    render(<LibraryDetailContent detail={noContentDetail} />);
     expect(screen.getByText("Kein Inhalt vorhanden")).toBeTruthy();
   });
 });
