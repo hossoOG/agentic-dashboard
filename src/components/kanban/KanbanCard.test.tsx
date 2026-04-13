@@ -118,4 +118,59 @@ describe("KanbanCard", () => {
     // stopPropagation prevents onClick on card
     expect(onClick).not.toHaveBeenCalled();
   });
+
+  it("card has cursor-grab class for drag affordance", () => {
+    const { container } = render(<KanbanCard issue={makeIssue()} />);
+    const card = container.firstElementChild!;
+    expect(card.className).toContain("cursor-grab");
+  });
+
+  it("suppresses onClick when dragging (isDraggingRef guard)", () => {
+    const onClick = vi.fn();
+    const { container } = render(
+      <KanbanCard issue={makeIssue()} onClick={onClick} />,
+    );
+
+    const card = container.firstElementChild!;
+    const dataTransfer = { setData: vi.fn(), effectAllowed: "" };
+
+    // Start drag then immediately click — click should be suppressed
+    fireEvent.dragStart(card, { dataTransfer });
+    fireEvent.click(card);
+
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("calls onDragEnd when drag finishes", () => {
+    const onDragEnd = vi.fn();
+    const { container } = render(
+      <KanbanCard issue={makeIssue()} onDragEnd={onDragEnd} />,
+    );
+
+    const card = container.firstElementChild!;
+    const dataTransfer = { setData: vi.fn(), effectAllowed: "" };
+
+    fireEvent.dragStart(card, { dataTransfer });
+    fireEvent.dragEnd(card);
+
+    expect(onDragEnd).toHaveBeenCalledOnce();
+  });
+
+  it("allows onClick again after drag ends", () => {
+    const onClick = vi.fn();
+    const { container } = render(
+      <KanbanCard issue={makeIssue()} onClick={onClick} />,
+    );
+
+    const card = container.firstElementChild!;
+    const dataTransfer = { setData: vi.fn(), effectAllowed: "" };
+
+    // Drag cycle: start → end
+    fireEvent.dragStart(card, { dataTransfer });
+    fireEvent.dragEnd(card);
+
+    // After drag ends, click should work again
+    fireEvent.click(card);
+    expect(onClick).toHaveBeenCalledOnce();
+  });
 });

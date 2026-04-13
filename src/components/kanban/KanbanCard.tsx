@@ -1,6 +1,8 @@
+import { useState, useRef } from "react";
 import { ExternalLink } from "lucide-react";
 import { open } from "@tauri-apps/plugin-shell";
 import { logWarn } from "../../utils/errorLogger";
+import { labelStyle } from "./kanbanUtils";
 
 export interface KanbanLabel {
   name: string;
@@ -20,15 +22,7 @@ interface KanbanCardProps {
   issue: KanbanIssue;
   onClick?: () => void;
   onDragStart?: () => void;
-}
-
-function labelStyle(color: string): React.CSSProperties {
-  const hex = color.startsWith("#") ? color : `#${color}`;
-  return {
-    backgroundColor: `${hex}20`,
-    color: hex,
-    borderColor: `${hex}40`,
-  };
+  onDragEnd?: () => void;
 }
 
 async function openUrl(url: string) {
@@ -39,16 +33,32 @@ async function openUrl(url: string) {
   }
 }
 
-export function KanbanCard({ issue, onClick, onDragStart }: KanbanCardProps) {
+export function KanbanCard({ issue, onClick, onDragStart, onDragEnd }: KanbanCardProps) {
+  const [isDragging, setIsDragging] = useState(false);
+  // Guard: suppress onClick if the pointer moved (drag rather than click)
+  const isDraggingRef = useRef(false);
+
   return (
     <div
-      className="group bg-surface-base border border-neutral-700 rounded-sm p-3 hover:border-neutral-500 transition-colors cursor-pointer"
+      className={`group bg-surface-base border border-neutral-700 rounded-sm p-3 hover:border-neutral-500 transition-colors cursor-grab active:cursor-grabbing select-none ${
+        isDragging ? "opacity-60" : ""
+      }`}
       draggable
-      onClick={onClick}
+      onClick={() => {
+        if (isDraggingRef.current) return;
+        onClick?.();
+      }}
       onDragStart={(e) => {
         e.dataTransfer.setData("text/plain", String(issue.number));
         e.dataTransfer.effectAllowed = "move";
+        isDraggingRef.current = true;
+        setIsDragging(true);
         onDragStart?.();
+      }}
+      onDragEnd={() => {
+        isDraggingRef.current = false;
+        setIsDragging(false);
+        onDragEnd?.();
       }}
     >
       {/* Header: number + external link */}
@@ -58,7 +68,7 @@ export function KanbanCard({ issue, onClick, onDragStart }: KanbanCardProps) {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              openUrl(issue.url);
+              void openUrl(issue.url);
             }}
             className="p-0.5 text-neutral-600 hover:text-neutral-300 opacity-0 group-hover:opacity-100 transition-opacity"
             title="Im Browser öffnen"

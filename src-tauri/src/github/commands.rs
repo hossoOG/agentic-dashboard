@@ -65,9 +65,11 @@ pub struct IssueDetail {
     pub state: String,
     pub author: String,
     pub created_at: String,
+    pub updated_at: String,
     pub closed_at: String,
     pub labels: Vec<KanbanLabel>,
-    pub assignee: String,
+    pub assignees: Vec<String>,
+    pub milestone: Option<String>,
     pub url: String,
     pub comments: Vec<IssueComment>,
 }
@@ -136,7 +138,19 @@ fn parse_labels(value: &serde_json::Value) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// Extract the first assignee login from a GitHub JSON value containing an "assignees" array.
+/// Extract all assignee logins from a GitHub JSON value containing an "assignees" array.
+fn parse_assignees(value: &serde_json::Value) -> Vec<String> {
+    value["assignees"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|a| a["login"].as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Extract the first assignee login (for KanbanIssue / GithubIssue which show only one).
 fn parse_assignee(value: &serde_json::Value) -> String {
     value["assignees"]
         .as_array()
@@ -144,6 +158,14 @@ fn parse_assignee(value: &serde_json::Value) -> String {
         .and_then(|a| a["login"].as_str())
         .unwrap_or("")
         .to_string()
+}
+
+/// Extract the milestone title from a GitHub JSON value, if present.
+fn parse_milestone(value: &serde_json::Value) -> Option<String> {
+    value["milestone"]["title"]
+        .as_str()
+        .filter(|s| !s.is_empty())
+        .map(String::from)
 }
 
 // Commands im mod-Block wegen rustc 1.94 E0255 Workaround (siehe CLAUDE.md)
@@ -364,7 +386,7 @@ pub mod commands {
                 "view",
                 &number.to_string(),
                 "--json",
-                "number,title,body,state,author,createdAt,closedAt,labels,assignees,url,comments",
+                "number,title,body,state,author,createdAt,updatedAt,closedAt,labels,assignees,milestone,url,comments",
             ],
         )?;
 
@@ -387,13 +409,6 @@ pub mod commands {
             })
             .unwrap_or_default();
 
-        let assignee = val["assignees"]
-            .as_array()
-            .and_then(|arr| arr.first())
-            .and_then(|a| a["login"].as_str())
-            .unwrap_or("")
-            .to_string();
-
         let comments = val["comments"]
             .as_array()
             .map(|arr| {
@@ -414,9 +429,11 @@ pub mod commands {
             state: val["state"].as_str().unwrap_or("OPEN").to_string(),
             author: val["author"]["login"].as_str().unwrap_or("").to_string(),
             created_at: val["createdAt"].as_str().unwrap_or("").to_string(),
+            updated_at: val["updatedAt"].as_str().unwrap_or("").to_string(),
             closed_at: val["closedAt"].as_str().unwrap_or("").to_string(),
             labels,
-            assignee,
+            assignees: parse_assignees(&val),
+            milestone: parse_milestone(&val),
             url: val["url"].as_str().unwrap_or("").to_string(),
             comments,
         })
@@ -501,6 +518,34 @@ pub mod commands {
             .collect();
 
         Ok(prs)
+    }
+
+    /// Post a new comment on a GitHub issue via gh CLI.
+    ///
+    /// Security: body is passed as a CLI argument (not shell-interpolated), so injection is not
+    /// possible. Input is validated for emptiness before invoking gh.
+    #[tauri::command]
+    pub async fn post_issue_comment(
+        folder: String,
+        number: u64,
+        body: String,
+    ) -> Result<(), ADPError> {
+        if !is_command_available("gh") {
+            return Err(ADPError::new(
+                ADPErrorCode::ServiceRequestFailed,
+                "gh CLI not found",
+            ));
+        }
+        if body.trim().is_empty() {
+            return Err(ADPError::validation("Comment body cannot be empty"));
+        }
+        let num_str = number.to_string();
+        run_command(
+            &folder,
+            "gh",
+            &["issue", "comment", &num_str, "--body", &body],
+        )?;
+        Ok(())
     }
 
     #[tauri::command]
