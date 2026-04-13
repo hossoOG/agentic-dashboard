@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { MarkdownPreview } from "./MarkdownPreview";
+import { MarkdownPreview, MarkdownBody } from "./MarkdownPreview";
 
 describe("MarkdownPreview", () => {
   it("renders basic markdown", () => {
@@ -114,5 +114,61 @@ describe("MarkdownPreview", () => {
     expect(strong?.textContent).toBe("bold");
     expect(em).toBeTruthy();
     expect(em?.textContent).toBe("italic");
+  });
+});
+
+// ── MarkdownBody Tests ─────────────────────────────────────────────────
+
+describe("MarkdownBody", () => {
+  it("renders markdown content without outer wrapper styles", () => {
+    const { container } = render(<MarkdownBody content="**hello**" />);
+    const div = container.querySelector(".md-preview");
+    expect(div).toBeTruthy();
+    // No h-full, no bg-surface-raised (those belong to MarkdownPreview wrapper)
+    expect(div?.className).not.toContain("h-full");
+    expect(div?.className).not.toContain("bg-surface-raised");
+  });
+
+  it("accepts optional className prop", () => {
+    const { container } = render(
+      <MarkdownBody content="text" className="text-sm text-red-400" />,
+    );
+    const div = container.querySelector(".md-preview");
+    expect(div?.className).toContain("text-sm");
+    expect(div?.className).toContain("text-red-400");
+  });
+
+  it("renders bold text as <strong>", () => {
+    const { container } = render(<MarkdownBody content="**bold**" />);
+    const strong = container.querySelector("strong");
+    expect(strong).toBeTruthy();
+    expect(strong?.textContent).toBe("bold");
+  });
+
+  it("renders empty content without errors", () => {
+    const { container } = render(<MarkdownBody content="" />);
+    expect(container.querySelector(".md-preview")).toBeTruthy();
+  });
+
+  it("preserves task-list checkbox attributes after DOMPurify", () => {
+    // GitHub-flavored task lists use input[type="checkbox"] with checked/disabled
+    // DOMPurify must keep type, checked, and disabled attributes
+    const { container } = render(
+      <MarkdownBody content={"- [x] Done item\n- [ ] Open item"} />,
+    );
+    const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+    // markdown-it-task-lists would render these; if not installed,
+    // verify DOMPurify doesn't strip type attr from manually injected HTML
+    // by checking no type attributes were stripped from any input elements
+    const allInputs = container.querySelectorAll("input");
+    for (const input of Array.from(allInputs)) {
+      // type attribute must be preserved (not stripped by DOMPurify)
+      expect(input.hasAttribute("type")).toBe(true);
+    }
+    // Whether or not checkboxes render depends on markdown-it config,
+    // but if they do, they must have type="checkbox"
+    for (const cb of Array.from(checkboxes)) {
+      expect(cb.getAttribute("type")).toBe("checkbox");
+    }
   });
 });

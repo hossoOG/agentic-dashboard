@@ -1,46 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-shell";
 import { getErrorMessage } from "../../utils/adpError";
-import {
-  ExternalLink,
-  MessageSquare,
-  User,
-  Calendar,
-  Tag,
-  RefreshCw,
-  GitPullRequest,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  Loader2,
-} from "lucide-react";
+import { ExternalLink, RefreshCw, AlertCircle } from "lucide-react";
 import { Modal, IconButton } from "../ui";
 import type { KanbanLabel } from "./KanbanCard";
+import { IssueBody } from "./IssueBody";
+import { IssueComments, type IssueComment } from "./IssueComments";
+import { IssueCommentForm } from "./IssueCommentForm";
+import { IssueLinkedPRs, type LinkedPR } from "./IssueLinkedPRs";
+import { IssueSidebar } from "./IssueSidebar";
 
 // ============================================================================
 // Types (matches Rust IssueDetail)
 // ============================================================================
-
-interface IssueComment {
-  author: string;
-  body: string;
-  created_at: string;
-}
-
-interface CheckRun {
-  name: string;
-  status: string;
-  conclusion: string;
-}
-
-interface LinkedPR {
-  number: number;
-  title: string;
-  state: string;
-  url: string;
-  checks: CheckRun[];
-}
 
 interface IssueDetail {
   number: number;
@@ -49,9 +22,11 @@ interface IssueDetail {
   state: string;
   author: string;
   created_at: string;
+  updated_at: string;
   closed_at: string;
   labels: KanbanLabel[];
-  assignee: string;
+  assignees: string[];
+  milestone: string | null;
   url: string;
   comments: IssueComment[];
 }
@@ -65,6 +40,7 @@ interface KanbanDetailModalProps {
   folder: string;
   issueNumber: number;
   onClose: () => void;
+  onIssueChanged?: () => void;
 }
 
 // ============================================================================
@@ -82,15 +58,6 @@ function formatDate(iso: string): string {
   });
 }
 
-function labelStyle(color: string): React.CSSProperties {
-  const hex = color.startsWith("#") ? color : `#${color}`;
-  return {
-    backgroundColor: `${hex}20`,
-    color: hex,
-    borderColor: `${hex}40`,
-  };
-}
-
 // ============================================================================
 // Component
 // ============================================================================
@@ -100,52 +67,84 @@ export function KanbanDetailModal({
   folder,
   issueNumber,
   onClose,
+  onIssueChanged,
 }: KanbanDetailModalProps) {
   const [detail, setDetail] = useState<IssueDetail | null>(null);
   const [linkedPRs, setLinkedPRs] = useState<LinkedPR[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const mountedRef = useRef(true);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      setError("");
-      try {
-        const [issueResult, checksResult] = await Promise.all([
-          invoke<IssueDetail>("get_issue_detail", { folder, number: issueNumber }),
-          invoke<LinkedPR[]>("get_issue_checks", { folder, number: issueNumber }).catch(() => [] as LinkedPR[]),
-        ]);
-        if (!cancelled) {
-          setDetail(issueResult);
-          setLinkedPRs(checksResult);
-        }
-      } catch (err) {
-        if (!cancelled) setError(getErrorMessage(err));
-      } finally {
-        if (!cancelled) setLoading(false);
+  const loadDetail = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [issueResult, checksResult] = await Promise.all([
+        invoke<IssueDetail>("get_issue_detail", { folder, number: issueNumber }),
+        invoke<LinkedPR[]>("get_issue_checks", { folder, number: issueNumber }).catch(
+          () => [] as LinkedPR[]
+        ),
+      ]);
+      if (mountedRef.current) {
+        setDetail(issueResult);
+        setLinkedPRs(checksResult);
       }
+    } catch (err) {
+      if (mountedRef.current) setError(getErrorMessage(err));
+    } finally {
+      if (mountedRef.current) setLoading(false);
     }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
   }, [folder, issueNumber]);
 
+  useEffect(() => {
+    mountedRef.current = true;
+    void loadDetail();
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [loadDetail]);
+
+  function handleCommentPosted() {
+    void loadDetail();
+    onIssueChanged?.();
+  }
+
   const headerTitle = (
-    <div className="flex items-center gap-2">
-      <span className="text-sm font-medium text-neutral-200">
+    <div className="flex items-center gap-2 min-w-0 flex-1">
+      <span className="text-sm font-mono text-neutral-500 shrink-0">
         #{issueNumber}
       </span>
-      {detail?.url && (
-        <IconButton
-          icon={<ExternalLink className="w-4 h-4" />}
-          label="Im Browser öffnen"
-          onClick={() => open(detail.url)}
-        />
+      {detail?.title && (
+        <h2 className="text-sm font-semibold text-neutral-100 truncate">
+          {detail.title}
+        </h2>
       )}
+      {detail?.state && (
+        <span
+          className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-sm font-medium ${
+            detail.state === "CLOSED"
+              ? "bg-purple-500/20 text-purple-300"
+              : "bg-green-500/20 text-green-300"
+          }`}
+        >
+          {detail.state === "CLOSED" ? "Geschlossen" : "Offen"}
+        </span>
+      )}
+      <div className="ml-auto flex items-center gap-1 shrink-0">
+        <IconButton
+          icon={<RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />}
+          label="Neu laden"
+          onClick={() => void loadDetail()}
+          disabled={loading}
+        />
+        {detail?.url && (
+          <IconButton
+            icon={<ExternalLink className="w-4 h-4" />}
+            label="Im Browser öffnen"
+            onClick={() => open(detail.url)}
+          />
+        )}
+      </div>
     </div>
   );
 
@@ -154,197 +153,54 @@ export function KanbanDetailModal({
       open={isOpen}
       onClose={onClose}
       title={headerTitle}
-      className="w-[640px] max-w-[90vw] rounded-md shadow-2xl"
+      className="w-[960px] max-w-[95vw] max-h-[85vh] rounded-md shadow-2xl"
     >
-      <div className="flex-1 overflow-y-auto min-h-0">
-          {loading ? (
-            <div className="flex items-center justify-center py-12 text-neutral-500 text-sm">
-              <RefreshCw className="w-4 h-4 animate-spin mr-2" />
-              Laden...
-            </div>
-          ) : error ? (
-            <div className="flex items-center justify-center py-12 text-red-400 text-sm">
-              {error}
-            </div>
-          ) : detail ? (
-            <div className="p-4 space-y-4">
-              {/* Title */}
-              <h2 className="text-base font-semibold text-neutral-100 leading-snug">
-                {detail.title}
-              </h2>
+      {loading ? (
+        <div className="flex items-center justify-center py-12 text-neutral-500 text-sm">
+          <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+          Laden…
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center py-12 gap-3">
+          <AlertCircle className="w-8 h-8 text-neutral-600" />
+          <span className="text-red-400 text-sm">{error}</span>
+          <button
+            onClick={() => void loadDetail()}
+            className="px-3 py-1.5 text-xs text-neutral-300 bg-surface-raised border border-neutral-700 rounded-sm hover:bg-hover-overlay transition-colors"
+          >
+            Erneut versuchen
+          </button>
+        </div>
+      ) : detail ? (
+        <div className="flex flex-1 overflow-hidden min-h-0">
+          {/* Main content column */}
+          <main className="flex-1 overflow-y-auto p-4 min-w-0 space-y-4">
+            <IssueBody body={detail.body} />
+            <IssueLinkedPRs linkedPRs={linkedPRs} />
+            <IssueComments comments={detail.comments} formatDate={formatDate} />
+            <IssueCommentForm
+              folder={folder}
+              issueNumber={issueNumber}
+              onCommentPosted={handleCommentPosted}
+            />
+          </main>
 
-              {/* Meta row */}
-              <div className="flex items-center gap-4 text-xs text-neutral-500 flex-wrap">
-                <span
-                  className={`px-2 py-0.5 rounded-sm text-[11px] font-medium ${
-                    detail.state === "CLOSED"
-                      ? "bg-purple-500/20 text-purple-300"
-                      : "bg-green-500/20 text-green-300"
-                  }`}
-                >
-                  {detail.state === "CLOSED" ? "Geschlossen" : "Offen"}
-                </span>
-                {detail.author && (
-                  <span className="flex items-center gap-1">
-                    <User className="w-3 h-3" />
-                    {detail.author}
-                  </span>
-                )}
-                {detail.created_at && (
-                  <span className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    {formatDate(detail.created_at)}
-                  </span>
-                )}
-                {detail.assignee && (
-                  <span className="text-neutral-400">
-                    Zugewiesen: {detail.assignee}
-                  </span>
-                )}
-              </div>
-
-              {/* Labels */}
-              {detail.labels.length > 0 && (
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <Tag className="w-3 h-3 text-neutral-500 shrink-0" />
-                  {detail.labels.map((label) => (
-                    <span
-                      key={label.name}
-                      className="text-[10px] px-1.5 py-0.5 rounded-sm border font-medium"
-                      style={labelStyle(label.color)}
-                    >
-                      {label.name}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {/* Linked PRs & CI Checks */}
-              {linkedPRs.length > 0 && (
-                <div className="border-t border-neutral-700/50 pt-3 space-y-2">
-                  <div className="flex items-center gap-1.5 text-xs text-neutral-400 font-medium">
-                    <GitPullRequest className="w-3.5 h-3.5" />
-                    Verknuepfte Pull Requests
-                  </div>
-                  {linkedPRs.map((pr) => (
-                    <div
-                      key={pr.number}
-                      className="bg-surface-raised border border-neutral-700/50 rounded-sm p-3"
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <button
-                          onClick={() => open(pr.url)}
-                          className="text-xs font-medium text-neutral-200 hover:text-accent transition-colors text-left"
-                        >
-                          #{pr.number} {pr.title}
-                        </button>
-                        <span
-                          className={`text-[10px] px-1.5 py-0.5 rounded-sm font-medium ${
-                            pr.state === "MERGED"
-                              ? "bg-purple-500/20 text-purple-300"
-                              : pr.state === "CLOSED"
-                                ? "bg-red-500/20 text-red-300"
-                                : "bg-green-500/20 text-green-300"
-                          }`}
-                        >
-                          {pr.state === "MERGED" ? "Merged" : pr.state === "CLOSED" ? "Closed" : "Open"}
-                        </span>
-                      </div>
-                      {pr.checks.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                          {pr.checks.map((check, i) => {
-                            const isSuccess =
-                              check.conclusion === "SUCCESS" || check.conclusion === "success";
-                            const isFailed =
-                              check.conclusion === "FAILURE" ||
-                              check.conclusion === "failure" ||
-                              check.conclusion === "ERROR" ||
-                              check.conclusion === "error";
-                            const isPending =
-                              check.status === "IN_PROGRESS" ||
-                              check.status === "QUEUED" ||
-                              check.status === "PENDING" ||
-                              check.status === "pending";
-                            return (
-                              <span
-                                key={i}
-                                className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-sm border font-medium ${
-                                  isSuccess
-                                    ? "bg-green-500/10 text-green-400 border-green-500/20"
-                                    : isFailed
-                                      ? "bg-red-500/10 text-red-400 border-red-500/20"
-                                      : isPending
-                                        ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
-                                        : "bg-neutral-500/10 text-neutral-400 border-neutral-700/50"
-                                }`}
-                              >
-                                {isSuccess ? (
-                                  <CheckCircle2 className="w-2.5 h-2.5" />
-                                ) : isFailed ? (
-                                  <XCircle className="w-2.5 h-2.5" />
-                                ) : isPending ? (
-                                  <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                                ) : (
-                                  <Clock className="w-2.5 h-2.5" />
-                                )}
-                                {check.name}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Body */}
-              {detail.body && (
-                <div className="border-t border-neutral-700/50 pt-3">
-                  <pre className="text-xs text-neutral-300 whitespace-pre-wrap font-sans leading-relaxed">
-                    {detail.body}
-                  </pre>
-                </div>
-              )}
-
-              {/* Comments */}
-              {detail.comments.length > 0 && (
-                <div className="border-t border-neutral-700/50 pt-3 space-y-3">
-                  <div className="flex items-center gap-1.5 text-xs text-neutral-400 font-medium">
-                    <MessageSquare className="w-3.5 h-3.5" />
-                    {detail.comments.length}{" "}
-                    {detail.comments.length === 1 ? "Kommentar" : "Kommentare"}
-                  </div>
-                  {detail.comments.map((comment, i) => (
-                    <div
-                      key={i}
-                      className="bg-surface-raised border border-neutral-700/50 rounded-sm p-3"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-medium text-neutral-300">
-                          {comment.author}
-                        </span>
-                        <span className="text-[10px] text-neutral-600">
-                          {formatDate(comment.created_at)}
-                        </span>
-                      </div>
-                      <pre className="text-xs text-neutral-400 whitespace-pre-wrap font-sans leading-relaxed">
-                        {comment.body}
-                      </pre>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Closed at */}
-              {detail.closed_at && (
-                <div className="text-[11px] text-neutral-600 pt-2 border-t border-neutral-700/50">
-                  Geschlossen am {formatDate(detail.closed_at)}
-                </div>
-              )}
-            </div>
-          ) : null}
-      </div>
+          {/* Sidebar */}
+          <aside className="w-[220px] shrink-0 border-l border-neutral-700 overflow-y-auto p-4 bg-surface-base">
+            <IssueSidebar
+              state={detail.state}
+              author={detail.author}
+              createdAt={detail.created_at}
+              updatedAt={detail.updated_at}
+              closedAt={detail.closed_at}
+              assignees={detail.assignees}
+              labels={detail.labels}
+              milestone={detail.milestone}
+              formatDate={formatDate}
+            />
+          </aside>
+        </div>
+      ) : null}
     </Modal>
   );
 }

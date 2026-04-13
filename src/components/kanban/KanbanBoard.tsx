@@ -217,7 +217,11 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
                 e.dataTransfer.dropEffect = "move";
                 setDragOverColumn(col.id);
               }}
-              onDragLeave={() => setDragOverColumn(null)}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                  setDragOverColumn(null);
+                }
+              }}
               onDrop={(e) => handleDrop(col.id, e)}
             >
               {/* Column header */}
@@ -250,6 +254,10 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
                         onDragStart={() => {
                           draggedIssueNumberRef.current = issue.number;
                         }}
+                        onDragEnd={() => {
+                          draggedIssueNumberRef.current = null;
+                          setDragOverColumn(null);
+                        }}
                       />
                     </div>
                   ))
@@ -267,6 +275,10 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
           folder={folder}
           issueNumber={selectedIssue}
           onClose={() => setSelectedIssue(null)}
+          onIssueChanged={() => {
+            cache.delete(folder);
+            void load(true);
+          }}
         />
       )}
     </div>

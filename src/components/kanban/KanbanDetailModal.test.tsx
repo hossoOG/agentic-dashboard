@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { KanbanDetailModal } from "./KanbanDetailModal";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -45,12 +45,14 @@ function makeIssueDetail() {
     state: "OPEN",
     author: "alice",
     created_at: "2026-03-15T10:00:00Z",
+    updated_at: "2026-03-16T09:00:00Z",
     closed_at: "",
     labels: [
       { name: "bug", color: "d73a4a" },
       { name: "priority", color: "ff0000" },
     ],
-    assignee: "bob",
+    assignees: ["bob"],
+    milestone: null as string | null,
     url: "https://github.com/org/repo/issues/42",
     comments: [
       {
@@ -97,7 +99,7 @@ describe("KanbanDetailModal", () => {
       />,
     );
 
-    expect(screen.getByText("Laden...")).toBeTruthy();
+    expect(screen.getByText(/Laden/)).toBeTruthy();
     expect(screen.getByText("#42")).toBeTruthy();
   });
 
@@ -123,14 +125,14 @@ describe("KanbanDetailModal", () => {
 
     // State badge
     expect(screen.getByText("Offen")).toBeTruthy();
-    // Author
+    // Author in sidebar
     expect(screen.getByText("alice")).toBeTruthy();
-    // Assignee
-    expect(screen.getByText(/Zugewiesen: bob/)).toBeTruthy();
+    // Assignee in sidebar (rendered as plain username)
+    expect(screen.getByText("bob")).toBeTruthy();
     // Labels
     expect(screen.getByText("bug")).toBeTruthy();
     expect(screen.getByText("priority")).toBeTruthy();
-    // Body
+    // Body (rendered via MarkdownBody → DOM text is findable)
     expect(
       screen.getByText("The login form does not validate email."),
     ).toBeTruthy();
@@ -140,7 +142,7 @@ describe("KanbanDetailModal", () => {
     expect(screen.getByText("I can reproduce this.")).toBeTruthy();
   });
 
-  it("renders closed state badge and closed_at date", async () => {
+  it("renders closed state badge and closed_at date in sidebar", async () => {
     const detail = makeIssueDetail();
     detail.state = "CLOSED";
     detail.closed_at = "2026-03-20T14:00:00Z";
@@ -164,7 +166,8 @@ describe("KanbanDetailModal", () => {
       expect(screen.getByText("Geschlossen")).toBeTruthy();
     });
 
-    expect(screen.getByText(/Geschlossen am/)).toBeTruthy();
+    // Sidebar shows "Geschlossen: {date}"
+    expect(screen.getByText(/Geschlossen:/)).toBeTruthy();
   });
 
   it("renders linked PRs with CI checks", async () => {
@@ -185,7 +188,7 @@ describe("KanbanDetailModal", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("Verknuepfte Pull Requests"),
+        screen.getByText("Verknüpfte Pull Requests"),
       ).toBeTruthy();
     });
 
@@ -199,7 +202,7 @@ describe("KanbanDetailModal", () => {
     expect(screen.getByText("Build")).toBeTruthy();
   });
 
-  it("shows error state on fetch failure", async () => {
+  it("shows error state with retry button on fetch failure", async () => {
     mockInvoke.mockRejectedValue(new Error("API error"));
 
     render(
@@ -213,6 +216,39 @@ describe("KanbanDetailModal", () => {
 
     await waitFor(() => {
       expect(screen.getByText("API error")).toBeTruthy();
+    });
+
+    // Retry button should be present
+    expect(screen.getByText("Erneut versuchen")).toBeTruthy();
+  });
+
+  it("retry button triggers a fresh load", async () => {
+    mockInvoke.mockRejectedValueOnce(new Error("API error"));
+
+    render(
+      <KanbanDetailModal
+        open
+        folder="/test"
+        issueNumber={42}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Erneut versuchen")).toBeTruthy();
+    });
+
+    // On retry, second call succeeds
+    mockInvoke.mockImplementation(((cmd: string) => {
+      if (cmd === "get_issue_detail") return Promise.resolve(makeIssueDetail());
+      if (cmd === "get_issue_checks") return Promise.resolve([]);
+      return Promise.resolve(null);
+    }) as typeof invoke);
+
+    fireEvent.click(screen.getByText("Erneut versuchen"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Fix login bug")).toBeTruthy();
     });
   });
 
@@ -280,6 +316,221 @@ describe("KanbanDetailModal", () => {
       expect(screen.getByText("Fix login bug")).toBeTruthy();
     });
 
-    expect(screen.queryByText(/Kommentar/)).toBeNull();
+    // IssueComments is hidden when empty; but IssueCommentForm still renders.
+    // Verify the comment count badge from IssueComments is absent.
+    expect(screen.queryByText(/\d+ Kommentar/)).toBeNull();
+  });
+
+  it("renders all assignees when multiple are present", async () => {
+    const detail = makeIssueDetail();
+    detail.assignees = ["bob", "carol", "dave"];
+
+    mockInvoke.mockImplementation(((cmd: string) => {
+      if (cmd === "get_issue_detail") return Promise.resolve(detail);
+      if (cmd === "get_issue_checks") return Promise.resolve([]);
+      return Promise.resolve(null);
+    }) as typeof invoke);
+
+    render(
+      <KanbanDetailModal
+        open
+        folder="/test"
+        issueNumber={42}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("bob")).toBeTruthy();
+    });
+
+    expect(screen.getByText("carol")).toBeTruthy();
+    expect(screen.getByText("dave")).toBeTruthy();
+  });
+
+  it("shows 'Niemand zugewiesen' when assignees is empty", async () => {
+    const detail = makeIssueDetail();
+    detail.assignees = [];
+
+    mockInvoke.mockImplementation(((cmd: string) => {
+      if (cmd === "get_issue_detail") return Promise.resolve(detail);
+      if (cmd === "get_issue_checks") return Promise.resolve([]);
+      return Promise.resolve(null);
+    }) as typeof invoke);
+
+    render(
+      <KanbanDetailModal
+        open
+        folder="/test"
+        issueNumber={42}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Niemand zugewiesen")).toBeTruthy();
+    });
+  });
+
+  it("renders milestone when present", async () => {
+    const detail = makeIssueDetail();
+    detail.milestone = "v2.0";
+
+    mockInvoke.mockImplementation(((cmd: string) => {
+      if (cmd === "get_issue_detail") return Promise.resolve(detail);
+      if (cmd === "get_issue_checks") return Promise.resolve([]);
+      return Promise.resolve(null);
+    }) as typeof invoke);
+
+    render(
+      <KanbanDetailModal
+        open
+        folder="/test"
+        issueNumber={42}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("v2.0")).toBeTruthy();
+    });
+  });
+
+  it("hides milestone section when milestone is null", async () => {
+    const detail = makeIssueDetail();
+    detail.milestone = null;
+
+    mockInvoke.mockImplementation(((cmd: string) => {
+      if (cmd === "get_issue_detail") return Promise.resolve(detail);
+      if (cmd === "get_issue_checks") return Promise.resolve([]);
+      return Promise.resolve(null);
+    }) as typeof invoke);
+
+    render(
+      <KanbanDetailModal
+        open
+        folder="/test"
+        issueNumber={42}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Fix login bug")).toBeTruthy();
+    });
+
+    expect(screen.queryByText("Milestone")).toBeNull();
+  });
+
+  it("renders body markdown (bold text)", async () => {
+    const detail = makeIssueDetail();
+    detail.body = "This is **important** info.";
+
+    mockInvoke.mockImplementation(((cmd: string) => {
+      if (cmd === "get_issue_detail") return Promise.resolve(detail);
+      if (cmd === "get_issue_checks") return Promise.resolve([]);
+      return Promise.resolve(null);
+    }) as typeof invoke);
+
+    const { container } = render(
+      <KanbanDetailModal
+        open
+        folder="/test"
+        issueNumber={42}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Fix login bug")).toBeTruthy();
+    });
+
+    // MarkdownBody should render **important** as <strong>
+    const strong = container.querySelector("strong");
+    expect(strong).toBeTruthy();
+    expect(strong?.textContent).toBe("important");
+  });
+
+  it("shows empty body placeholder when body is empty", async () => {
+    const detail = makeIssueDetail();
+    detail.body = "";
+
+    mockInvoke.mockImplementation(((cmd: string) => {
+      if (cmd === "get_issue_detail") return Promise.resolve(detail);
+      if (cmd === "get_issue_checks") return Promise.resolve([]);
+      return Promise.resolve(null);
+    }) as typeof invoke);
+
+    render(
+      <KanbanDetailModal
+        open
+        folder="/test"
+        issueNumber={42}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Keine Beschreibung")).toBeTruthy();
+    });
+  });
+
+  it("calls onIssueChanged and reloads after comment is posted", async () => {
+    const onIssueChanged = vi.fn();
+
+    mockInvoke.mockImplementation(((cmd: string) => {
+      if (cmd === "get_issue_detail") return Promise.resolve(makeIssueDetail());
+      if (cmd === "get_issue_checks") return Promise.resolve([]);
+      if (cmd === "post_issue_comment") return Promise.resolve(undefined);
+      return Promise.resolve(null);
+    }) as typeof invoke);
+
+    render(
+      <KanbanDetailModal
+        open
+        folder="/test"
+        issueNumber={42}
+        onClose={vi.fn()}
+        onIssueChanged={onIssueChanged}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Fix login bug")).toBeTruthy();
+    });
+
+    const textarea = screen.getByPlaceholderText(/Kommentar verfassen/);
+    fireEvent.change(textarea, { target: { value: "Hello world" } });
+
+    const submitButton = screen.getByText("Kommentar posten");
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(onIssueChanged).toHaveBeenCalledOnce();
+    });
+  });
+
+  it("disables submit when comment body is empty", async () => {
+    mockInvoke.mockImplementation(((cmd: string) => {
+      if (cmd === "get_issue_detail") return Promise.resolve(makeIssueDetail());
+      if (cmd === "get_issue_checks") return Promise.resolve([]);
+      return Promise.resolve(null);
+    }) as typeof invoke);
+
+    render(
+      <KanbanDetailModal
+        open
+        folder="/test"
+        issueNumber={42}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Kommentar posten")).toBeTruthy();
+    });
+
+    const submitButton = screen.getByText("Kommentar posten");
+    expect(submitButton).toHaveProperty("disabled", true);
   });
 });

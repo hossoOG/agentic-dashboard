@@ -210,6 +210,7 @@ pub fn run() {
             github::commands::commands::get_kanban_issues,
             github::commands::commands::get_issue_detail,
             github::commands::commands::get_issue_checks,
+            github::commands::commands::post_issue_comment,
             github::commands::commands::move_issue_lane,
             // Library
             library::commands::commands::list_library_items,

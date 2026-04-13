@@ -1,0 +1,42 @@
+import { MessageSquare } from "lucide-react";
+import { MarkdownBody } from "../editor/MarkdownPreview";
+
+export interface IssueComment {
+  author: string;
+  body: string;
+  created_at: string;
+}
+
+interface IssueCommentsProps {
+  comments: IssueComment[];
+  formatDate: (iso: string) => string;
+}
+
+export function IssueComments({ comments, formatDate }: IssueCommentsProps) {
+  if (comments.length === 0) return null;
+
+  return (
+    <div className="border-t border-neutral-700/50 pt-3 space-y-3">
+      <div className="flex items-center gap-1.5 text-xs text-neutral-400 font-medium">
+        <MessageSquare className="w-3.5 h-3.5" />
+        {comments.length} {comments.length === 1 ? "Kommentar" : "Kommentare"}
+      </div>
+      {comments.map((comment) => (
+        <div
+          key={`${comment.author}-${comment.created_at}`}
+          className="bg-surface-raised border border-neutral-700/50 rounded-sm p-3"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-neutral-300">
+              {comment.author}
+            </span>
+            <span className="text-[10px] text-neutral-600">
+              {formatDate(comment.created_at)}
+            </span>
+          </div>
+          <MarkdownBody content={comment.body} className="text-xs text-neutral-400" />
+        </div>
+      ))}
+    </div>
+  );
+}
