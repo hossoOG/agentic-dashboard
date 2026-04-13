@@ -16,6 +16,22 @@ if (!globalThis.crypto?.randomUUID) {
   });
 }
 
+// jsdom does not provide PointerEvent — polyfill via MouseEvent so clientX/clientY work
+if (!globalThis.PointerEvent) {
+  class PointerEvent extends MouseEvent {
+    public readonly pointerId: number;
+    public readonly pointerType: string;
+    public readonly isPrimary: boolean;
+    constructor(type: string, params: PointerEventInit = {}) {
+      super(type, params);
+      this.pointerId = params.pointerId ?? 0;
+      this.pointerType = params.pointerType ?? "mouse";
+      this.isPrimary = params.isPrimary ?? true;
+    }
+  }
+  globalThis.PointerEvent = PointerEvent as typeof globalThis.PointerEvent;
+}
+
 // Mock @tauri-apps/api/event — Tauri IPC is not available in test environment
 vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn(() => Promise.resolve(() => {})),

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { ExternalLink } from "lucide-react";
 import { open } from "@tauri-apps/plugin-shell";
 import { logWarn } from "../../utils/errorLogger";
@@ -25,6 +25,8 @@ interface KanbanCardProps {
   onDragEnd?: () => void;
 }
 
+const DRAG_THRESHOLD_PX = 5;
+
 async function openUrl(url: string) {
   try {
     await open(url);
@@ -35,30 +37,48 @@ async function openUrl(url: string) {
 
 export function KanbanCard({ issue, onClick, onDragStart, onDragEnd }: KanbanCardProps) {
   const [isDragging, setIsDragging] = useState(false);
-  // Guard: suppress onClick if the pointer moved (drag rather than click)
   const isDraggingRef = useRef(false);
+  const startPosRef = useRef<{ x: number; y: number } | null>(null);
 
-  return (
-    <div
-      className={`group bg-surface-base border border-neutral-700 rounded-sm p-3 hover:border-neutral-500 transition-colors cursor-grab active:cursor-grabbing select-none ${
-        isDragging ? "opacity-60" : ""
-      }`}
-      draggable
-      onClick={() => {
-        if (isDraggingRef.current) return;
-        onClick?.();
-      }}
-      onDragStart={(e) => {
-        e.dataTransfer.setData("text/plain", String(issue.number));
-        e.dataTransfer.effectAllowed = "move";
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    startPosRef.current = { x: e.clientX, y: e.clientY };
+    isDraggingRef.current = false;
+  }, []);
+
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!startPosRef.current || isDraggingRef.current) return;
+      const dx = Math.abs(e.clientX - startPosRef.current.x);
+      const dy = Math.abs(e.clientY - startPosRef.current.y);
+      if (dx > DRAG_THRESHOLD_PX || dy > DRAG_THRESHOLD_PX) {
         isDraggingRef.current = true;
         setIsDragging(true);
         onDragStart?.();
-      }}
-      onDragEnd={() => {
-        isDraggingRef.current = false;
-        setIsDragging(false);
-        onDragEnd?.();
+      }
+    },
+    [onDragStart],
+  );
+
+  const handlePointerUp = useCallback(() => {
+    const wasDragging = isDraggingRef.current;
+    isDraggingRef.current = false;
+    startPosRef.current = null;
+    setIsDragging(false);
+    if (wasDragging) onDragEnd?.();
+  }, [onDragEnd]);
+
+  return (
+    <div
+      className={`group bg-surface-base border border-neutral-700 rounded-sm p-3 hover:border-neutral-500 transition-colors select-none ${
+        isDragging ? "opacity-50 cursor-grabbing pointer-events-none" : "cursor-grab"
+      }`}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onClick={() => {
+        if (isDraggingRef.current) return;
+        onClick?.();
       }}
     >
       {/* Header: number + external link */}
