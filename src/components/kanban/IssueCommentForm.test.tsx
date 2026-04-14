@@ -27,7 +27,7 @@ describe("IssueCommentForm", () => {
 
   it("renders textarea and disabled submit button when empty", () => {
     render(
-      <IssueCommentForm folder="/test" issueNumber={42} onCommentPosted={vi.fn()} />,
+      <IssueCommentForm folder="/test" repository={null} issueNumber={42} onCommentPosted={vi.fn()} />,
     );
 
     const textarea = screen.getByPlaceholderText(/Kommentar verfassen/);
@@ -39,7 +39,7 @@ describe("IssueCommentForm", () => {
 
   it("enables submit button when body has text", () => {
     render(
-      <IssueCommentForm folder="/test" issueNumber={42} onCommentPosted={vi.fn()} />,
+      <IssueCommentForm folder="/test" repository={null} issueNumber={42} onCommentPosted={vi.fn()} />,
     );
 
     const textarea = screen.getByPlaceholderText(/Kommentar verfassen/);
@@ -51,7 +51,7 @@ describe("IssueCommentForm", () => {
 
   it("keeps submit disabled when body is only whitespace", () => {
     render(
-      <IssueCommentForm folder="/test" issueNumber={42} onCommentPosted={vi.fn()} />,
+      <IssueCommentForm folder="/test" repository={null} issueNumber={42} onCommentPosted={vi.fn()} />,
     );
 
     const textarea = screen.getByPlaceholderText(/Kommentar verfassen/);
@@ -68,6 +68,7 @@ describe("IssueCommentForm", () => {
     render(
       <IssueCommentForm
         folder="/test"
+        repository={null}
         issueNumber={42}
         onCommentPosted={onCommentPosted}
       />,
@@ -83,6 +84,7 @@ describe("IssueCommentForm", () => {
 
     expect(mockInvoke).toHaveBeenCalledWith("post_issue_comment", {
       folder: "/test",
+      repo: null,
       number: 42,
       body: "Great fix!",
     });
@@ -92,7 +94,7 @@ describe("IssueCommentForm", () => {
     mockInvoke.mockResolvedValueOnce(undefined);
 
     render(
-      <IssueCommentForm folder="/test" issueNumber={42} onCommentPosted={vi.fn()} />,
+      <IssueCommentForm folder="/test" repository={null} issueNumber={42} onCommentPosted={vi.fn()} />,
     );
 
     const textarea = screen.getByPlaceholderText(/Kommentar verfassen/);
@@ -108,7 +110,7 @@ describe("IssueCommentForm", () => {
     mockInvoke.mockRejectedValueOnce(new Error("Network timeout"));
 
     render(
-      <IssueCommentForm folder="/test" issueNumber={42} onCommentPosted={vi.fn()} />,
+      <IssueCommentForm folder="/test" repository={null} issueNumber={42} onCommentPosted={vi.fn()} />,
     );
 
     const textarea = screen.getByPlaceholderText(/Kommentar verfassen/);
@@ -127,6 +129,7 @@ describe("IssueCommentForm", () => {
     render(
       <IssueCommentForm
         folder="/test"
+        repository={null}
         issueNumber={42}
         onCommentPosted={onCommentPosted}
       />,
@@ -148,7 +151,7 @@ describe("IssueCommentForm", () => {
     mockInvoke.mockReturnValueOnce(new Promise((r) => (resolve = r)));
 
     render(
-      <IssueCommentForm folder="/test" issueNumber={42} onCommentPosted={vi.fn()} />,
+      <IssueCommentForm folder="/test" repository={null} issueNumber={42} onCommentPosted={vi.fn()} />,
     );
 
     const textarea = screen.getByPlaceholderText(/Kommentar verfassen/);

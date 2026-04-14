@@ -41,16 +41,6 @@ pub struct KanbanLabel {
 }
 
 #[derive(Serialize, Clone)]
-pub struct KanbanIssue {
-    pub number: u64,
-    pub title: String,
-    pub state: String,
-    pub labels: Vec<KanbanLabel>,
-    pub assignee: String,
-    pub url: String,
-}
-
-#[derive(Serialize, Clone)]
 pub struct IssueComment {
     pub author: String,
     pub body: String,
@@ -90,18 +80,17 @@ pub struct LinkedPR {
     pub checks: Vec<CheckRun>,
 }
 
-/// Lane labels used for Kanban classification.
-const LANE_LABELS: &[&str] = &[
-    "backlog",
-    "todo",
-    "to do",
-    "in-progress",
-    "in progress",
-    "sprint",
-    "done",
-];
+/// Returns the directory to use as `cwd` for subprocess calls.
+/// Falls back to `std::env::temp_dir()` when no folder is provided —
+/// `gh api graphql` and `gh project` commands are not git-directory-sensitive.
+pub(crate) fn effective_cwd(folder: Option<&str>) -> std::path::PathBuf {
+    folder
+        .map(std::path::PathBuf::from)
+        .filter(|p| p.exists())
+        .unwrap_or_else(std::env::temp_dir)
+}
 
-fn run_command(folder: &str, program: &str, args: &[&str]) -> Result<String, ADPError> {
+pub(crate) fn run_command(folder: &str, program: &str, args: &[&str]) -> Result<String, ADPError> {
     let mut cmd = silent_command(program);
     cmd.args(args).current_dir(folder);
     let output = crate::util::timed_output(cmd, crate::util::DEFAULT_COMMAND_TIMEOUT)?;
@@ -117,13 +106,31 @@ fn run_command(folder: &str, program: &str, args: &[&str]) -> Result<String, ADP
     }
 }
 
-fn is_command_available(cmd_name: &str) -> bool {
+pub(crate) fn is_command_available(cmd_name: &str) -> bool {
     let check_cmd = if cfg!(windows) { "where" } else { "which" };
     let mut cmd = silent_command(check_cmd);
     cmd.arg(cmd_name);
     crate::util::timed_output(cmd, std::time::Duration::from_secs(5))
         .map(|o| o.status.success())
         .unwrap_or(false)
+}
+
+/// Validates a `owner/name` repository slug to prevent shell injection.
+/// Allows alphanumeric characters, hyphens, underscores, dots, and exactly one slash.
+pub(crate) fn validate_repo(repo: &str) -> Result<(), ADPError> {
+    let valid_chars = repo
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == '.' || c == '/');
+    let single_slash = repo.matches('/').count() == 1;
+    let no_leading_trailing = !repo.starts_with('/') && !repo.ends_with('/');
+    if valid_chars && single_slash && no_leading_trailing {
+        Ok(())
+    } else {
+        Err(ADPError::validation(format!(
+            "Invalid repository format '{}': expected owner/name",
+            repo
+        )))
+    }
 }
 
 /// Extract label names from a GitHub JSON value containing a "labels" array.
@@ -150,7 +157,7 @@ fn parse_assignees(value: &serde_json::Value) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// Extract the first assignee login (for KanbanIssue / GithubIssue which show only one).
+/// Extract the first assignee login from a GitHub JSON value.
 fn parse_assignee(value: &serde_json::Value) -> String {
     value["assignees"]
         .as_array()
@@ -301,76 +308,18 @@ pub mod commands {
         Ok(issues)
     }
 
+    /// Fetches full issue details including comments.
+    ///
+    /// `repo` (optional) specifies the repository as `owner/name`. When provided,
+    /// `gh issue view --repo <repo>` is used — required for cross-repo issues in
+    /// a global Project v2 board. When omitted, the gh CLI auto-detects the repo
+    /// from the `folder` git remote (folder-mode behaviour).
     #[tauri::command]
-    pub async fn get_kanban_issues(folder: String) -> Result<Vec<KanbanIssue>, ADPError> {
-        if !is_command_available("gh") {
-            return Err(ADPError::new(
-                ADPErrorCode::ServiceRequestFailed,
-                "gh CLI not found. Install from https://cli.github.com",
-            ));
-        }
-
-        // Fetch open and closed issues in parallel
-        let open_output = run_command(
-            &folder,
-            "gh",
-            &[
-                "issue",
-                "list",
-                "--state",
-                "all",
-                "--json",
-                "number,title,state,labels,assignees,url",
-                "--limit",
-                "50",
-            ],
-        )?;
-
-        if open_output.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        let parsed: Vec<serde_json::Value> = serde_json::from_str(&open_output)
-            .map_err(|e| ADPError::parse(format!("Failed to parse gh output: {}", e)))?;
-
-        let issues = parsed
-            .iter()
-            .map(|issue| {
-                let labels = issue["labels"]
-                    .as_array()
-                    .map(|arr| {
-                        arr.iter()
-                            .map(|l| KanbanLabel {
-                                name: l["name"].as_str().unwrap_or("").to_string(),
-                                color: l["color"].as_str().unwrap_or("333333").to_string(),
-                            })
-                            .collect()
-                    })
-                    .unwrap_or_default();
-
-                let assignee = issue["assignees"]
-                    .as_array()
-                    .and_then(|arr| arr.first())
-                    .and_then(|a| a["login"].as_str())
-                    .unwrap_or("")
-                    .to_string();
-
-                KanbanIssue {
-                    number: issue["number"].as_u64().unwrap_or(0),
-                    title: issue["title"].as_str().unwrap_or("").to_string(),
-                    state: issue["state"].as_str().unwrap_or("OPEN").to_string(),
-                    labels,
-                    assignee,
-                    url: issue["url"].as_str().unwrap_or("").to_string(),
-                }
-            })
-            .collect();
-
-        Ok(issues)
-    }
-
-    #[tauri::command]
-    pub async fn get_issue_detail(folder: String, number: u64) -> Result<IssueDetail, ADPError> {
+    pub async fn get_issue_detail(
+        folder: Option<String>,
+        repo: Option<String>,
+        number: u64,
+    ) -> Result<IssueDetail, ADPError> {
         if !is_command_available("gh") {
             return Err(ADPError::new(
                 ADPErrorCode::ServiceRequestFailed,
@@ -378,17 +327,22 @@ pub mod commands {
             ));
         }
 
-        let output = run_command(
-            &folder,
-            "gh",
-            &[
-                "issue",
-                "view",
-                &number.to_string(),
-                "--json",
-                "number,title,body,state,author,createdAt,updatedAt,closedAt,labels,assignees,milestone,url,comments",
-            ],
-        )?;
+        let cwd = effective_cwd(folder.as_deref());
+        let cwd_str = cwd.to_string_lossy().to_string();
+
+        if let Some(ref r) = repo {
+            validate_repo(r)?;
+        }
+
+        let num_str = number.to_string();
+        let json_fields =
+            "number,title,body,state,author,createdAt,updatedAt,closedAt,labels,assignees,milestone,url,comments";
+        let mut args = vec!["issue", "view", &num_str, "--json", json_fields];
+        if let Some(ref r) = repo {
+            args.extend_from_slice(&["--repo", r]);
+        }
+
+        let output = run_command(&cwd_str, "gh", &args)?;
 
         if output.is_empty() {
             return Err(ADPError::parse("Empty response from gh"));
@@ -439,8 +393,16 @@ pub mod commands {
         })
     }
 
+    /// Searches for PRs that reference this issue, including their CI check results.
+    ///
+    /// `repo` (optional) scopes the search to a specific repository (`owner/name`).
+    /// Required when the issue belongs to a different repo than the current folder.
     #[tauri::command]
-    pub async fn get_issue_checks(folder: String, number: u64) -> Result<Vec<LinkedPR>, ADPError> {
+    pub async fn get_issue_checks(
+        folder: Option<String>,
+        repo: Option<String>,
+        number: u64,
+    ) -> Result<Vec<LinkedPR>, ADPError> {
         if !is_command_available("gh") {
             return Err(ADPError::new(
                 ADPErrorCode::ServiceRequestFailed,
@@ -448,24 +410,32 @@ pub mod commands {
             ));
         }
 
+        let cwd = effective_cwd(folder.as_deref());
+        let cwd_str = cwd.to_string_lossy().to_string();
+
+        if let Some(ref r) = repo {
+            validate_repo(r)?;
+        }
+
         // Search for PRs that reference this issue number
         let search_query = format!("#{}", number);
-        let output = run_command(
-            &folder,
-            "gh",
-            &[
-                "pr",
-                "list",
-                "--search",
-                &search_query,
-                "--state",
-                "all",
-                "--json",
-                "number,title,state,url,statusCheckRollup",
-                "--limit",
-                "5",
-            ],
-        )?;
+        let mut args = vec![
+            "pr",
+            "list",
+            "--search",
+            &search_query,
+            "--state",
+            "all",
+            "--json",
+            "number,title,state,url,statusCheckRollup",
+            "--limit",
+            "5",
+        ];
+        if let Some(ref r) = repo {
+            args.extend_from_slice(&["--repo", r]);
+        }
+
+        let output = run_command(&cwd_str, "gh", &args)?;
 
         if output.is_empty() {
             return Ok(Vec::new());
@@ -522,11 +492,13 @@ pub mod commands {
 
     /// Post a new comment on a GitHub issue via gh CLI.
     ///
-    /// Security: body is passed as a CLI argument (not shell-interpolated), so injection is not
-    /// possible. Input is validated for emptiness before invoking gh.
+    /// `repo` (optional) specifies `owner/name` for cross-repo issues in global mode.
+    /// Security: body is passed as a CLI argument (not shell-interpolated), so injection
+    /// is not possible. Input is validated for emptiness before invoking gh.
     #[tauri::command]
     pub async fn post_issue_comment(
-        folder: String,
+        folder: Option<String>,
+        repo: Option<String>,
         number: u64,
         body: String,
     ) -> Result<(), ADPError> {
@@ -539,96 +511,48 @@ pub mod commands {
         if body.trim().is_empty() {
             return Err(ADPError::validation("Comment body cannot be empty"));
         }
+        if let Some(ref r) = repo {
+            validate_repo(r)?;
+        }
+
+        let cwd = effective_cwd(folder.as_deref());
+        let cwd_str = cwd.to_string_lossy().to_string();
         let num_str = number.to_string();
-        run_command(
-            &folder,
-            "gh",
-            &["issue", "comment", &num_str, "--body", &body],
-        )?;
+        let mut args = vec!["issue", "comment", &num_str, "--body", &body];
+        if let Some(ref r) = repo {
+            args.extend_from_slice(&["--repo", r]);
+        }
+        run_command(&cwd_str, "gh", &args)?;
         Ok(())
     }
 
-    #[tauri::command]
-    pub async fn move_issue_lane(
-        folder: String,
-        number: u64,
-        target_lane: String,
-    ) -> Result<(), ADPError> {
-        if !is_command_available("gh") {
-            return Err(ADPError::new(
-                ADPErrorCode::ServiceRequestFailed,
-                "gh CLI not found",
-            ));
-        }
+}
 
-        let num_str = number.to_string();
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-        // Remove all existing lane labels
-        let output = run_command(
-            &folder,
-            "gh",
-            &["issue", "view", &num_str, "--json", "labels,state"],
-        )?;
+    #[test]
+    fn effective_cwd_some_valid_path_returns_it() {
+        let tmp = std::env::temp_dir();
+        let path = effective_cwd(Some(tmp.to_str().unwrap()));
+        assert_eq!(path, tmp);
+    }
 
-        let val: serde_json::Value = serde_json::from_str(&output)
-            .map_err(|e| ADPError::parse(format!("Failed to parse issue: {}", e)))?;
+    #[test]
+    fn effective_cwd_none_returns_existing_dir() {
+        let path = effective_cwd(None);
+        assert!(
+            path.exists(),
+            "effective_cwd(None) must return an existing directory, got: {:?}",
+            path
+        );
+    }
 
-        let current_state = val["state"].as_str().unwrap_or("OPEN");
-
-        // Collect lane labels to remove
-        let labels_to_remove: Vec<String> = val["labels"]
-            .as_array()
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|l| {
-                        let name = l["name"].as_str()?;
-                        if LANE_LABELS.contains(&name.to_lowercase().as_str()) {
-                            Some(name.to_string())
-                        } else {
-                            None
-                        }
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
-
-        // Remove old lane labels
-        for label in &labels_to_remove {
-            let _ = run_command(
-                &folder,
-                "gh",
-                &["issue", "edit", &num_str, "--remove-label", label],
-            );
-        }
-
-        // Handle state transitions and add new label
-        match target_lane.as_str() {
-            "done" => {
-                // Close the issue if open
-                if current_state == "OPEN" {
-                    run_command(&folder, "gh", &["issue", "close", &num_str])?;
-                }
-            }
-            lane => {
-                // Reopen if closed
-                if current_state == "CLOSED" {
-                    run_command(&folder, "gh", &["issue", "reopen", &num_str])?;
-                }
-
-                // Add the target lane label
-                let label_name = match lane {
-                    "in-progress" => "in-progress",
-                    "todo" => "todo",
-                    _ => "backlog",
-                };
-                run_command(
-                    &folder,
-                    "gh",
-                    &["issue", "edit", &num_str, "--add-label", label_name],
-                )?;
-            }
-        }
-
-        Ok(())
+    #[test]
+    fn effective_cwd_nonexistent_path_falls_back_to_temp() {
+        let path = effective_cwd(Some("/this/path/does/not/exist/ever"));
+        assert!(path.exists(), "should fall back to temp_dir when path does not exist");
     }
 }
+

@@ -37,7 +37,10 @@ interface IssueDetail {
 
 interface KanbanDetailModalProps {
   open: boolean;
-  folder: string;
+  /** Folder path for folder-mode boards; null in global-board mode. */
+  folder: string | null;
+  /** `"owner/name"` — required when folder is null (cross-repo global board). */
+  repository: string | null;
   issueNumber: number;
   onClose: () => void;
   onIssueChanged?: () => void;
@@ -65,6 +68,7 @@ function formatDate(iso: string): string {
 export function KanbanDetailModal({
   open: isOpen,
   folder,
+  repository,
   issueNumber,
   onClose,
   onIssueChanged,
@@ -80,8 +84,8 @@ export function KanbanDetailModal({
     setError("");
     try {
       const [issueResult, checksResult] = await Promise.all([
-        invoke<IssueDetail>("get_issue_detail", { folder, number: issueNumber }),
-        invoke<LinkedPR[]>("get_issue_checks", { folder, number: issueNumber }).catch(
+        invoke<IssueDetail>("get_issue_detail", { folder, repo: repository, number: issueNumber }),
+        invoke<LinkedPR[]>("get_issue_checks", { folder, repo: repository, number: issueNumber }).catch(
           () => [] as LinkedPR[]
         ),
       ]);
@@ -94,7 +98,7 @@ export function KanbanDetailModal({
     } finally {
       if (mountedRef.current) setLoading(false);
     }
-  }, [folder, issueNumber]);
+  }, [folder, repository, issueNumber]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -181,6 +185,7 @@ export function KanbanDetailModal({
             <IssueComments comments={detail.comments} formatDate={formatDate} />
             <IssueCommentForm
               folder={folder}
+              repository={repository}
               issueNumber={issueNumber}
               onCommentPosted={handleCommentPosted}
             />

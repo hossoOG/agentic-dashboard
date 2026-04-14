@@ -4,13 +4,16 @@ import { getErrorMessage } from "../../utils/adpError";
 import { MessageSquare } from "lucide-react";
 
 interface IssueCommentFormProps {
-  folder: string;
+  folder: string | null;
+  /** `"owner/name"` — required when `folder` is null (global board mode). */
+  repository: string | null;
   issueNumber: number;
   onCommentPosted: () => void;
 }
 
 export function IssueCommentForm({
   folder,
+  repository,
   issueNumber,
   onCommentPosted,
 }: IssueCommentFormProps) {
@@ -25,6 +28,7 @@ export function IssueCommentForm({
     try {
       await invoke("post_issue_comment", {
         folder,
+        repo: repository,
         number: issueNumber,
         body,
       });

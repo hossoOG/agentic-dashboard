@@ -16,10 +16,17 @@ vi.mock("@tauri-apps/plugin-shell", () => ({
 
 // Mock KanbanBoard to avoid its async data fetching
 vi.mock("./KanbanBoard", () => ({
-  KanbanBoard: ({ folder }: { folder: string }) => (
-    <div data-testid="kanban-board">{folder}</div>
+  KanbanBoard: ({ folder }: { folder: string | null }) => (
+    <div data-testid="kanban-board">{folder ?? "__global__"}</div>
   ),
 }));
+
+// ── Helpers ───────────────────────────────────────────────────────────
+
+/** Click the "Projekt" toggle button to switch from global to folder mode. */
+function switchToFolderMode() {
+  fireEvent.click(screen.getByText("Projekt"));
+}
 
 // ── Tests ─────────────────────────────────────────────────────────────
 
@@ -36,18 +43,21 @@ describe("KanbanDashboardView", () => {
     });
   });
 
-  it("shows empty state when no folder and no favorites", () => {
+  // ── Global mode (default) ────────────────────────────────────────────
+
+  it("defaults to global mode and renders board with null folder", () => {
     render(<KanbanDashboardView />);
 
-    expect(screen.getByText("Kein Projekt verfügbar")).toBeTruthy();
-    expect(
-      screen.getByText(
-        "Erstelle eine Session oder füge einen Favoriten hinzu.",
-      ),
-    ).toBeTruthy();
+    // Mode toggle buttons are visible
+    expect(screen.getByText("Global")).toBeTruthy();
+    expect(screen.getByText("Projekt")).toBeTruthy();
+
+    // Board is rendered with null folder (mock renders "__global__")
+    const board = screen.getByTestId("kanban-board");
+    expect(board.textContent).toBe("__global__");
   });
 
-  it("renders KanbanBoard with active session folder", () => {
+  it("global mode shows no folder picker regardless of sessions/favorites", () => {
     useSessionStore.setState({
       sessions: [
         {
@@ -68,11 +78,51 @@ describe("KanbanDashboardView", () => {
 
     render(<KanbanDashboardView />);
 
+    // No combobox (folder picker) in global mode
+    expect(screen.queryByRole("combobox")).toBeNull();
+  });
+
+  // ── Folder mode ──────────────────────────────────────────────────────
+
+  it("shows empty state in folder mode when no folder and no favorites", () => {
+    render(<KanbanDashboardView />);
+    switchToFolderMode();
+
+    expect(screen.getByText("Kein Projekt verfügbar")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Erstelle eine Session oder füge einen Favoriten hinzu.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("renders KanbanBoard with active session folder in folder mode", () => {
+    useSessionStore.setState({
+      sessions: [
+        {
+          id: "s1",
+          title: "My Session",
+          folder: "/projects/my-app",
+          shell: "powershell",
+          status: "running",
+          createdAt: Date.now(),
+          finishedAt: null,
+          exitCode: null,
+          lastOutputAt: Date.now(),
+          lastOutputSnippet: "",
+        },
+      ],
+      activeSessionId: "s1",
+    });
+
+    render(<KanbanDashboardView />);
+    switchToFolderMode();
+
     const board = screen.getByTestId("kanban-board");
     expect(board.textContent).toBe("/projects/my-app");
   });
 
-  it("renders folder picker with favorites", () => {
+  it("renders folder picker with favorites in folder mode", () => {
     useSettingsStore.setState({
       favorites: [
         {
@@ -87,12 +137,13 @@ describe("KanbanDashboardView", () => {
     });
 
     render(<KanbanDashboardView />);
+    switchToFolderMode();
 
     // Folder picker should show the favorite
     expect(screen.getByText("Fav Project")).toBeTruthy();
   });
 
-  it("switches folder when user selects from picker", () => {
+  it("switches folder when user selects from picker in folder mode", () => {
     useSettingsStore.setState({
       favorites: [
         {
@@ -115,6 +166,7 @@ describe("KanbanDashboardView", () => {
     });
 
     render(<KanbanDashboardView />);
+    switchToFolderMode();
 
     const select = screen.getByRole("combobox");
     fireEvent.change(select, { target: { value: "/projects/beta" } });
@@ -138,6 +190,7 @@ describe("KanbanDashboardView", () => {
     });
 
     render(<KanbanDashboardView />);
+    switchToFolderMode();
 
     // Select empty value to deselect
     const select = screen.getByRole("combobox");

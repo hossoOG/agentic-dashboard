@@ -98,7 +98,7 @@ export function ChangelogDialog({ open, onClose }: ChangelogDialogProps) {
   );
 
   return (
-    <Modal open={open} onClose={onClose} title={headerTitle} size="lg">
+    <Modal open={open} onClose={onClose} title={headerTitle} size="lg" className="max-h-[80vh]">
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
         {sections.map((section) => (
           <div
