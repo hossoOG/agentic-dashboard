@@ -94,6 +94,7 @@ describe("KanbanDetailModal", () => {
       <KanbanDetailModal
         open
         folder="/test"
+        repository={null}
         issueNumber={42}
         onClose={vi.fn()}
       />,
@@ -114,6 +115,7 @@ describe("KanbanDetailModal", () => {
       <KanbanDetailModal
         open
         folder="/test"
+        repository={null}
         issueNumber={42}
         onClose={vi.fn()}
       />,
@@ -157,6 +159,7 @@ describe("KanbanDetailModal", () => {
       <KanbanDetailModal
         open
         folder="/test"
+        repository={null}
         issueNumber={42}
         onClose={vi.fn()}
       />,
@@ -181,6 +184,7 @@ describe("KanbanDetailModal", () => {
       <KanbanDetailModal
         open
         folder="/test"
+        repository={null}
         issueNumber={42}
         onClose={vi.fn()}
       />,
@@ -209,6 +213,7 @@ describe("KanbanDetailModal", () => {
       <KanbanDetailModal
         open
         folder="/test"
+        repository={null}
         issueNumber={42}
         onClose={vi.fn()}
       />,
@@ -229,6 +234,7 @@ describe("KanbanDetailModal", () => {
       <KanbanDetailModal
         open
         folder="/test"
+        repository={null}
         issueNumber={42}
         onClose={vi.fn()}
       />,
@@ -257,6 +263,7 @@ describe("KanbanDetailModal", () => {
       <KanbanDetailModal
         open={false}
         folder="/test"
+        repository={null}
         issueNumber={42}
         onClose={vi.fn()}
       />,
@@ -283,6 +290,7 @@ describe("KanbanDetailModal", () => {
       <KanbanDetailModal
         open
         folder="/test"
+        repository={null}
         issueNumber={42}
         onClose={vi.fn()}
       />,
@@ -307,6 +315,7 @@ describe("KanbanDetailModal", () => {
       <KanbanDetailModal
         open
         folder="/test"
+        repository={null}
         issueNumber={42}
         onClose={vi.fn()}
       />,
@@ -335,6 +344,7 @@ describe("KanbanDetailModal", () => {
       <KanbanDetailModal
         open
         folder="/test"
+        repository={null}
         issueNumber={42}
         onClose={vi.fn()}
       />,
@@ -362,6 +372,7 @@ describe("KanbanDetailModal", () => {
       <KanbanDetailModal
         open
         folder="/test"
+        repository={null}
         issueNumber={42}
         onClose={vi.fn()}
       />,
@@ -386,6 +397,7 @@ describe("KanbanDetailModal", () => {
       <KanbanDetailModal
         open
         folder="/test"
+        repository={null}
         issueNumber={42}
         onClose={vi.fn()}
       />,
@@ -410,6 +422,7 @@ describe("KanbanDetailModal", () => {
       <KanbanDetailModal
         open
         folder="/test"
+        repository={null}
         issueNumber={42}
         onClose={vi.fn()}
       />,
@@ -436,6 +449,7 @@ describe("KanbanDetailModal", () => {
       <KanbanDetailModal
         open
         folder="/test"
+        repository={null}
         issueNumber={42}
         onClose={vi.fn()}
       />,
@@ -465,6 +479,7 @@ describe("KanbanDetailModal", () => {
       <KanbanDetailModal
         open
         folder="/test"
+        repository={null}
         issueNumber={42}
         onClose={vi.fn()}
       />,
@@ -489,6 +504,7 @@ describe("KanbanDetailModal", () => {
       <KanbanDetailModal
         open
         folder="/test"
+        repository={null}
         issueNumber={42}
         onClose={vi.fn()}
         onIssueChanged={onIssueChanged}
@@ -521,6 +537,7 @@ describe("KanbanDetailModal", () => {
       <KanbanDetailModal
         open
         folder="/test"
+        repository={null}
         issueNumber={42}
         onClose={vi.fn()}
       />,
