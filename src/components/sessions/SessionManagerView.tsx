@@ -29,9 +29,6 @@ export function SessionManagerView() {
   const layoutMode = useSessionStore((s) => s.layoutMode);
   const gridSessionIds = useSessionStore((s) => s.gridSessionIds);
   const focusedGridSessionId = useSessionStore((s) => s.focusedGridSessionId);
-  const focusedGridSession = useSessionStore((s) =>
-    s.sessions.find((sess) => sess.id === s.focusedGridSessionId)
-  );
   const setLayoutMode = useSessionStore((s) => s.setLayoutMode);
   const setFocusedGridSession = useSessionStore((s) => s.setFocusedGridSession);
   const maximizeGridSession = useSessionStore((s) => s.maximizeGridSession);
@@ -70,7 +67,7 @@ export function SessionManagerView() {
               layoutMode={layoutMode}
               onLayoutChange={setLayoutMode}
               activeSessionTitle={activeSession?.title}
-              folder={layoutMode === "grid" ? focusedGridSession?.folder : activeSession?.folder}
+              folder={layoutMode === "grid" ? undefined : activeSession?.folder}
               gridCount={gridSessionIds.length}
               configPanelOpen={configPanelOpen}
               onToggleConfigPanel={activeSessionId ? toggleConfigPanel : undefined}

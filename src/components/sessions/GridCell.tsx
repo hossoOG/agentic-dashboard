@@ -1,10 +1,11 @@
-import { Maximize2, X } from "lucide-react";
+import { Maximize2, X, GitBranch } from "lucide-react";
 import { useSessionStore } from "../../store/sessionStore";
 import type { SessionStatus } from "../../store/sessionStore";
 import { SessionTerminal } from "./SessionTerminal";
 import { SessionStatusDot } from "./SessionStatusDot";
 import { getActivityLevel } from "./activityLevel";
 import { useNowTick } from "../../hooks/useNowTick";
+import { useGitBranch } from "../../hooks/useGitBranch";
 
 interface GridCellProps {
   sessionId: string;
@@ -27,6 +28,7 @@ export function GridCell({
   const lastOutputAt = session?.lastOutputAt ?? Date.now();
   const now = useNowTick();
   const isRunning = status === "running" || status === "starting";
+  const branch = useGitBranch(session?.folder);
 
   const activityLevel = isRunning ? getActivityLevel(lastOutputAt, now) : null;
 
@@ -53,6 +55,16 @@ export function GridCell({
         <span className="text-xs text-neutral-200 font-bold truncate flex-1">
           {title}
         </span>
+        {branch && (
+          <span
+            data-testid="git-branch-chip"
+            title={branch}
+            className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded bg-neutral-800 text-[9px] text-neutral-400 border border-neutral-700 shrink-0 max-w-[90px]"
+          >
+            <GitBranch className="w-2.5 h-2.5 shrink-0" />
+            <span className="truncate">{branch}</span>
+          </span>
+        )}
 
         {/* Action buttons — visible on hover */}
         <button
