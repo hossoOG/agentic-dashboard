@@ -114,7 +114,10 @@ describe("LibraryView", () => {
     });
 
     render(<LibraryView />);
-    expect(screen.getByText("Global (~/.claude/)")).toBeTruthy();
+    const panelHeader = screen.getByText("Global (~/.claude/)");
+    expect(panelHeader).toBeTruthy();
+    // Panel starts collapsed — click to expand
+    fireEvent.click(panelHeader.closest("button")!);
     expect(screen.getByText("implement")).toBeTruthy();
     expect(screen.getByText("Issue to PR")).toBeTruthy();
   });
@@ -129,6 +132,8 @@ describe("LibraryView", () => {
     });
 
     render(<LibraryView />);
+    const panelHeader = screen.getByText("Global (~/.claude/)");
+    fireEvent.click(panelHeader.closest("button")!);
     expect(screen.getByText("architect")).toBeTruthy();
     expect(screen.getByText("opus")).toBeTruthy();
   });
@@ -149,6 +154,8 @@ describe("LibraryView", () => {
     });
 
     render(<LibraryView />);
+    const panelHeader = screen.getByText("Global (~/.claude/)");
+    fireEvent.click(panelHeader.closest("button")!);
     expect(screen.getByText("PreToolUse")).toBeTruthy();
     expect(screen.getByText("Bash")).toBeTruthy();
     expect(screen.getByText("node safe-guard.mjs")).toBeTruthy();
@@ -200,7 +207,10 @@ describe("LibraryView", () => {
     });
 
     render(<LibraryView />);
-    expect(screen.getByText(/My App/)).toBeTruthy();
+    const panelHeader = screen.getByText(/My App/);
+    expect(panelHeader).toBeTruthy();
+    // Panel starts collapsed — click to expand
+    fireEvent.click(panelHeader.closest("button")!);
     expect(screen.getByText("deploy")).toBeTruthy();
   });
 
@@ -240,6 +250,9 @@ describe("LibraryView", () => {
     });
 
     render(<LibraryView />);
+    // Panel starts collapsed — expand first
+    const panelHeader = screen.getByText("Global (~/.claude/)");
+    fireEvent.click(panelHeader.closest("button")!);
     // skill name appears in the card button
     const skillButton = screen.getByRole("button", { name: /implement/i });
     fireEvent.click(skillButton);

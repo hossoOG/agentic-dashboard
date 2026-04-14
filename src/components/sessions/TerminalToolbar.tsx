@@ -21,7 +21,7 @@ export function TerminalToolbar({
   configPanelOpen,
   onToggleConfigPanel,
 }: TerminalToolbarProps) {
-  const branch = useGitBranch(layoutMode === "single" ? folder : undefined);
+  const branch = useGitBranch(folder);
 
   return (
     <div className="flex items-center justify-between h-9 px-3 bg-surface-raised border-b border-neutral-700 shrink-0">

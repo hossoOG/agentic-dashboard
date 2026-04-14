@@ -205,7 +205,8 @@ describe("TerminalToolbar", () => {
     expect(screen.queryByTestId("git-branch-chip")).toBeNull();
   });
 
-  it("does not invoke get_git_info in grid mode even with folder set", async () => {
+  it("shows branch chip in grid mode when focused session folder is provided", async () => {
+    mockInvoke.mockResolvedValue({ branch: "main", last_commit: null, remote_url: "" });
     render(
       <TerminalToolbar
         layoutMode="grid"
@@ -215,8 +216,8 @@ describe("TerminalToolbar", () => {
       />,
     );
     await act(async () => {});
-    expect(mockInvoke).not.toHaveBeenCalled();
-    expect(screen.queryByTestId("git-branch-chip")).toBeNull();
+    expect(mockInvoke).toHaveBeenCalledWith("get_git_info", { folder: "/some/git/repo" });
+    expect(screen.getByTestId("git-branch-chip")).toBeTruthy();
   });
 
   it("polls for branch again after 30 s", async () => {

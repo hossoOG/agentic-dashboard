@@ -443,6 +443,15 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
 
       {/* Board — lanes from GitHub Projects v2 Status field */}
       <div className="flex-1 overflow-x-auto overflow-y-hidden p-4">
+        {board.lanes.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-neutral-500">
+            <Columns3 className="w-10 h-10 text-neutral-700" />
+            <span className="text-sm">Kein Kanban-Board konfiguriert</span>
+            <span className="text-xs text-neutral-600 max-w-sm text-center">
+              Dieses Projekt hat kein Status-Feld. Füge in GitHub Projects ein <strong className="text-neutral-400">Single-Select-Feld</strong> namens <em>Status</em> hinzu, um Lanes zu aktivieren.
+            </span>
+          </div>
+        ) : (
         <div className="flex gap-3 h-full min-w-min">
           {board.lanes.map((lane) => {
             const laneItems = board.items.filter(
@@ -551,6 +560,7 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
             );
           })()}
         </div>
+        )}
       </div>
 
       {/* Detail Modal */}
