@@ -1,6 +1,15 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { TerminalToolbar } from "./TerminalToolbar";
+
+const mockInvoke = vi.fn();
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: (...args: unknown[]) => mockInvoke(...args),
+}));
+
+beforeEach(() => {
+  mockInvoke.mockReset();
+});
 
 describe("TerminalToolbar", () => {
   it("shows active session title in single mode", () => {
@@ -109,5 +118,35 @@ describe("TerminalToolbar", () => {
     );
 
     expect(screen.getByLabelText("Konfig-Panel schließen")).toBeTruthy();
+  });
+
+  it("shows branch chip when folder has a git repo", async () => {
+    mockInvoke.mockResolvedValue({ branch: "feature/test-chip", last_commit: null, remote_url: "" });
+    render(
+      <TerminalToolbar
+        layoutMode="single"
+        onLayoutChange={vi.fn()}
+        activeSessionTitle="My Session"
+        folder="/some/git/repo"
+        gridCount={0}
+      />,
+    );
+    await waitFor(() => {
+      expect(screen.getByText("feature/test-chip")).toBeTruthy();
+    });
+    expect(mockInvoke).toHaveBeenCalledWith("get_git_info", { folder: "/some/git/repo" });
+  });
+
+  it("shows no branch chip when folder is undefined", () => {
+    render(
+      <TerminalToolbar
+        layoutMode="single"
+        onLayoutChange={vi.fn()}
+        activeSessionTitle="My Session"
+        gridCount={0}
+      />,
+    );
+    expect(screen.queryByRole("img", { hidden: true })).toBeNull();
+    expect(mockInvoke).not.toHaveBeenCalled();
   });
 });

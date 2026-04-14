@@ -67,6 +67,7 @@ export function SessionManagerView() {
               layoutMode={layoutMode}
               onLayoutChange={setLayoutMode}
               activeSessionTitle={activeSession?.title}
+              folder={activeSession?.folder}
               gridCount={gridSessionIds.length}
               configPanelOpen={configPanelOpen}
               onToggleConfigPanel={activeSessionId ? toggleConfigPanel : undefined}

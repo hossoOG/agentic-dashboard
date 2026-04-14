@@ -1,10 +1,12 @@
-import { LayoutList, LayoutGrid, PanelRightOpen, PanelRightClose } from "lucide-react";
+import { LayoutList, LayoutGrid, PanelRightOpen, PanelRightClose, GitBranch } from "lucide-react";
 import type { LayoutMode } from "../../store/sessionStore";
+import { useGitBranch } from "../../hooks/useGitBranch";
 
 interface TerminalToolbarProps {
   layoutMode: LayoutMode;
   onLayoutChange: (mode: LayoutMode) => void;
   activeSessionTitle?: string;
+  folder?: string;
   gridCount: number;
   configPanelOpen?: boolean;
   onToggleConfigPanel?: () => void;
@@ -14,18 +16,29 @@ export function TerminalToolbar({
   layoutMode,
   onLayoutChange,
   activeSessionTitle,
+  folder,
   gridCount,
   configPanelOpen,
   onToggleConfigPanel,
 }: TerminalToolbarProps) {
+  const { branch } = useGitBranch(layoutMode === "single" ? folder : undefined);
+
   return (
     <div className="flex items-center justify-between h-9 px-3 bg-surface-raised border-b border-neutral-700 shrink-0">
       {/* Left: title or grid info */}
-      <span className="text-xs text-neutral-300 truncate">
-        {layoutMode === "single"
-          ? activeSessionTitle ?? "Kein Terminal"
-          : `Grid (${gridCount} Session${gridCount !== 1 ? "s" : ""})`}
-      </span>
+      <div className="flex items-center min-w-0">
+        <span className="text-xs text-neutral-300 truncate">
+          {layoutMode === "single"
+            ? activeSessionTitle ?? "Kein Terminal"
+            : `Grid (${gridCount} Session${gridCount !== 1 ? "s" : ""})`}
+        </span>
+        {branch && (
+          <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-neutral-800 text-[10px] text-neutral-400 border border-neutral-700 shrink-0">
+            <GitBranch className="w-3 h-3" />
+            {branch}
+          </span>
+        )}
+      </div>
 
       {/* Right: layout toggle buttons */}
       <div className="flex items-center gap-1">
