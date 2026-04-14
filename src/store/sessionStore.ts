@@ -156,6 +156,8 @@ export const useSessionStore = create<SessionState>((set) => ({
       const t0 = performance.now();
       const session = state.sessions.find((s) => s.id === id);
       if (!session) return state;
+      // Skip redundant updates — avoids Zustand notifications when status is unchanged.
+      if (session.status === status) return state;
       if (!canTransition(session.status, status)) {
         logWarn("sessionStore", `Ignored invalid transition ${session.status}→${status} for session ${id}`);
         return state;
