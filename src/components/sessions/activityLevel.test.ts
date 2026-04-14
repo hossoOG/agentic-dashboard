@@ -1,27 +1,10 @@
+/**
+ * Note: looksLikePrompt was removed — the Rust backend (manager.rs detect_status)
+ * is the authoritative source for waiting-state detection and covers a superset
+ * of patterns atomically per PTY chunk. See #221.
+ */
 import { describe, it, expect } from "vitest";
-import {
-  looksLikePrompt,
-  getActivityLevel,
-  IDLE_THRESHOLD_MS,
-} from "./activityLevel";
-
-describe("looksLikePrompt", () => {
-  it("returns true for (y/n) prompt", () => {
-    expect(looksLikePrompt("Proceed(y/n)")).toBe(true);
-  });
-
-  it("returns true for [y/N] prompt", () => {
-    expect(looksLikePrompt("Confirm [y/N]")).toBe(true);
-  });
-
-  it("returns true for [Y/n] prompt", () => {
-    expect(looksLikePrompt("Confirm [Y/n]")).toBe(true);
-  });
-
-  it("returns false for non-prompt text", () => {
-    expect(looksLikePrompt("Some output")).toBe(false);
-  });
-});
+import { getActivityLevel, IDLE_THRESHOLD_MS } from "./activityLevel";
 
 describe("getActivityLevel", () => {
   it("returns 'active' when elapsed < IDLE_THRESHOLD_MS", () => {

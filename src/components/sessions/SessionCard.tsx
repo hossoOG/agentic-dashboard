@@ -34,8 +34,16 @@ function TimeDisplay({
   activityLevel: ActivityLevel | null;
 }) {
   switch (session.status) {
-    case "running":
     case "starting":
+      if (activityLevel === "idle") {
+        return <span className="text-neutral-500">Startet…</span>;
+      }
+      return (
+        <span className="text-neutral-500">
+          Läuft seit {formatDuration(now - session.createdAt)}
+        </span>
+      );
+    case "running":
       if (activityLevel === "idle") {
         return (
           <span className="text-neutral-500">

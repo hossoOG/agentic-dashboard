@@ -254,14 +254,15 @@ describe("updateStatus", () => {
     expect(getState().sessions[0].status).toBe("starting");
   });
 
-  // FIX: finishedAt is cleared when transitioning back to running/starting/waiting
-  it("clears finishedAt after done->running transition", () => {
+  // done is terminal — the guard blocks done→running and preserves finishedAt
+  it("done is a terminal state — updateStatus after done is a no-op", () => {
     addTestSession({ id: "s1" });
     getState().updateStatus("s1", "done");
-    expect(getState().sessions[0].finishedAt).not.toBeNull();
+    const finishedAt = getState().sessions[0].finishedAt;
+    expect(finishedAt).not.toBeNull();
     getState().updateStatus("s1", "running");
-    expect(getState().sessions[0].finishedAt).toBeNull();
-    expect(getState().sessions[0].status).toBe("running");
+    expect(getState().sessions[0].status).toBe("done");
+    expect(getState().sessions[0].finishedAt).toBe(finishedAt);
   });
 });
 
@@ -411,7 +412,7 @@ describe("rapid operations", () => {
     });
   });
 
-  it("handles rapid status updates on same session", () => {
+  it("handles rapid status updates on same session — done is terminal", () => {
     addTestSession({ id: "s1" });
     const statuses: SessionStatus[] = [
       "running", "waiting", "running", "waiting", "done", "error",
@@ -419,8 +420,8 @@ describe("rapid operations", () => {
     for (const status of statuses) {
       getState().updateStatus("s1", status);
     }
-    // Last one wins
-    expect(getState().sessions[0].status).toBe("error");
+    // done is terminal — the guard blocks done→error, so done wins
+    expect(getState().sessions[0].status).toBe("done");
   });
 });
 

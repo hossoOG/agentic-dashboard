@@ -35,6 +35,9 @@ export function SessionStatusDot({
 
   switch (status) {
     case "starting":
+      if (activityLevel === "idle") {
+        return <span className={`${dot} rounded-full bg-success opacity-50 shrink-0`} />;
+      }
       return (
         <span className={`${dot} rounded-full bg-success status-breathe-animation shrink-0`} />
       );

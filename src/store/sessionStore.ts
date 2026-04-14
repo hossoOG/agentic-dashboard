@@ -75,6 +75,20 @@ export interface SessionState {
 }
 
 // ============================================================================
+// Transition Guard
+// ============================================================================
+
+const TERMINAL_STATUSES: ReadonlySet<SessionStatus> = new Set(["done", "error"]);
+
+/**
+ * Returns false if `from` is a terminal state — done/error sessions are final.
+ * All forward transitions from non-terminal states are allowed.
+ */
+function canTransition(_from: SessionStatus, _to: SessionStatus): boolean {
+  return !TERMINAL_STATUSES.has(_from);
+}
+
+// ============================================================================
 // Store
 // ============================================================================
 
@@ -140,6 +154,12 @@ export const useSessionStore = create<SessionState>((set) => ({
   updateStatus: (id, status) =>
     set((state) => {
       const t0 = performance.now();
+      const session = state.sessions.find((s) => s.id === id);
+      if (!session) return state;
+      if (!canTransition(session.status, status)) {
+        logWarn("sessionStore", `Ignored invalid transition ${session.status}→${status} for session ${id}`);
+        return state;
+      }
       const result = {
         sessions: state.sessions.map((s) =>
           s.id === id
@@ -161,18 +181,26 @@ export const useSessionStore = create<SessionState>((set) => ({
     }),
 
   setExitCode: (id, exitCode) =>
-    set((state) => ({
-      sessions: state.sessions.map((s) =>
-        s.id === id
-          ? {
-              ...s,
-              exitCode,
-              status: exitCode === 0 ? "done" : "error",
-              finishedAt: Date.now(),
-            }
-          : s
-      ),
-    })),
+    set((state) => {
+      const session = state.sessions.find((s) => s.id === id);
+      if (!session) return state;
+      if (TERMINAL_STATUSES.has(session.status)) {
+        logWarn("sessionStore", `Ignored setExitCode on terminal session ${id} (${session.status})`);
+        return state;
+      }
+      return {
+        sessions: state.sessions.map((s) =>
+          s.id === id
+            ? {
+                ...s,
+                exitCode,
+                status: exitCode === 0 ? "done" : "error",
+                finishedAt: Date.now(),
+              }
+            : s
+        ),
+      };
+    }),
 
   renameSession: (id, title) =>
     set((state) => ({
