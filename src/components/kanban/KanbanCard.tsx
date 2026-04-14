@@ -18,6 +18,8 @@ export interface KanbanIssue {
   labels: KanbanLabel[];
   assignee: string;
   url: string;
+  /** `"owner/name"` — present when the issue belongs to a different repo (global board). */
+  repository?: string | null;
 }
 
 interface KanbanCardProps {
@@ -122,6 +124,13 @@ export function KanbanCard({ issue, onClick, onDragStart, onDragEnd }: KanbanCar
           </span>
         )}
       </div>
+
+      {/* Repo badge — only shown in global board when item is cross-repo */}
+      {issue.repository && (
+        <div className="mt-1.5 text-[10px] text-neutral-600 truncate">
+          {issue.repository}
+        </div>
+      )}
     </div>
   );
 }
