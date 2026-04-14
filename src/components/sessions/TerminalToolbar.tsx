@@ -21,7 +21,7 @@ export function TerminalToolbar({
   configPanelOpen,
   onToggleConfigPanel,
 }: TerminalToolbarProps) {
-  const { branch } = useGitBranch(layoutMode === "single" ? folder : undefined);
+  const branch = useGitBranch(layoutMode === "single" ? folder : undefined);
 
   return (
     <div className="flex items-center justify-between h-9 px-3 bg-surface-raised border-b border-neutral-700 shrink-0">
@@ -33,9 +33,13 @@ export function TerminalToolbar({
             : `Grid (${gridCount} Session${gridCount !== 1 ? "s" : ""})`}
         </span>
         {branch && (
-          <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-neutral-800 text-[10px] text-neutral-400 border border-neutral-700 shrink-0">
-            <GitBranch className="w-3 h-3" />
-            {branch}
+          <span
+            data-testid="git-branch-chip"
+            title={branch}
+            className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-neutral-800 text-[10px] text-neutral-400 border border-neutral-700 shrink-0 max-w-[140px]"
+          >
+            <GitBranch className="w-3 h-3 shrink-0" />
+            <span className="truncate">{branch}</span>
           </span>
         )}
       </div>

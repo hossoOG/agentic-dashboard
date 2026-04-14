@@ -11,21 +11,10 @@ import {
   Github,
 } from "lucide-react";
 import { logWarn } from "../../utils/errorLogger";
+import type { GitInfo } from "../../types/git";
 
 interface GitHubViewerProps {
   folder: string;
-}
-
-interface GitCommitInfo {
-  hash: string;
-  message: string;
-  date: string;
-}
-
-interface GitInfo {
-  branch: string;
-  last_commit: GitCommitInfo | null;
-  remote_url: string;
 }
 
 interface GithubPR {
