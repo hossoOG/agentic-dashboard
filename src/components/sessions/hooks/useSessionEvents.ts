@@ -190,6 +190,7 @@ export function useSessionEvents(): void {
       // Cancel any pending discovery retries to prevent stale callbacks after unmount
       retryMap.forEach(({ timerId }) => clearTimeout(timerId));
       retryMap.clear();
+      scannedSessions.clear();
     };
   }, []);
 }
