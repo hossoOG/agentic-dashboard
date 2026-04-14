@@ -115,6 +115,24 @@ pub(crate) fn is_command_available(cmd_name: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Validates a `owner/name` repository slug to prevent shell injection.
+/// Allows alphanumeric characters, hyphens, underscores, dots, and exactly one slash.
+pub(crate) fn validate_repo(repo: &str) -> Result<(), ADPError> {
+    let valid_chars = repo
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == '.' || c == '/');
+    let single_slash = repo.matches('/').count() == 1;
+    let no_leading_trailing = !repo.starts_with('/') && !repo.ends_with('/');
+    if valid_chars && single_slash && no_leading_trailing {
+        Ok(())
+    } else {
+        Err(ADPError::validation(format!(
+            "Invalid repository format '{}': expected owner/name",
+            repo
+        )))
+    }
+}
+
 /// Extract label names from a GitHub JSON value containing a "labels" array.
 fn parse_labels(value: &serde_json::Value) -> Vec<String> {
     value["labels"]
@@ -290,8 +308,18 @@ pub mod commands {
         Ok(issues)
     }
 
+    /// Fetches full issue details including comments.
+    ///
+    /// `repo` (optional) specifies the repository as `owner/name`. When provided,
+    /// `gh issue view --repo <repo>` is used — required for cross-repo issues in
+    /// a global Project v2 board. When omitted, the gh CLI auto-detects the repo
+    /// from the `folder` git remote (folder-mode behaviour).
     #[tauri::command]
-    pub async fn get_issue_detail(folder: String, number: u64) -> Result<IssueDetail, ADPError> {
+    pub async fn get_issue_detail(
+        folder: Option<String>,
+        repo: Option<String>,
+        number: u64,
+    ) -> Result<IssueDetail, ADPError> {
         if !is_command_available("gh") {
             return Err(ADPError::new(
                 ADPErrorCode::ServiceRequestFailed,
@@ -299,17 +327,22 @@ pub mod commands {
             ));
         }
 
-        let output = run_command(
-            &folder,
-            "gh",
-            &[
-                "issue",
-                "view",
-                &number.to_string(),
-                "--json",
-                "number,title,body,state,author,createdAt,updatedAt,closedAt,labels,assignees,milestone,url,comments",
-            ],
-        )?;
+        let cwd = effective_cwd(folder.as_deref());
+        let cwd_str = cwd.to_string_lossy().to_string();
+
+        if let Some(ref r) = repo {
+            validate_repo(r)?;
+        }
+
+        let num_str = number.to_string();
+        let json_fields =
+            "number,title,body,state,author,createdAt,updatedAt,closedAt,labels,assignees,milestone,url,comments";
+        let mut args = vec!["issue", "view", &num_str, "--json", json_fields];
+        if let Some(ref r) = repo {
+            args.extend_from_slice(&["--repo", r]);
+        }
+
+        let output = run_command(&cwd_str, "gh", &args)?;
 
         if output.is_empty() {
             return Err(ADPError::parse("Empty response from gh"));
@@ -360,8 +393,16 @@ pub mod commands {
         })
     }
 
+    /// Searches for PRs that reference this issue, including their CI check results.
+    ///
+    /// `repo` (optional) scopes the search to a specific repository (`owner/name`).
+    /// Required when the issue belongs to a different repo than the current folder.
     #[tauri::command]
-    pub async fn get_issue_checks(folder: String, number: u64) -> Result<Vec<LinkedPR>, ADPError> {
+    pub async fn get_issue_checks(
+        folder: Option<String>,
+        repo: Option<String>,
+        number: u64,
+    ) -> Result<Vec<LinkedPR>, ADPError> {
         if !is_command_available("gh") {
             return Err(ADPError::new(
                 ADPErrorCode::ServiceRequestFailed,
@@ -369,24 +410,32 @@ pub mod commands {
             ));
         }
 
+        let cwd = effective_cwd(folder.as_deref());
+        let cwd_str = cwd.to_string_lossy().to_string();
+
+        if let Some(ref r) = repo {
+            validate_repo(r)?;
+        }
+
         // Search for PRs that reference this issue number
         let search_query = format!("#{}", number);
-        let output = run_command(
-            &folder,
-            "gh",
-            &[
-                "pr",
-                "list",
-                "--search",
-                &search_query,
-                "--state",
-                "all",
-                "--json",
-                "number,title,state,url,statusCheckRollup",
-                "--limit",
-                "5",
-            ],
-        )?;
+        let mut args = vec![
+            "pr",
+            "list",
+            "--search",
+            &search_query,
+            "--state",
+            "all",
+            "--json",
+            "number,title,state,url,statusCheckRollup",
+            "--limit",
+            "5",
+        ];
+        if let Some(ref r) = repo {
+            args.extend_from_slice(&["--repo", r]);
+        }
+
+        let output = run_command(&cwd_str, "gh", &args)?;
 
         if output.is_empty() {
             return Ok(Vec::new());
@@ -443,11 +492,13 @@ pub mod commands {
 
     /// Post a new comment on a GitHub issue via gh CLI.
     ///
-    /// Security: body is passed as a CLI argument (not shell-interpolated), so injection is not
-    /// possible. Input is validated for emptiness before invoking gh.
+    /// `repo` (optional) specifies `owner/name` for cross-repo issues in global mode.
+    /// Security: body is passed as a CLI argument (not shell-interpolated), so injection
+    /// is not possible. Input is validated for emptiness before invoking gh.
     #[tauri::command]
     pub async fn post_issue_comment(
-        folder: String,
+        folder: Option<String>,
+        repo: Option<String>,
         number: u64,
         body: String,
     ) -> Result<(), ADPError> {
@@ -460,12 +511,18 @@ pub mod commands {
         if body.trim().is_empty() {
             return Err(ADPError::validation("Comment body cannot be empty"));
         }
+        if let Some(ref r) = repo {
+            validate_repo(r)?;
+        }
+
+        let cwd = effective_cwd(folder.as_deref());
+        let cwd_str = cwd.to_string_lossy().to_string();
         let num_str = number.to_string();
-        run_command(
-            &folder,
-            "gh",
-            &["issue", "comment", &num_str, "--body", &body],
-        )?;
+        let mut args = vec!["issue", "comment", &num_str, "--body", &body];
+        if let Some(ref r) = repo {
+            args.extend_from_slice(&["--repo", r]);
+        }
+        run_command(&cwd_str, "gh", &args)?;
         Ok(())
     }
 }
