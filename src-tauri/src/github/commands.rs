@@ -80,6 +80,16 @@ pub struct LinkedPR {
     pub checks: Vec<CheckRun>,
 }
 
+/// Returns the directory to use as `cwd` for subprocess calls.
+/// Falls back to `std::env::temp_dir()` when no folder is provided —
+/// `gh api graphql` and `gh project` commands are not git-directory-sensitive.
+pub(crate) fn effective_cwd(folder: Option<&str>) -> std::path::PathBuf {
+    folder
+        .map(std::path::PathBuf::from)
+        .filter(|p| p.exists())
+        .unwrap_or_else(std::env::temp_dir)
+}
+
 pub(crate) fn run_command(folder: &str, program: &str, args: &[&str]) -> Result<String, ADPError> {
     let mut cmd = silent_command(program);
     cmd.args(args).current_dir(folder);
@@ -459,5 +469,33 @@ pub mod commands {
         Ok(())
     }
 
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn effective_cwd_some_valid_path_returns_it() {
+        let tmp = std::env::temp_dir();
+        let path = effective_cwd(Some(tmp.to_str().unwrap()));
+        assert_eq!(path, tmp);
+    }
+
+    #[test]
+    fn effective_cwd_none_returns_existing_dir() {
+        let path = effective_cwd(None);
+        assert!(
+            path.exists(),
+            "effective_cwd(None) must return an existing directory, got: {:?}",
+            path
+        );
+    }
+
+    #[test]
+    fn effective_cwd_nonexistent_path_falls_back_to_temp() {
+        let path = effective_cwd(Some("/this/path/does/not/exist/ever"));
+        assert!(path.exists(), "should fall back to temp_dir when path does not exist");
+    }
 }
 
