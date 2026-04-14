@@ -30,7 +30,7 @@ export function IssueSidebar({
       {/* Author */}
       {author && (
         <div className="space-y-1">
-          <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-wide">Autor</p>
+          <p className="text-[10px] font-medium text-neutral-400 uppercase tracking-wide">Autor</p>
           <div className="flex items-center gap-1.5 text-neutral-300">
             <User className="w-3 h-3 text-neutral-500 shrink-0" />
             <span>{author}</span>
@@ -40,7 +40,7 @@ export function IssueSidebar({
 
       {/* Dates */}
       <div className="space-y-1">
-        <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-wide">Datum</p>
+        <p className="text-[10px] font-medium text-neutral-400 uppercase tracking-wide">Datum</p>
         {createdAt && (
           <div className="flex items-center gap-1.5 text-neutral-400">
             <Calendar className="w-3 h-3 text-neutral-500 shrink-0" />
@@ -63,9 +63,9 @@ export function IssueSidebar({
 
       {/* Assignees */}
       <div className="space-y-1">
-        <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-wide">Zugewiesen</p>
+        <p className="text-[10px] font-medium text-neutral-400 uppercase tracking-wide">Zugewiesen</p>
         {assignees.length === 0 ? (
-          <p className="text-neutral-600 italic">Niemand zugewiesen</p>
+          <p className="text-neutral-500 italic">Niemand zugewiesen</p>
         ) : (
           <div className="flex flex-col gap-1">
             {assignees.map((a) => (
@@ -81,7 +81,7 @@ export function IssueSidebar({
       {/* Labels */}
       {labels.length > 0 && (
         <div className="space-y-1">
-          <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-wide">Labels</p>
+          <p className="text-[10px] font-medium text-neutral-400 uppercase tracking-wide">Labels</p>
           <div className="flex flex-col gap-1">
             {labels.map((label) => (
               <span
@@ -100,7 +100,7 @@ export function IssueSidebar({
       {/* Milestone */}
       {milestone && (
         <div className="space-y-1">
-          <p className="text-[10px] font-medium text-neutral-500 uppercase tracking-wide">Milestone</p>
+          <p className="text-[10px] font-medium text-neutral-400 uppercase tracking-wide">Milestone</p>
           <div className="flex items-center gap-1.5 text-neutral-300">
             <Milestone className="w-3 h-3 text-neutral-500 shrink-0" />
             <span>{milestone}</span>

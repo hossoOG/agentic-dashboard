@@ -353,7 +353,7 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
       <div className="flex flex-col items-center justify-center h-full gap-3 text-neutral-500">
         <AlertCircle className="w-10 h-10 text-neutral-600" />
         <span className="text-sm">Fehler beim Laden des Boards</span>
-        <span className="text-xs text-neutral-600 max-w-md text-center">
+        <span className="text-xs text-neutral-500 max-w-md text-center">
           {isScope
             ? 'GitHub Scope fehlt. Führe aus: gh auth refresh -s project,read:project'
             : error}
@@ -414,7 +414,7 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
               </div>
             )}
           </div>
-          <span className="text-xs text-neutral-600">({itemCount} Issues)</span>
+          <span className="text-xs text-neutral-500">({itemCount} Issues)</span>
         </div>
         <button
           onClick={() => {
@@ -447,7 +447,7 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
           <div className="flex flex-col items-center justify-center h-full gap-3 text-neutral-500">
             <Columns3 className="w-10 h-10 text-neutral-700" />
             <span className="text-sm">Kein Kanban-Board konfiguriert</span>
-            <span className="text-xs text-neutral-600 max-w-sm text-center">
+            <span className="text-xs text-neutral-500 max-w-sm text-center">
               Dieses Projekt hat kein Status-Feld. Füge in GitHub Projects ein <strong className="text-neutral-400">Single-Select-Feld</strong> namens <em>Status</em> hinzu, um Lanes zu aktivieren.
             </span>
           </div>
@@ -472,7 +472,7 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
                   <span className="text-xs font-medium text-neutral-300">
                     {lane.name}
                   </span>
-                  <span className="text-[10px] text-neutral-500 bg-neutral-800 px-1.5 py-0.5 rounded-sm">
+                  <span className="text-[10px] text-neutral-400 bg-neutral-800 px-1.5 py-0.5 rounded-sm">
                     {laneItems.length}
                   </span>
                 </div>
@@ -480,7 +480,7 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
                 {/* Cards */}
                 <div className="flex-1 overflow-y-auto p-2 space-y-2">
                   {laneItems.length === 0 ? (
-                    <div className="text-[11px] text-neutral-600 text-center py-4">
+                    <div className="text-[11px] text-neutral-500 text-center py-4">
                       Keine Issues
                     </div>
                   ) : (
@@ -532,7 +532,7 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
                   <span className="text-xs font-medium text-neutral-500">
                     Kein Status
                   </span>
-                  <span className="text-[10px] text-neutral-500 bg-neutral-800 px-1.5 py-0.5 rounded-sm">
+                  <span className="text-[10px] text-neutral-400 bg-neutral-800 px-1.5 py-0.5 rounded-sm">
                     {noStatusItems.length}
                   </span>
                 </div>

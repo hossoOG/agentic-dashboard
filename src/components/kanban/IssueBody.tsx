@@ -7,7 +7,7 @@ interface IssueBodyProps {
 export function IssueBody({ body }: IssueBodyProps) {
   if (!body) {
     return (
-      <div className="border-t border-neutral-700/50 pt-3 text-xs text-neutral-600 italic">
+      <div className="border-t border-neutral-700/50 pt-3 text-xs text-neutral-500 italic">
         Keine Beschreibung
       </div>
     );

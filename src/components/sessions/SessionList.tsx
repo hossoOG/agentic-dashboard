@@ -106,7 +106,7 @@ export function SessionList({ onNewSession, onQuickStart }: SessionListProps) {
               );
             })}
             {sessions.length === 0 && (
-              <div className="p-4 text-center text-neutral-600 text-xs">
+              <div className="p-4 text-center text-neutral-500 text-xs">
                 Keine Sessions vorhanden
               </div>
             )}

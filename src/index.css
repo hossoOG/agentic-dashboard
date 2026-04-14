@@ -25,7 +25,7 @@
   --neutral-300: oklch(32% 0.01  250);
   --neutral-400: oklch(40% 0.01  250);  /* secondary text  (WCAG AA ≥ 4.5:1 on white) */
   --neutral-500: oklch(46% 0.01  250);  /* muted text      (WCAG AA ≥ 4.5:1 on white) */
-  --neutral-600: oklch(70% 0.008 250);  /* decorative separators */
+  --neutral-600: oklch(58% 0.008 250);  /* secondary/muted text, decorative separators */
   --neutral-700: oklch(82% 0.008 250);  /* borders */
   --neutral-800: oklch(92% 0.005 250);  /* subtle backgrounds */
   --neutral-900: oklch(96% 0.003 250);  /* card backgrounds */
@@ -99,9 +99,9 @@
   --neutral-100: oklch(90% 0.008 250);
   --neutral-200: oklch(80% 0.008 250);
   --neutral-300: oklch(70% 0.01  250);
-  --neutral-400: oklch(55% 0.01  250);
-  --neutral-500: oklch(45% 0.01  250);
-  --neutral-600: oklch(35% 0.01  250);
+  --neutral-400: oklch(62% 0.01  250);  /* secondary text — passes WCAG AA on dark bg */
+  --neutral-500: oklch(52% 0.01  250);  /* muted text — near-AA on dark bg */
+  --neutral-600: oklch(42% 0.01  250);  /* decorative, borders — not for body text */
   --neutral-700: oklch(26% 0.012 250);
   --neutral-800: oklch(20% 0.012 250);
   --neutral-900: oklch(15% 0.012 250);

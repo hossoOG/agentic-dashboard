@@ -36,23 +36,23 @@ function TimeDisplay({
   switch (session.status) {
     case "starting":
       if (activityLevel === "idle") {
-        return <span className="text-neutral-500">Startet…</span>;
+        return <span className="text-neutral-400">Startet…</span>;
       }
       return (
-        <span className="text-neutral-500">
+        <span className="text-neutral-400">
           Läuft seit {formatDuration(now - session.createdAt)}
         </span>
       );
     case "running":
       if (activityLevel === "idle") {
         return (
-          <span className="text-neutral-500">
+          <span className="text-neutral-400">
             Idle seit {formatDuration(now - session.lastOutputAt)}
           </span>
         );
       }
       return (
-        <span className="text-neutral-500">
+        <span className="text-neutral-400">
           Läuft seit {formatDuration(now - session.createdAt)}
         </span>
       );
@@ -60,7 +60,7 @@ function TimeDisplay({
       return <span className="text-warning">Wartet auf Input</span>;
     case "done":
       return (
-        <span className="text-neutral-500">
+        <span className="text-neutral-400">
           Fertig ({formatDuration((session.finishedAt ?? now) - session.createdAt)})
         </span>
       );
@@ -196,7 +196,7 @@ const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: Ses
       </div>
 
       {/* Folder path */}
-      <div className="mt-1 pl-[18px] text-xs text-neutral-500 truncate">
+      <div className="mt-1 pl-[18px] text-xs text-neutral-400 truncate">
         {shortenPath(session.folder)}
       </div>
 
