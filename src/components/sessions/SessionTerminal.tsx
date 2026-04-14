@@ -80,38 +80,15 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
     fitAddon.fit();
     terminalRef.current = term;
 
-    // Clipboard: Ctrl+C copies selection (if any), otherwise sends SIGINT.
-    // Ctrl+V pastes from clipboard. Without this, xterm forwards both keys
-    // as raw PTY input — making copy/paste impossible without right-click.
-    term.attachCustomKeyEventHandler((event: KeyboardEvent): boolean => {
-      if (event.type !== "keydown") return true;
-      if (event.ctrlKey && event.key === "c") {
-        const selection = term.getSelection();
-        if (selection) {
-          navigator.clipboard.writeText(selection).catch(() => {});
-          return false; // Consumed — do NOT forward to PTY
-        }
-        // No selection → allow normal Ctrl+C (SIGINT) to pass through
-        return true;
-      }
-      if (event.ctrlKey && event.key === "v") {
-        navigator.clipboard.readText().then((text) => {
-          if (text) {
-            wrapInvoke("write_session", { id: sessionId, data: text }).catch((err) => {
-              logError("SessionTerminal.paste", err);
-            });
-          }
-        }).catch(() => {});
-        return false; // Consumed
-      }
-      return true;
-    });
-
     // Scroll tracking: delay activation so the initial fitAddon.fit() resize event
     // doesn't falsely set userScrolledUpRef=true (which would break auto-scroll).
     let scrollDisposable: { dispose: () => void } = { dispose: () => {} };
     const scrollTrackTimer = setTimeout(() => {
-      userScrolledUpRef.current = false; // Ensure clean state after fit settles
+      // Only reset to "at bottom" if the user hasn't already scrolled up during
+      // the delay window — blindly resetting would kick them back into auto-scroll.
+      if (isAtBottom(term)) {
+        userScrolledUpRef.current = false;
+      }
       scrollDisposable = term.onScroll(() => {
         userScrolledUpRef.current = !isAtBottom(term);
       });
