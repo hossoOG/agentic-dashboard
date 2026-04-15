@@ -1,10 +1,19 @@
-import { useState, useRef, useEffect, Fragment } from "react";
+import { useState, useRef, useEffect, useMemo, Fragment } from "react";
 import { X, Plus, Pin } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useUIStore, type ConfigSubTab } from "../../store/uiStore";
 import { useSettingsStore, normalizeProjectKey } from "../../store/settingsStore";
 import { logError } from "../../utils/errorLogger";
-import { CONFIG_TABS } from "./configPanelShared";
+import { CONFIG_TABS, type PresenceKey } from "./configPanelShared";
+
+interface Presence {
+  claudeMd: boolean;
+  skills: boolean;
+  agents: boolean;
+  hooks: boolean;
+  settings: boolean;
+}
 
 interface ConfigPanelTabListProps {
   folder: string;
@@ -76,6 +85,63 @@ export function ConfigPanelTabList({ folder, size = "md" }: ConfigPanelTabListPr
     setEditValue("");
   };
 
+  // ── Presence detection ─────────────────────────────────────────────────
+  // Check which context artifacts exist in the folder so we can hide empty tabs.
+  // While detection is in flight (presence === null), all tabs remain visible to
+  // avoid a layout flash on first render.
+  const [presence, setPresence] = useState<Presence | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!folder) { setPresence(null); return; }
+
+    (async () => {
+      const [claudeMdText, skillDirs, agentFiles, settingsText] = await Promise.all([
+        invoke<string>("read_project_file", { folder, relativePath: "CLAUDE.md" }).catch(() => ""),
+        invoke<unknown[]>("list_skill_dirs", { folder }).catch(() => [] as unknown[]),
+        invoke<string[]>("list_project_dir", { folder, relativePath: ".claude/agents" })
+          .then((files) => files.filter((f) => f.endsWith(".md")))
+          .catch(() => [] as string[]),
+        invoke<string>("read_project_file", { folder, relativePath: ".claude/settings.json" }).catch(() => ""),
+      ]);
+
+      if (cancelled) return;
+
+      let hasHooks = false;
+      try {
+        const parsed = JSON.parse(settingsText || "{}") as Record<string, unknown>;
+        const hooksObj = parsed?.hooks;
+        hasHooks = !!hooksObj && typeof hooksObj === "object" && Object.keys(hooksObj).length > 0;
+      } catch { /* not valid JSON — no hooks */ }
+
+      setPresence({
+        claudeMd: !!claudeMdText,
+        skills: (skillDirs as unknown[]).length > 0,
+        agents: agentFiles.length > 0,
+        hooks: hasHooks,
+        settings: !!settingsText,
+      });
+    })();
+
+    return () => { cancelled = true; };
+  }, [folder]);
+
+  const visibleTabs = useMemo(() => CONFIG_TABS.filter((tab) => {
+    if (!tab.requiresPresence) return true;
+    if (presence === null) return true; // loading — show all to avoid flash
+    return presence[tab.requiresPresence as PresenceKey];
+  }), [presence]);
+
+  // Auto-switch away from a now-hidden tab when session folder changes
+  useEffect(() => {
+    if (presence === null) return;
+    const isActiveVisible = visibleTabs.some((t) => t.id === configSubTab);
+    const isPinned = configSubTab.startsWith("pin:");
+    if (!isActiveVisible && !isPinned) {
+      setConfigSubTabRaw(visibleTabs[0]?.id ?? "github");
+    }
+  }, [visibleTabs, configSubTab, setConfigSubTabRaw]);
+
   const buttonPadding = size === "sm" ? "px-2.5 py-1" : "px-2 py-1";
   const iconSize = "w-3 h-3";
   const textSize = "text-[11px]";
@@ -124,20 +190,20 @@ export function ConfigPanelTabList({ folder, size = "md" }: ConfigPanelTabListPr
 
   const handleRemovePin = (pinId: string, label: string) => {
     removePinnedDoc(folder, pinId);
-    // If the removed pin was active, switch back to CLAUDE.md.
+    // If the removed pin was active, switch to the first visible tab.
     // Use raw setter to bypass dirty-guard (user removed the pin intentionally).
     if (configSubTab === `pin:${pinId}`) {
-      setConfigSubTabRaw("claude-md");
+      setConfigSubTabRaw(visibleTabs[0]?.id ?? "github");
     }
     addToast({ type: "info", title: "Pin entfernt", message: label });
   };
 
   return (
     <>
-      {CONFIG_TABS.map((tab, idx) => {
+      {visibleTabs.map((tab, idx) => {
         const Icon = tab.icon;
         const isActive = configSubTab === tab.id;
-        const prevGroup = idx > 0 ? CONFIG_TABS[idx - 1].group : null;
+        const prevGroup = idx > 0 ? visibleTabs[idx - 1].group : null;
         const showSeparator = prevGroup !== null && prevGroup !== tab.group;
         return (
           <Fragment key={tab.id}>

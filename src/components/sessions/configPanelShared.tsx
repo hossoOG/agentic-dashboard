@@ -16,24 +16,28 @@ export const PinnedDocViewer = lazy(() => import("./PinnedDocViewer").then(m => 
 
 export type TabGroup = "context" | "project" | "history";
 
+export type PresenceKey = "claudeMd" | "skills" | "agents" | "hooks" | "settings";
+
 export interface ConfigTab {
   id: ConfigSubTab;
   label: string;
   icon: typeof FileText;
   group: TabGroup;
+  /** If set, the tab is only shown when the folder contains the named artifact. */
+  requiresPresence?: PresenceKey;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const CONFIG_TABS: ConfigTab[] = [
-  { id: "claude-md", label: "CLAUDE.md", icon: FileText, group: "context" },
-  { id: "skills", label: "Skills", icon: Puzzle, group: "context" },
-  { id: "hooks", label: "Hooks", icon: Webhook, group: "context" },
-  { id: "settings", label: "Settings", icon: Settings, group: "context" },
-  { id: "agents", label: "Agents", icon: Bot, group: "context" },
-  { id: "github", label: "GitHub", icon: Github, group: "project" },
+  { id: "claude-md", label: "CLAUDE.md", icon: FileText, group: "context", requiresPresence: "claudeMd" },
+  { id: "skills",    label: "Skills",    icon: Puzzle,   group: "context", requiresPresence: "skills" },
+  { id: "hooks",     label: "Hooks",     icon: Webhook,  group: "context", requiresPresence: "hooks" },
+  { id: "settings",  label: "Settings",  icon: Settings, group: "context", requiresPresence: "settings" },
+  { id: "agents",    label: "Agents",    icon: Bot,      group: "context", requiresPresence: "agents" },
+  { id: "github",    label: "GitHub",    icon: Github,   group: "project" },
   { id: "worktrees", label: "Worktrees", icon: GitBranch, group: "project" },
-  { id: "kanban", label: "Kanban", icon: Columns3, group: "project" },
-  { id: "history", label: "History", icon: Clock, group: "history" },
+  { id: "kanban",    label: "Kanban",    icon: Columns3, group: "project" },
+  { id: "history",   label: "History",   icon: Clock,    group: "history" },
 ];
 
 interface ConfigPanelContentProps {
