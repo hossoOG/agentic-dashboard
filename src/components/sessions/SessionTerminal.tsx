@@ -81,8 +81,10 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
     terminalRef.current = term;
 
     // Clipboard: Ctrl+C copies selection (if any), otherwise sends SIGINT.
-    // Ctrl+V pastes from clipboard. Without this, xterm forwards both keys
-    // as raw PTY input — making copy/paste impossible without right-click.
+    // Ctrl+V is intentionally NOT handled here — xterm's native paste handler
+    // fires on DOM `paste` events independently of this keydown handler.
+    // Adding a custom Ctrl+V handler would cause double-paste (both paths call
+    // write_session). The native handler is sufficient for paste.
     term.attachCustomKeyEventHandler((event: KeyboardEvent): boolean => {
       if (event.type !== "keydown") return true;
       if (event.ctrlKey && event.key === "c") {
@@ -95,16 +97,6 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
         }
         // No selection → allow normal Ctrl+C (SIGINT) to pass through
         return true;
-      }
-      if (event.ctrlKey && event.key === "v") {
-        navigator.clipboard.readText().then((text) => {
-          if (text) {
-            wrapInvoke("write_session", { id: sessionId, data: text }).catch((err) => {
-              logError("SessionTerminal.paste", err);
-            });
-          }
-        }).catch((err) => logError("SessionTerminal.clipboardPaste", err));
-        return false; // Consumed
       }
       return true;
     });
