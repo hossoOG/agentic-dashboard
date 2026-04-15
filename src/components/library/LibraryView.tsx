@@ -317,7 +317,6 @@ function ScopePanel({
             icon={Zap}
             title="Skills"
             count={config.skills.length}
-            defaultOpen
           >
             {config.skills.map((s) => (
               <SkillCard key={`${s.scope}-${s.dirName}`} skill={s} />
@@ -328,7 +327,6 @@ function ScopePanel({
             icon={Bot}
             title="Agents"
             count={config.agents.length}
-            defaultOpen
           >
             {config.agents.map((a) => (
               <AgentCard key={`${a.scope}-${a.name}`} agent={a} />
@@ -339,7 +337,6 @@ function ScopePanel({
             icon={Webhook}
             title="Hooks"
             count={config.hooks.length}
-            defaultOpen
           >
             {config.hooks.map((h, i) => (
               <HookCard key={`${h.scope}-${h.event}-${i}`} hook={h} />
