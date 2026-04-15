@@ -31,8 +31,11 @@ export function ClaudeMdViewer({ folder }: ClaudeMdViewerProps) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      // Resolve to the main working tree root — worktree sessions may point to a
+      // branch-specific path that lacks or has a different CLAUDE.md.
+      const resolvedFolder = await invoke<string>("resolve_project_root", { folder });
       const text = await invoke<string>("read_project_file", {
-        folder,
+        folder: resolvedFolder,
         relativePath: "CLAUDE.md",
       });
       setContent(text || null);
@@ -64,8 +67,9 @@ export function ClaudeMdViewer({ folder }: ClaudeMdViewerProps) {
     if (isSaving) return;
     setIsSaving(true);
     try {
+      const resolvedFolder = await invoke<string>("resolve_project_root", { folder });
       await invoke("write_project_file", {
-        folder,
+        folder: resolvedFolder,
         relativePath: "CLAUDE.md",
         content: editContent,
       });

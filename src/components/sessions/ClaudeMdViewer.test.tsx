@@ -83,6 +83,7 @@ describe("ClaudeMdViewer", () => {
 
   it("saves file and exits edit mode", async () => {
     mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === "resolve_project_root") return Promise.resolve("/test/project");
       if (cmd === "read_project_file") return Promise.resolve("original");
       if (cmd === "write_project_file") return Promise.resolve(undefined);
       return Promise.reject(new Error("unknown"));
