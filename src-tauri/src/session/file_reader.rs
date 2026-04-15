@@ -596,6 +596,35 @@ pub mod commands {
         skills.sort_by(|a, b| a.dir_name.cmp(&b.dir_name));
         Ok(skills)
     }
+
+    /// Resolve the main working tree root for a folder that may be inside a git worktree.
+    ///
+    /// In a linked worktree, `session.folder` points to the worktree path. CLAUDE.md
+    /// should be read from the main working tree so the user always sees the project's
+    /// canonical config file, not a branch-specific (possibly outdated or missing) copy.
+    ///
+    /// Uses `git worktree list --porcelain` — the first `worktree <path>` line is
+    /// always the main working tree, regardless of where the command is run from.
+    /// Falls back to the original folder on any error (non-git dirs, no git installed, etc.).
+    #[tauri::command]
+    pub async fn resolve_project_root(folder: String) -> Result<String, ADPError> {
+        match crate::github::commands::run_command(
+            &folder,
+            "git",
+            &["worktree", "list", "--porcelain"],
+        ) {
+            Ok(output) => {
+                for line in output.lines() {
+                    if let Some(path) = line.strip_prefix("worktree ") {
+                        return Ok(path.to_string());
+                    }
+                }
+                Ok(folder)
+            }
+            // Not a git repo or git not available — silently fall back to the original path
+            Err(_) => Ok(folder),
+        }
+    }
 }
 
 // ============================================================================
