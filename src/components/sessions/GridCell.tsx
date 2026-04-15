@@ -15,6 +15,13 @@ interface GridCellProps {
   onRemove: () => void;
 }
 
+function GridCellStatusDot({ status, lastOutputAt }: { status: SessionStatus; lastOutputAt: number }) {
+  const now = useNowTick();
+  const isRunning = status === "running" || status === "starting";
+  const activityLevel = isRunning ? getActivityLevel(lastOutputAt, now) : null;
+  return <SessionStatusDot status={status} activityLevel={activityLevel} size="sm" />;
+}
+
 export function GridCell({
   sessionId,
   isFocused,
@@ -26,11 +33,7 @@ export function GridCell({
   const title = session?.title ?? "Session";
   const status = session?.status ?? "starting";
   const lastOutputAt = session?.lastOutputAt ?? Date.now();
-  const now = useNowTick();
-  const isRunning = status === "running" || status === "starting";
   const branch = useGitBranch(session?.folder);
-
-  const activityLevel = isRunning ? getActivityLevel(lastOutputAt, now) : null;
 
   return (
     <div
@@ -51,7 +54,7 @@ export function GridCell({
         `}
         style={{ height: "28px", minHeight: "28px" }}
       >
-        <SessionStatusDot status={status as SessionStatus} activityLevel={activityLevel} size="sm" />
+        <GridCellStatusDot status={status as SessionStatus} lastOutputAt={lastOutputAt} />
         <span className="text-xs text-neutral-200 font-bold truncate flex-1">
           {title}
         </span>

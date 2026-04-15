@@ -11,6 +11,7 @@ import { ChangelogDialog } from "../shared/ChangelogDialog";
 import { UpdateNotification } from "../shared/UpdateNotification";
 import { useAutoUpdate } from "../../hooks/useAutoUpdate";
 import { version } from "../../../package.json";
+import { logError } from "../../utils/errorLogger";
 
 function StatusIcon({ status }: { status: string }) {
   switch (status) {
@@ -99,7 +100,9 @@ export function SideNav({ badges = {} }: SideNavProps) {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              invoke("open_detached_window", { view: item.id, title: item.label });
+              invoke("open_detached_window", { view: item.id, title: item.label }).catch((err: unknown) =>
+                logError("SideNav.openDetachedWindow", err)
+              );
             }}
             className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-neutral-600 hover:text-accent opacity-0 group-hover:opacity-100 transition-opacity"
             title={`${item.label} in eigenem Fenster öffnen`}

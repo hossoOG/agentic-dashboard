@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import type { FavoriteFolder } from "../../store/settingsStore";
 import { useUIStore } from "../../store/uiStore";
 import { shortenPath } from "../../utils/pathUtils";
+import { logError } from "../../utils/errorLogger";
 
 interface FavoriteCardProps {
   favorite: FavoriteFolder;
@@ -28,7 +29,9 @@ export function FavoriteCard({ favorite, onStart, onRemove }: FavoriteCardProps)
         <button
           onClick={(e) => {
             e.stopPropagation();
-            invoke("open_folder_in_explorer", { path: favorite.path });
+            invoke("open_folder_in_explorer", { path: favorite.path }).catch((err: unknown) =>
+              logError("FavoriteCard.openFolder", err)
+            );
           }}
           className="p-0.5 text-neutral-600 hover:text-neutral-300"
           aria-label="Ordner im Explorer öffnen"
@@ -39,7 +42,9 @@ export function FavoriteCard({ favorite, onStart, onRemove }: FavoriteCardProps)
         <button
           onClick={(e) => {
             e.stopPropagation();
-            invoke("open_terminal_in_folder", { path: favorite.path });
+            invoke("open_terminal_in_folder", { path: favorite.path }).catch((err: unknown) =>
+              logError("FavoriteCard.openTerminal", err)
+            );
           }}
           className="p-0.5 text-neutral-600 hover:text-neutral-300"
           aria-label="Terminal im Ordner öffnen"
