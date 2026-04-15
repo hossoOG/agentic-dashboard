@@ -245,7 +245,7 @@ export function LogViewer() {
           </button>
 
           <button
-            onClick={() => invoke("open_log_window")}
+            onClick={() => invoke("open_log_window").catch((err: unknown) => logError("LogViewer.openLogWindow", err))}
             className="flex items-center gap-1 px-2 py-1 text-[11px] text-neutral-400 hover:text-neutral-200 rounded transition-all"
             title="In eigenem Fenster öffnen"
           >

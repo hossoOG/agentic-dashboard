@@ -4,7 +4,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { useSessionStore } from "../../store/sessionStore";
 import { useSettingsStore } from "../../store/settingsStore";
 import type { ClaudeSession } from "../../store/sessionStore";
-import { getActivityLevel, type ActivityLevel } from "./activityLevel";
+import { getActivityLevel } from "./activityLevel";
+import { logError } from "../../utils/errorLogger";
 import { SessionStatusDot } from "./SessionStatusDot";
 import { useNowTick } from "../../hooks/useNowTick";
 import { shortenPath } from "../../utils/pathUtils";
@@ -24,35 +25,31 @@ function formatDuration(ms: number): string {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-function TimeDisplay({
-  session,
-  now,
-  activityLevel,
-}: {
-  session: ClaudeSession;
-  now: number;
-  activityLevel: ActivityLevel | null;
-}) {
+function TimeDisplay({ session }: { session: ClaudeSession }) {
+  const now = useNowTick();
+  const isRunning = session.status === "running" || session.status === "starting";
+  const activityLevel = isRunning ? getActivityLevel(session.lastOutputAt, now) : null;
+
   switch (session.status) {
     case "starting":
       if (activityLevel === "idle") {
-        return <span className="text-neutral-500">Startet…</span>;
+        return <span className="text-neutral-400">Startet…</span>;
       }
       return (
-        <span className="text-neutral-500">
+        <span className="text-neutral-400">
           Läuft seit {formatDuration(now - session.createdAt)}
         </span>
       );
     case "running":
       if (activityLevel === "idle") {
         return (
-          <span className="text-neutral-500">
+          <span className="text-neutral-400">
             Idle seit {formatDuration(now - session.lastOutputAt)}
           </span>
         );
       }
       return (
-        <span className="text-neutral-500">
+        <span className="text-neutral-400">
           Läuft seit {formatDuration(now - session.createdAt)}
         </span>
       );
@@ -60,7 +57,7 @@ function TimeDisplay({
       return <span className="text-warning">Wartet auf Input</span>;
     case "done":
       return (
-        <span className="text-neutral-500">
+        <span className="text-neutral-400">
           Fertig ({formatDuration((session.finishedAt ?? now) - session.createdAt)})
         </span>
       );
@@ -73,8 +70,14 @@ function TimeDisplay({
   }
 }
 
-const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: SessionCardProps) => {
+function ActivityDot({ session }: { session: ClaudeSession }) {
   const now = useNowTick();
+  const isRunning = session.status === "running" || session.status === "starting";
+  const activityLevel = isRunning ? getActivityLevel(session.lastOutputAt, now) : null;
+  return <SessionStatusDot status={session.status} activityLevel={activityLevel} useIcons />;
+}
+
+const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: SessionCardProps) => {
   const renameSession = useSessionStore((s) => s.renameSession);
 
   const [isEditing, setIsEditing] = useState(false);
@@ -110,9 +113,6 @@ const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: Ses
     setEditValue("");
   }, []);
 
-  const isRunning = session.status === "running" || session.status === "starting";
-  const activityLevel = isRunning ? getActivityLevel(session.lastOutputAt, now) : null;
-
   return (
     <div
       onClick={() => onClick(session.id)}
@@ -130,7 +130,9 @@ const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: Ses
         <button
           onClick={(e) => {
             e.stopPropagation();
-            invoke("open_folder_in_explorer", { path: session.folder });
+            invoke("open_folder_in_explorer", { path: session.folder }).catch((err: unknown) =>
+              logError("SessionCard.openFolder", err)
+            );
           }}
           className="p-0.5 text-neutral-600 hover:text-neutral-300"
           aria-label="Ordner im Explorer öffnen"
@@ -141,7 +143,9 @@ const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: Ses
         <button
           onClick={(e) => {
             e.stopPropagation();
-            invoke("open_terminal_in_folder", { path: session.folder });
+            invoke("open_terminal_in_folder", { path: session.folder }).catch((err: unknown) =>
+              logError("SessionCard.openTerminal", err)
+            );
           }}
           className="p-0.5 text-neutral-600 hover:text-neutral-300"
           aria-label="Terminal im Ordner öffnen"
@@ -163,7 +167,7 @@ const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: Ses
 
       {/* Title row */}
       <div className="flex items-center gap-2 pr-5">
-        <SessionStatusDot status={session.status} activityLevel={activityLevel} useIcons />
+        <ActivityDot session={session} />
         {isEditing ? (
           <input
             ref={editInputRef}
@@ -196,13 +200,13 @@ const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: Ses
       </div>
 
       {/* Folder path */}
-      <div className="mt-1 pl-[18px] text-xs text-neutral-500 truncate">
+      <div className="mt-1 pl-[18px] text-xs text-neutral-400 truncate">
         {shortenPath(session.folder)}
       </div>
 
       {/* Time display */}
       <div className="mt-0.5 pl-[18px] text-xs">
-        <TimeDisplay session={session} now={now} activityLevel={activityLevel} />
+        <TimeDisplay session={session} />
       </div>
     </div>
   );

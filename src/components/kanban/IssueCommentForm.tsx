@@ -68,7 +68,7 @@ export function IssueCommentForm({
         disabled={submitting}
         placeholder="Kommentar verfassen (Markdown, ⌘/Ctrl+Enter zum Senden)"
         rows={4}
-        className="w-full bg-surface-base border border-neutral-700 rounded-sm p-2 text-sm text-neutral-200 placeholder:text-neutral-600 resize-y disabled:opacity-50 focus:outline-none focus:border-neutral-500 transition-colors"
+        className="w-full bg-surface-base border border-neutral-700 rounded-sm p-2 text-sm text-neutral-200 placeholder:text-neutral-500 resize-y disabled:opacity-50 focus:outline-none focus:border-neutral-500 transition-colors"
       />
       {error && (
         <p className="text-xs text-red-400">{error}</p>

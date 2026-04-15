@@ -24,6 +24,7 @@ const mockOnScroll = vi.fn((_cb: any) => ({ dispose: vi.fn() }));
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockOnData = vi.fn((_cb: any) => ({ dispose: vi.fn() }));
 const mockLoadAddon = vi.fn();
+const mockAttachCustomKeyEventHandler = vi.fn();
 
 let terminalOptions: Record<string, unknown> = {};
 const mockBuffer = {
@@ -44,6 +45,7 @@ vi.mock("@xterm/xterm", () => ({
       onScroll: mockOnScroll,
       onData: mockOnData,
       loadAddon: mockLoadAddon,
+      attachCustomKeyEventHandler: mockAttachCustomKeyEventHandler,
       cols: 80,
       rows: 24,
       element: document.createElement("div"),
@@ -84,6 +86,7 @@ describe("SessionTerminal", () => {
     vi.clearAllMocks();
     listenCallback = null;
     terminalOptions = {};
+    mockAttachCustomKeyEventHandler.mockReset();
     mockBuffer.active.viewportY = 0;
     mockBuffer.active.baseY = 0;
 
@@ -125,10 +128,17 @@ describe("SessionTerminal", () => {
     expect(mockScrollToBottom).toHaveBeenCalled();
   });
 
-  it("does NOT auto-scroll when user has manually scrolled up", () => {
+  it("does NOT auto-scroll when user has manually scrolled up", async () => {
+    vi.useFakeTimers();
     render(<SessionTerminal sessionId="sess-1" />);
 
-    // Capture the onScroll handler
+    // Advance past the 150ms scroll-track activation delay
+    await act(async () => {
+      vi.advanceTimersByTime(200);
+    });
+    vi.useRealTimers();
+
+    // Capture the onScroll handler (registered after the delay)
     expect(mockOnScroll).toHaveBeenCalled();
     const scrollHandler = mockOnScroll.mock.calls[0]![0] as () => void;
     expect(scrollHandler).toBeTruthy();

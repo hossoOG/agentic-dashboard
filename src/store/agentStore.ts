@@ -143,7 +143,9 @@ export const useAgentStore = create<AgentState>((set) => ({
           newWorktrees[path] = wt;
         }
       }
-      return { agents: newAgents, worktrees: newWorktrees };
+      const newDetectionQuality = { ...state.detectionQuality };
+      delete newDetectionQuality[sessionId];
+      return { agents: newAgents, worktrees: newWorktrees, detectionQuality: newDetectionQuality };
     }),
 
   addWorktree: (worktree) =>

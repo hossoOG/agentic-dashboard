@@ -275,7 +275,7 @@ function ScopePanel({
   label: string;
   icon: typeof Globe;
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   const hasContent =
     config.skills.length > 0 ||

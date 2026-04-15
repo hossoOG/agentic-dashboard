@@ -177,6 +177,9 @@ impl SessionManager {
         thread::spawn(move || {
             log::info!("Session {} reader thread started", read_id);
             let mut buf = [0u8; 4096];
+            // Track last emitted status to deduplicate — only emit on transitions.
+            // Empty string forces the first detected status to always emit.
+            let mut last_emitted_status = String::new();
             loop {
                 match reader.read(&mut buf) {
                     Ok(0) => {
@@ -211,16 +214,22 @@ impl SessionManager {
                             data.clone()
                         };
 
+                        // Only emit session-status when the detected status changes.
+                        // This reduces Tauri event traffic from ~100-200/s to ~1-5/s,
+                        // eliminating redundant store updates and React re-renders.
                         let status = Self::detect_status(&snippet);
-                        if let Err(e) = read_app.emit(
-                            "session-status",
-                            SessionStatusEvent {
-                                id: read_id.clone(),
-                                status,
-                                snippet: snippet.clone(),
-                            },
-                        ) {
-                            log::debug!("Session {} failed to emit session-status: {}", read_id, e);
+                        if status != last_emitted_status {
+                            last_emitted_status = status.clone();
+                            if let Err(e) = read_app.emit(
+                                "session-status",
+                                SessionStatusEvent {
+                                    id: read_id.clone(),
+                                    status,
+                                    snippet: snippet.clone(),
+                                },
+                            ) {
+                                log::debug!("Session {} failed to emit session-status: {}", read_id, e);
+                            }
                         }
 
                         // Agent detection: feed stripped output to detector

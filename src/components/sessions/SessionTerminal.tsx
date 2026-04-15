@@ -80,10 +80,19 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
     fitAddon.fit();
     terminalRef.current = term;
 
-    // Track user scroll: when user scrolls away from bottom, stop auto-scrolling
-    const scrollDisposable = term.onScroll(() => {
-      userScrolledUpRef.current = !isAtBottom(term);
-    });
+    // Scroll tracking: delay activation so the initial fitAddon.fit() resize event
+    // doesn't falsely set userScrolledUpRef=true (which would break auto-scroll).
+    let scrollDisposable: { dispose: () => void } = { dispose: () => {} };
+    const scrollTrackTimer = setTimeout(() => {
+      // Only reset to "at bottom" if the user hasn't already scrolled up during
+      // the delay window — blindly resetting would kick them back into auto-scroll.
+      if (isAtBottom(term)) {
+        userScrolledUpRef.current = false;
+      }
+      scrollDisposable = term.onScroll(() => {
+        userScrolledUpRef.current = !isAtBottom(term);
+      });
+    }, 150);
 
     // Input: User types -> send to backend
     term.onData((data: string) => {
@@ -140,6 +149,7 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
 
     return () => {
       clearTimeout(initialTimer);
+      clearTimeout(scrollTrackTimer);
       debouncedFit.cancel();
       unlistenPromise.then((unlisten) => unlisten()).catch(() => {});
       scrollDisposable.dispose();
