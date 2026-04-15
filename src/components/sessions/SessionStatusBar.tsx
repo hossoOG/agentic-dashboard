@@ -1,3 +1,4 @@
+import { useShallow } from "zustand/react/shallow";
 import { useSessionStore, selectActiveSession } from "../../store/sessionStore";
 import { useNowTick } from "../../hooks/useNowTick";
 import { getActivityLevel } from "./activityLevel";
@@ -9,7 +10,11 @@ const SHELL_LABELS: Record<string, string> = {
 };
 
 export function SessionStatusBar() {
-  const sessions = useSessionStore((s) => s.sessions);
+  // useShallow stabilisiert die sessions-Array-Reference, damit der StatusBar
+  // nicht bei jedem Output-Event neu gerendert wird (nur wenn sich die Liste
+  // wirklich ändert). Die idle/active-Unterscheidung braucht die volle Liste,
+  // weshalb wir keinen count-Selector nutzen können.
+  const sessions = useSessionStore(useShallow((s) => s.sessions));
   const activeSession = useSessionStore(selectActiveSession);
   const now = useNowTick();
 
