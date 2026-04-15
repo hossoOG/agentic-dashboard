@@ -323,7 +323,6 @@ function ScopePanel({
             icon={Zap}
             title="Skills"
             count={config.skills.length}
-            defaultOpen
             sectionKey={`${scopeId}:skills`}
           >
             {config.skills.map((s) => (
@@ -335,7 +334,6 @@ function ScopePanel({
             icon={Bot}
             title="Agents"
             count={config.agents.length}
-            defaultOpen
             sectionKey={`${scopeId}:agents`}
           >
             {config.agents.map((a) => (
@@ -347,7 +345,6 @@ function ScopePanel({
             icon={Webhook}
             title="Hooks"
             count={config.hooks.length}
-            defaultOpen
             sectionKey={`${scopeId}:hooks`}
           >
             {config.hooks.map((h, i) => (

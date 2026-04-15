@@ -121,8 +121,9 @@ describe("LibraryView", () => {
     render(<LibraryView />);
     const panelHeader = screen.getByText("Global (~/.claude/)");
     expect(panelHeader).toBeTruthy();
-    // Panel starts collapsed — click to expand
+    // Panel starts collapsed — click to expand scope, then expand Skills section
     fireEvent.click(panelHeader.closest("button")!);
+    fireEvent.click(screen.getByText("Skills").closest("button")!);
     expect(screen.getByText("implement")).toBeTruthy();
     expect(screen.getByText("Issue to PR")).toBeTruthy();
   });
@@ -139,6 +140,7 @@ describe("LibraryView", () => {
     render(<LibraryView />);
     const panelHeader = screen.getByText("Global (~/.claude/)");
     fireEvent.click(panelHeader.closest("button")!);
+    fireEvent.click(screen.getByText("Agents").closest("button")!);
     expect(screen.getByText("architect")).toBeTruthy();
     expect(screen.getByText("opus")).toBeTruthy();
   });
@@ -161,6 +163,7 @@ describe("LibraryView", () => {
     render(<LibraryView />);
     const panelHeader = screen.getByText("Global (~/.claude/)");
     fireEvent.click(panelHeader.closest("button")!);
+    fireEvent.click(screen.getByText("Hooks").closest("button")!);
     expect(screen.getByText("PreToolUse")).toBeTruthy();
     expect(screen.getByText("Bash")).toBeTruthy();
     expect(screen.getByText("node safe-guard.mjs")).toBeTruthy();
@@ -214,8 +217,9 @@ describe("LibraryView", () => {
     render(<LibraryView />);
     const panelHeader = screen.getByText(/My App/);
     expect(panelHeader).toBeTruthy();
-    // Panel starts collapsed — click to expand
+    // Panel starts collapsed — click to expand scope, then expand Skills section
     fireEvent.click(panelHeader.closest("button")!);
+    fireEvent.click(screen.getByText("Skills").closest("button")!);
     expect(screen.getByText("deploy")).toBeTruthy();
   });
 
@@ -255,9 +259,10 @@ describe("LibraryView", () => {
     });
 
     render(<LibraryView />);
-    // Panel starts collapsed — expand first
+    // Panel starts collapsed — expand scope, then expand Skills section
     const panelHeader = screen.getByText("Global (~/.claude/)");
     fireEvent.click(panelHeader.closest("button")!);
+    fireEvent.click(screen.getByText("Skills").closest("button")!);
     // skill name appears in the card button
     const skillButton = screen.getByRole("button", { name: /implement/i });
     fireEvent.click(skillButton);
