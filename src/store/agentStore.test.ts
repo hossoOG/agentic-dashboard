@@ -351,6 +351,7 @@ describe("removeAgentsBySession — selectedAgentId + bottomPanelCollapsed", () 
   });
 });
 
+
 describe("removeAgentsBySession clears detectionQuality", () => {
   it("removes detectionQuality entry when removing agents for a session", () => {
     useAgentStore.getState().addAgent(makeAgent({ id: "a1", sessionId: "sess-1" }));
