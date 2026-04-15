@@ -6,7 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { FavoriteFolder } from "../../store/settingsStore";
 
 vi.mock("@tauri-apps/api/core", () => ({
-  invoke: vi.fn(),
+  invoke: vi.fn().mockResolvedValue(undefined),
 }));
 
 const mockInvoke = vi.mocked(invoke);

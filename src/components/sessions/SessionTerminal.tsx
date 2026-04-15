@@ -111,7 +111,11 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
     // doesn't falsely set userScrolledUpRef=true (which would break auto-scroll).
     let scrollDisposable: { dispose: () => void } = { dispose: () => {} };
     const scrollTrackTimer = setTimeout(() => {
-      userScrolledUpRef.current = false; // Ensure clean state after fit settles
+      // Only reset to "at bottom" if the user hasn't already scrolled up during
+      // the delay window — blindly resetting would kick them back into auto-scroll.
+      if (isAtBottom(term)) {
+        userScrolledUpRef.current = false;
+      }
       scrollDisposable = term.onScroll(() => {
         userScrolledUpRef.current = !isAtBottom(term);
       });

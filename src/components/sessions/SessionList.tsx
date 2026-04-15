@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { Plus, ChevronDown, ChevronRight } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useSessionStore } from "../../store/sessionStore";
-
+import { useAgentStore } from "../../store/agentStore";
 import { useUIStore } from "../../store/uiStore";
 import { SessionCard } from "./SessionCard";
 import { FavoritesList } from "./FavoritesList";
@@ -56,6 +56,7 @@ export function SessionList({ onNewSession, onQuickStart }: SessionListProps) {
       logError("SessionList.closeSession", err)
     );
     useSessionStore.getState().removeSession(sessionId);
+    useAgentStore.getState().removeAgentsBySession(sessionId);
   }, []);
 
   return (
