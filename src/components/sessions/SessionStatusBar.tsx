@@ -1,3 +1,4 @@
+import { useShallow } from "zustand/react/shallow";
 import { useSessionStore, selectSessionCounts, selectActiveSession } from "../../store/sessionStore";
 
 const SHELL_LABELS: Record<string, string> = {
@@ -7,7 +8,7 @@ const SHELL_LABELS: Record<string, string> = {
 };
 
 export function SessionStatusBar() {
-  const counts = useSessionStore(selectSessionCounts);
+  const counts = useSessionStore(useShallow(selectSessionCounts));
   const activeSession = useSessionStore(selectActiveSession);
 
   return (
