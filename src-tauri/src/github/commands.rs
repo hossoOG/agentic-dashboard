@@ -42,6 +42,7 @@ pub struct KanbanLabel {
 
 #[derive(Serialize, Clone)]
 pub struct IssueComment {
+    pub id: String,
     pub author: String,
     pub body: String,
     pub created_at: String,
@@ -337,6 +338,7 @@ pub mod commands {
         let num_str = number.to_string();
         let json_fields =
             "number,title,body,state,author,createdAt,updatedAt,closedAt,labels,assignees,milestone,url,comments";
+        // Note: gh issue view --json includes `id` within each comment object by default.
         let mut args = vec!["issue", "view", &num_str, "--json", json_fields];
         if let Some(ref r) = repo {
             args.extend_from_slice(&["--repo", r]);
@@ -368,6 +370,7 @@ pub mod commands {
             .map(|arr| {
                 arr.iter()
                     .map(|c| IssueComment {
+                        id: c["id"].as_str().unwrap_or("").to_string(),
                         author: c["author"]["login"].as_str().unwrap_or("").to_string(),
                         body: c["body"].as_str().unwrap_or("").to_string(),
                         created_at: c["createdAt"].as_str().unwrap_or("").to_string(),
@@ -530,6 +533,91 @@ pub mod commands {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── IssueComment parser ───────────────────────────────────────────
+
+    #[test]
+    fn parse_issue_comment_includes_id() {
+        let raw = serde_json::json!({
+            "id": "IC_kwDOABC123",
+            "author": { "login": "alice" },
+            "body": "Looks good",
+            "createdAt": "2024-01-15T10:00:00Z"
+        });
+
+        let comment = IssueComment {
+            id: raw["id"].as_str().unwrap_or("").to_string(),
+            author: raw["author"]["login"].as_str().unwrap_or("").to_string(),
+            body: raw["body"].as_str().unwrap_or("").to_string(),
+            created_at: raw["createdAt"].as_str().unwrap_or("").to_string(),
+        };
+
+        assert_eq!(comment.id, "IC_kwDOABC123");
+        assert_eq!(comment.author, "alice");
+        assert_eq!(comment.body, "Looks good");
+        assert_eq!(comment.created_at, "2024-01-15T10:00:00Z");
+    }
+
+    #[test]
+    fn parse_two_comments_same_author_same_time_get_different_ids() {
+        // Simuliert den Bug-Szenario: gleicher Author, gleicher Timestamp -> IDs muessen verschieden sein
+        let raw_comments = serde_json::json!([
+            {
+                "id": "IC_kwDOFirst111",
+                "author": { "login": "bob" },
+                "body": "First comment",
+                "createdAt": "2024-01-15T10:00:00Z"
+            },
+            {
+                "id": "IC_kwDOSecond222",
+                "author": { "login": "bob" },
+                "body": "Second comment",
+                "createdAt": "2024-01-15T10:00:00Z"
+            }
+        ]);
+
+        let comments: Vec<IssueComment> = raw_comments
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| IssueComment {
+                id: c["id"].as_str().unwrap_or("").to_string(),
+                author: c["author"]["login"].as_str().unwrap_or("").to_string(),
+                body: c["body"].as_str().unwrap_or("").to_string(),
+                created_at: c["createdAt"].as_str().unwrap_or("").to_string(),
+            })
+            .collect();
+
+        assert_eq!(comments.len(), 2);
+        // Beide haben gleichen author und created_at - aber unterschiedliche IDs
+        assert_eq!(comments[0].author, comments[1].author);
+        assert_eq!(comments[0].created_at, comments[1].created_at);
+        assert_ne!(
+            comments[0].id, comments[1].id,
+            "Zwei Kommentare mit gleichem Author/Timestamp muessen verschiedene IDs haben"
+        );
+    }
+
+    #[test]
+    fn parse_comment_with_missing_id_falls_back_to_empty_string() {
+        let raw = serde_json::json!({
+            "author": { "login": "carol" },
+            "body": "No id field",
+            "createdAt": "2024-01-15T12:00:00Z"
+        });
+
+        let comment = IssueComment {
+            id: raw["id"].as_str().unwrap_or("").to_string(),
+            author: raw["author"]["login"].as_str().unwrap_or("").to_string(),
+            body: raw["body"].as_str().unwrap_or("").to_string(),
+            created_at: raw["createdAt"].as_str().unwrap_or("").to_string(),
+        };
+
+        assert_eq!(comment.id, "");
+        assert_eq!(comment.author, "carol");
+    }
+
+    // ── effective_cwd ─────────────────────────────────────────────────
 
     #[test]
     fn effective_cwd_some_valid_path_returns_it() {
