@@ -1,4 +1,26 @@
 import { create } from "zustand";
+import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
+
+/**
+ * Safe localStorage wrapper — falls back to a no-op in environments
+ * where localStorage is unavailable (e.g. Tauri WebView, test environments).
+ */
+function makeLocalStorage(): StateStorage {
+  try {
+    const test = "__zustand_test__";
+    localStorage.setItem(test, "1");
+    localStorage.removeItem(test);
+    return localStorage;
+  } catch {
+    // Fallback: in-memory store (tests, restricted environments)
+    const map = new Map<string, string>();
+    return {
+      getItem: (key) => map.get(key) ?? null,
+      setItem: (key, value) => { map.set(key, value); },
+      removeItem: (key) => { map.delete(key); },
+    };
+  }
+}
 
 export type ActiveTab = "sessions" | "pipeline" | "kanban" | "logs" | "library" | "settings" | "editor";
 
@@ -69,11 +91,21 @@ interface UIState {
   toasts: Toast[];
   addToast: (toast: Omit<Toast, "id">) => void;
   removeToast: (id: string) => void;
+
+  /** Persistent expand/collapse state for LibraryView ScopePanels. Key: scope id. */
+  libraryScopeOpen: Record<string, boolean>;
+  setLibraryScopeOpen: (scope: string, open: boolean) => void;
+
+  /** Persistent expand/collapse state for LibraryView Sections. Key: section key. */
+  librarySectionOpen: Record<string, boolean>;
+  setLibrarySectionOpen: (key: string, open: boolean) => void;
 }
 
 let toastCounter = 0;
 
-export const useUIStore = create<UIState>((set) => ({
+export const useUIStore = create<UIState>()(
+  persist(
+    (set) => ({
   activeTab: "sessions",
   setActiveTab: (tab) => set({ activeTab: tab }),
 
@@ -112,4 +144,26 @@ export const useUIStore = create<UIState>((set) => ({
     set((state) => ({
       toasts: state.toasts.filter((t) => t.id !== id),
     })),
-}));
+
+  libraryScopeOpen: {},
+  setLibraryScopeOpen: (scope, open) =>
+    set((state) => ({
+      libraryScopeOpen: { ...state.libraryScopeOpen, [scope]: open },
+    })),
+
+  librarySectionOpen: {},
+  setLibrarySectionOpen: (key, open) =>
+    set((state) => ({
+      librarySectionOpen: { ...state.librarySectionOpen, [key]: open },
+    })),
+    }),
+    {
+      name: "agenticexplorer-ui",
+      storage: createJSONStorage(makeLocalStorage),
+      partialize: (state) => ({
+        libraryScopeOpen: state.libraryScopeOpen,
+        librarySectionOpen: state.librarySectionOpen,
+      }),
+    }
+  )
+);

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useUIStore } from "../../store/uiStore";
 import {
   BookOpen,
   RefreshCw,
@@ -94,22 +95,25 @@ function Section({
   title,
   count,
   defaultOpen = false,
+  sectionKey,
   children,
 }: {
   icon: typeof Zap;
   title: string;
   count: number;
   defaultOpen?: boolean;
+  sectionKey: string;
   children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const open = useUIStore((s) => s.librarySectionOpen[sectionKey] ?? defaultOpen);
+  const setLibrarySectionOpen = useUIStore((s) => s.setLibrarySectionOpen);
 
   if (count === 0) return null;
 
   return (
     <div className="border-b border-neutral-800 last:border-b-0">
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => setLibrarySectionOpen(sectionKey, !open)}
         className="w-full flex items-center gap-2 px-3 py-2 hover:bg-hover-overlay transition-colors"
       >
         {open ? (
@@ -269,13 +273,16 @@ function ScopePanel({
   config,
   label,
   icon: Icon,
+  scopeId,
 }: {
   scope: ConfigScope;
   config: ScopeConfig;
   label: string;
   icon: typeof Globe;
+  scopeId: string;
 }) {
-  const [open, setOpen] = useState(false);
+  const open = useUIStore((s) => s.libraryScopeOpen[scopeId] ?? false);
+  const setLibraryScopeOpen = useUIStore((s) => s.setLibraryScopeOpen);
 
   const hasContent =
     config.skills.length > 0 ||
@@ -294,7 +301,7 @@ function ScopePanel({
   return (
     <div className="border border-neutral-700 rounded-lg overflow-hidden bg-surface-raised">
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => setLibraryScopeOpen(scopeId, !open)}
         className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-hover-overlay transition-colors"
       >
         {open ? (
@@ -318,6 +325,7 @@ function ScopePanel({
             title="Skills"
             count={config.skills.length}
             defaultOpen
+            sectionKey={`${scopeId}:skills`}
           >
             {config.skills.map((s) => (
               <SkillCard key={`${s.scope}-${s.dirName}`} skill={s} />
@@ -329,6 +337,7 @@ function ScopePanel({
             title="Agents"
             count={config.agents.length}
             defaultOpen
+            sectionKey={`${scopeId}:agents`}
           >
             {config.agents.map((a) => (
               <AgentCard key={`${a.scope}-${a.name}`} agent={a} />
@@ -340,6 +349,7 @@ function ScopePanel({
             title="Hooks"
             count={config.hooks.length}
             defaultOpen
+            sectionKey={`${scopeId}:hooks`}
           >
             {config.hooks.map((h, i) => (
               <HookCard key={`${h.scope}-${h.event}-${i}`} hook={h} />
@@ -347,7 +357,7 @@ function ScopePanel({
           </Section>
 
           {config.settingsRaw && (
-            <Section icon={Settings} title="Settings" count={1}>
+            <Section icon={Settings} title="Settings" count={1} sectionKey={`${scopeId}:settings`}>
               <ContentPreview
                 title="settings.json"
                 contentKey={settingsContentKey}
@@ -357,7 +367,7 @@ function ScopePanel({
           )}
 
           {config.claudeMd && (
-            <Section icon={FileText} title="CLAUDE.md" count={1}>
+            <Section icon={FileText} title="CLAUDE.md" count={1} sectionKey={`${scopeId}:claude-md`}>
               <ContentPreview
                 title="CLAUDE.md"
                 contentKey={claudeMdContentKey}
@@ -371,6 +381,7 @@ function ScopePanel({
               icon={Brain}
               title="Memory"
               count={config.memoryFiles.length}
+              sectionKey={`${scopeId}:memory`}
             >
               {config.memoryFiles.map((f) => (
                 <MemoryFileCard key={f.relativePath} file={f} />
@@ -478,6 +489,7 @@ export function LibraryView() {
                 config={globalConfig}
                 label="Global (~/.claude/)"
                 icon={Globe}
+                scopeId="global"
               />
             )}
 
@@ -488,6 +500,7 @@ export function LibraryView() {
                 config={projectConfig}
                 label={`Projekt (${folder.split(/[\\/]/).pop() ?? folder})`}
                 icon={FolderOpen}
+                scopeId={`project:${folder}`}
               />
             )}
 
@@ -504,6 +517,7 @@ export function LibraryView() {
                     config={config}
                     label={`${fav.label} (${fav.path.split(/[\\/]/).pop() ?? fav.path})`}
                     icon={FolderOpen}
+                    scopeId={`fav:${fav.id}`}
                   />
                 );
               })}
