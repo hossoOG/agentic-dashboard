@@ -11,7 +11,73 @@ import {
   type SessionState,
   type SessionShell,
 } from "./sessionStore";
-import { useSessionHistoryStore, initSessionHistoryListener } from "./sessionHistoryStore";
+import { useAgentStore, type DetectedAgent } from "./agentStore";
+
+// Mock sessionHistoryStore to prevent zustand persist middleware from
+// calling localStorage.setItem (which is unavailable in this test environment).
+// The mock provides an in-memory store plus the real listener logic.
+vi.mock("./sessionHistoryStore", async () => {
+  const { create } = await import("zustand");
+  const { useSessionStore } = await import("./sessionStore");
+
+  interface HistoryEntry { sessionId: string; [key: string]: unknown }
+  interface HistoryState {
+    entries: HistoryEntry[];
+    addEntry: (e: HistoryEntry) => void;
+    clearForProject: () => void;
+    getEntriesForProject: () => HistoryEntry[];
+  }
+
+  // Plain in-memory store (no persist middleware — no localStorage needed)
+  const store = create<HistoryState>((set, get) => ({
+    entries: [],
+    addEntry: (entry) => {
+      if (get().entries.some((e) => e.sessionId === entry.sessionId)) return;
+      set((s) => ({ entries: [entry, ...s.entries] }));
+    },
+    clearForProject: () => set({ entries: [] }),
+    getEntriesForProject: () => get().entries,
+  }));
+
+  function initSessionHistoryListener(): () => void {
+    const tracked = new Map<string, string>();
+    return useSessionStore.subscribe((state) => {
+      for (const session of state.sessions) {
+        const prev = tracked.get(session.id);
+        if (prev !== session.status) {
+          tracked.set(session.id, session.status);
+          if (session.status === "done" || session.status === "error") {
+            store.getState().addEntry({
+              id: `hist-${Date.now()}`,
+              sessionId: session.id,
+              projectFolder: session.folder,
+              title: session.title,
+              startedAt: session.createdAt,
+              finishedAt: session.finishedAt,
+              durationMs: null,
+              outcome: session.status === "done" ? "success" : "error",
+              exitCode: session.exitCode,
+              agentCount: 0,
+              lastOutputSnippet: "",
+            });
+          }
+        }
+      }
+      for (const id of tracked.keys()) {
+        if (!state.sessions.some((s) => s.id === id)) tracked.delete(id);
+      }
+    });
+  }
+
+  return {
+    useSessionHistoryStore: store,
+    initSessionHistoryListener,
+    selectRecentSessions: vi.fn(() => []),
+  };
+});
+
+// Import after mock registration
+const { useSessionHistoryStore, initSessionHistoryListener } = await import("./sessionHistoryStore");
 
 // ============================================================================
 // Helpers
@@ -36,6 +102,29 @@ function addSession(overrides?: Partial<typeof DEFAULT_SESSION>) {
 // Reset
 // ============================================================================
 
+function makeAgent(overrides: Partial<DetectedAgent> = {}): DetectedAgent {
+  return {
+    id: `agent-${Math.random().toString(36).slice(2, 8)}`,
+    sessionId: "test-session-001",
+    parentAgentId: null,
+    childrenIds: [],
+    depth: 0,
+    name: "test-agent",
+    task: "Implement feature",
+    taskNumber: null,
+    phaseNumber: null,
+    status: "running",
+    detectedAt: Date.now(),
+    completedAt: null,
+    worktreePath: null,
+    durationStr: null,
+    tokenCount: null,
+    blockedBy: null,
+    toolUses: null,
+    ...overrides,
+  };
+}
+
 beforeEach(() => {
   useSessionStore.setState({
     sessions: [],
@@ -45,6 +134,14 @@ beforeEach(() => {
     focusedGridSessionId: null,
   });
   useSessionHistoryStore.setState({ entries: [] });
+  useAgentStore.setState({
+    agents: {},
+    worktrees: {},
+    selectedAgentId: null,
+    bottomPanelCollapsed: true,
+    taskSummary: null,
+    detectionQuality: {},
+  });
 });
 
 // ============================================================================
@@ -250,5 +347,77 @@ describe("sessionHistoryStore — initSessionHistoryListener", () => {
 
     unlisten();
     warnSpy.mockRestore();
+  });
+});
+
+// ============================================================================
+// 7. Cross-Store Cleanup — Bug #10
+// ============================================================================
+
+describe("Cross-Store-Cleanup: removeSession + removeAgentsBySession", () => {
+  it("cleans both stores coherently when a session with selected agents is removed", () => {
+    const sessionId = DEFAULT_SESSION.id;
+
+    // Setup: Session mit 2 Agents anlegen, einen selektieren, Panel offen
+    addSession();
+    const agent1 = makeAgent({ id: "agent-1", sessionId });
+    const agent2 = makeAgent({ id: "agent-2", sessionId });
+    useAgentStore.getState().addAgent(agent1);
+    useAgentStore.getState().addAgent(agent2);
+    useAgentStore.setState({ selectedAgentId: "agent-1", bottomPanelCollapsed: false });
+    useAgentStore.getState().setDetectionQuality(sessionId, "good");
+
+    // Verify preconditions
+    expect(getState().sessions).toHaveLength(1);
+    expect(Object.keys(useAgentStore.getState().agents)).toHaveLength(2);
+    expect(useAgentStore.getState().selectedAgentId).toBe("agent-1");
+    expect(useAgentStore.getState().bottomPanelCollapsed).toBe(false);
+    expect(useAgentStore.getState().detectionQuality[sessionId]).toBe("good");
+
+    // Act: Session entfernen + Agents cleanen (wie im echten App-Code)
+    getState().removeSession(sessionId);
+    useAgentStore.getState().removeAgentsBySession(sessionId);
+
+    // Assert: sessionStore sauber
+    expect(getState().sessions).toHaveLength(0);
+    expect(getState().activeSessionId).toBeNull();
+
+    // Assert: agentStore vollständig bereinigt
+    expect(Object.keys(useAgentStore.getState().agents)).toHaveLength(0);
+    expect(useAgentStore.getState().selectedAgentId).toBeNull();
+    expect(useAgentStore.getState().bottomPanelCollapsed).toBe(true);
+    expect(useAgentStore.getState().detectionQuality[sessionId]).toBeUndefined();
+  });
+
+  it("preserves other-session agents and selection when only one session is removed", () => {
+    const sessionId1 = "sess-keep";
+    const sessionId2 = DEFAULT_SESSION.id;
+
+    addSession({ id: sessionId1 });
+    addSession({ id: sessionId2 });
+
+    const agentKept = makeAgent({ id: "agent-kept", sessionId: sessionId1 });
+    const agentRemoved = makeAgent({ id: "agent-removed", sessionId: sessionId2 });
+    useAgentStore.getState().addAgent(agentKept);
+    useAgentStore.getState().addAgent(agentRemoved);
+    useAgentStore.setState({ selectedAgentId: "agent-kept", bottomPanelCollapsed: false });
+
+    // Nur sessionId2 entfernen
+    getState().removeSession(sessionId2);
+    useAgentStore.getState().removeAgentsBySession(sessionId2);
+
+    // sessionId1-Session bleibt
+    expect(getState().sessions).toHaveLength(1);
+    expect(getState().sessions[0].id).toBe(sessionId1);
+
+    // Agent aus sessionId1 bleibt erhalten
+    expect(useAgentStore.getState().agents["agent-kept"]).toBeDefined();
+    expect(useAgentStore.getState().agents["agent-removed"]).toBeUndefined();
+
+    // selectedAgentId bleibt, da agent-kept noch existiert
+    expect(useAgentStore.getState().selectedAgentId).toBe("agent-kept");
+
+    // bottomPanel bleibt offen, da noch Agents vorhanden
+    expect(useAgentStore.getState().bottomPanelCollapsed).toBe(false);
   });
 });

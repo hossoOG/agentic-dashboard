@@ -311,6 +311,46 @@ describe("setDetectionQuality", () => {
   });
 });
 
+describe("removeAgentsBySession — selectedAgentId + bottomPanelCollapsed", () => {
+  it("clears selectedAgentId when selected agent belonged to the removed session", () => {
+    useAgentStore.getState().addAgent(makeAgent({ id: "a1", sessionId: "sess-1" }));
+    useAgentStore.setState({ selectedAgentId: "a1" });
+
+    useAgentStore.getState().removeAgentsBySession("sess-1");
+
+    expect(useAgentStore.getState().selectedAgentId).toBeNull();
+  });
+
+  it("preserves selectedAgentId when selected agent survives (different session)", () => {
+    useAgentStore.getState().addAgent(makeAgent({ id: "a1", sessionId: "sess-1" }));
+    useAgentStore.getState().addAgent(makeAgent({ id: "a2", sessionId: "sess-2" }));
+    useAgentStore.setState({ selectedAgentId: "a2" });
+
+    useAgentStore.getState().removeAgentsBySession("sess-1");
+
+    expect(useAgentStore.getState().selectedAgentId).toBe("a2");
+  });
+
+  it("collapses bottomPanel when no agents remain after removal", () => {
+    useAgentStore.getState().addAgent(makeAgent({ id: "a1", sessionId: "sess-1" }));
+    useAgentStore.setState({ bottomPanelCollapsed: false });
+
+    useAgentStore.getState().removeAgentsBySession("sess-1");
+
+    expect(useAgentStore.getState().bottomPanelCollapsed).toBe(true);
+  });
+
+  it("keeps bottomPanel state when other-session agents remain", () => {
+    useAgentStore.getState().addAgent(makeAgent({ id: "a1", sessionId: "sess-1" }));
+    useAgentStore.getState().addAgent(makeAgent({ id: "a2", sessionId: "sess-2" }));
+    useAgentStore.setState({ bottomPanelCollapsed: false });
+
+    useAgentStore.getState().removeAgentsBySession("sess-1");
+
+    expect(useAgentStore.getState().bottomPanelCollapsed).toBe(false);
+  });
+});
+
 describe("removeAgentsBySession clears detectionQuality", () => {
   it("removes detectionQuality entry when removing agents for a session", () => {
     useAgentStore.getState().addAgent(makeAgent({ id: "a1", sessionId: "sess-1" }));
