@@ -88,7 +88,9 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
       if (event.ctrlKey && event.key === "c") {
         const selection = term.getSelection();
         if (selection) {
-          navigator.clipboard.writeText(selection).catch(() => {});
+          navigator.clipboard.writeText(selection).catch((err) =>
+            logError("SessionTerminal.clipboardCopy", err),
+          );
           return false; // Consumed — do NOT forward to PTY
         }
         // No selection → allow normal Ctrl+C (SIGINT) to pass through
@@ -101,7 +103,7 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
               logError("SessionTerminal.paste", err);
             });
           }
-        }).catch(() => {});
+        }).catch((err) => logError("SessionTerminal.clipboardPaste", err));
         return false; // Consumed
       }
       return true;
@@ -154,7 +156,7 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
           id: sessionId,
           cols: term.cols,
           rows: term.rows,
-        }).catch(() => {});
+        }).catch((err) => logError("SessionTerminal.resize", err));
       }
     }, 100);
 
@@ -171,7 +173,7 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
         id: sessionId,
         cols: term.cols,
         rows: term.rows,
-      }).catch(() => {});
+      }).catch((err) => logError("SessionTerminal.resize", err));
     }, 50);
 
     return () => {

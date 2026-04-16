@@ -73,9 +73,14 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 vi.mock("@xterm/xterm/css/xterm.css", () => ({}));
 
+vi.mock("../../utils/errorLogger", () => ({
+  logError: vi.fn(),
+}));
+
 // ── Import after mocks ──────────────────────────────────────────────
 
 import { SessionTerminal } from "./SessionTerminal";
+import { logError } from "../../utils/errorLogger";
 
 // ── Tests ────────────────────────────────────────────────────────────
 
@@ -181,5 +186,97 @@ describe("SessionTerminal", () => {
     unmount();
 
     expect(mockDispose).toHaveBeenCalled();
+  });
+
+  it("clipboard copy failure is logged via logError", async () => {
+    // Stub clipboard.writeText to reject
+    const clipboardError = new Error("clipboard write denied");
+    const writeTextMock = vi.fn(() => Promise.reject(clipboardError));
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: writeTextMock, readText: vi.fn(() => Promise.resolve("")) },
+      writable: true,
+      configurable: true,
+    });
+
+    render(<SessionTerminal sessionId="sess-1" />);
+
+    // Extract the key event handler registered with xterm
+    expect(mockAttachCustomKeyEventHandler).toHaveBeenCalled();
+    const keyHandler = mockAttachCustomKeyEventHandler.mock.calls[0]![0] as (
+      e: KeyboardEvent,
+    ) => boolean;
+
+    // Simulate Ctrl+C with a selection present
+    const mockGetSelection = vi.fn(() => "selected text");
+    // Patch getSelection on the terminal mock
+    const termInstance = (
+      vi.mocked(await import("@xterm/xterm")).Terminal as unknown as {
+        mock: { results: { value: { getSelection: () => string } }[] };
+      }
+    ).mock.results[0]!.value;
+    termInstance.getSelection = mockGetSelection;
+
+    keyHandler(new KeyboardEvent("keydown", { ctrlKey: true, key: "c" }));
+
+    // Allow the microtask queue to flush so the .catch runs
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(vi.mocked(logError)).toHaveBeenCalledWith(
+      "SessionTerminal.clipboardCopy",
+      clipboardError,
+    );
+  });
+
+  it("clipboard paste failure is logged via logError", async () => {
+    // Stub clipboard.readText to reject
+    const clipboardError = new Error("clipboard read denied");
+    const readTextMock = vi.fn(() => Promise.reject(clipboardError));
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: vi.fn(() => Promise.resolve()), readText: readTextMock },
+      writable: true,
+      configurable: true,
+    });
+
+    render(<SessionTerminal sessionId="sess-1" />);
+
+    expect(mockAttachCustomKeyEventHandler).toHaveBeenCalled();
+    const keyHandler = mockAttachCustomKeyEventHandler.mock.calls[0]![0] as (
+      e: KeyboardEvent,
+    ) => boolean;
+
+    keyHandler(new KeyboardEvent("keydown", { ctrlKey: true, key: "v" }));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(vi.mocked(logError)).toHaveBeenCalledWith(
+      "SessionTerminal.clipboardPaste",
+      clipboardError,
+    );
+  });
+
+  it("resize invoke failure is logged via logError", async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const resizeError = new Error("resize failed");
+    vi.mocked(invoke).mockRejectedValueOnce(resizeError);
+
+    vi.useFakeTimers();
+    render(<SessionTerminal sessionId="sess-1" />);
+
+    // Advance past the 50ms initial resize timer
+    await act(async () => {
+      vi.advanceTimersByTime(100);
+    });
+    vi.useRealTimers();
+
+    // Flush microtasks so the .catch runs
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(vi.mocked(logError)).toHaveBeenCalledWith("SessionTerminal.resize", resizeError);
   });
 });
