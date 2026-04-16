@@ -110,6 +110,11 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
   const draggedItemRef = useRef<{ itemId: string; issueNumber: number } | null>(
     null
   );
+  /** AbortController für die globalen PointerEvent-Listener des aktiven Drags.
+   * Wird beim pointerup und beim Unmount der Komponente abgebrochen, damit
+   * keine Listener-Leaks entstehen, wenn die Komponente während eines Drags
+   * unmountet wird. */
+  const dragAbortRef = useRef<AbortController | null>(null);
 
   const selectedProject = isGlobal
     ? getGlobalProject()
@@ -117,6 +122,14 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
 
   // Keep boardRef in sync on every render.
   boardRef.current = board;
+
+  // Cleanup globaler Drag-Listener beim Unmount, damit kein Listener-Leak
+  // entsteht, wenn die Komponente während eines aktiven Drags unmountet wird.
+  useEffect(() => {
+    return () => {
+      dragAbortRef.current?.abort();
+    };
+  }, []);
 
   // ── Data loading ────────────────────────────────────────────────────
 
@@ -302,6 +315,11 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
   );
 
   const startGlobalDragListeners = useCallback(() => {
+    // Vorherigen AbortController defensiv abbrechen (z.B. bei rapid-fire Drags).
+    dragAbortRef.current?.abort();
+    dragAbortRef.current = new AbortController();
+    const { signal } = dragAbortRef.current;
+
     const onMove = (e: PointerEvent) => {
       if (!draggedItemRef.current) return;
       const els = document.elementsFromPoint(e.clientX, e.clientY);
@@ -310,8 +328,9 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
     };
 
     const onUp = (e: PointerEvent) => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
+      // Signal abbrechen entfernt beide Listener automatisch.
+      dragAbortRef.current?.abort();
+      dragAbortRef.current = null;
       if (!draggedItemRef.current) return;
       const els = document.elementsFromPoint(e.clientX, e.clientY);
       const laneEl = els.find((el) => el.hasAttribute("data-lane-id"));
@@ -323,8 +342,8 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
       }
     };
 
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointermove", onMove, { signal });
+    window.addEventListener("pointerup", onUp, { signal });
   }, [handleDropLane]);
 
   // ── Project picker ───────────────────────────────────────────────────

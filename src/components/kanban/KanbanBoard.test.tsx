@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, act } from "@testing-library/react";
 import { KanbanBoard } from "./KanbanBoard";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -298,5 +298,74 @@ describe("KanbanBoard — Projects v2", () => {
       "get_project_board",
       expect.objectContaining({ folder: null })
     );
+  });
+
+  it("global pointer listeners are removed when component unmounts during drag", async () => {
+    setupStore();
+    mockInvoke.mockResolvedValueOnce(makeBoard()); // get_project_board
+
+    // Spy on AbortController.prototype.abort — the AbortController-based cleanup
+    // calls abort() on unmount, which removes all Listener registered with { signal }.
+    const abortSpy = vi.spyOn(AbortController.prototype, "abort");
+
+    const { unmount } = render(<KanbanBoard folder="/test/unmount-drag" />);
+
+    // Wait for board to render
+    await waitFor(() => {
+      expect(screen.getByText("Backlog issue")).toBeTruthy();
+    });
+
+    // Reset spy so we only count aborts triggered after drag start.
+    abortSpy.mockClear();
+
+    // Simulate pointerdown on a card to start a drag.
+    // KanbanCard fires onDragStart after DRAG_THRESHOLD_PX movement —
+    // we trigger the drag listeners by simulating the full gesture:
+    // pointerdown → pointermove (past threshold) which fires onDragStart
+    // → startGlobalDragListeners registers listeners with { signal }.
+    const card = screen.getByText("Backlog issue").closest("[class]");
+    expect(card).toBeTruthy();
+
+    card!.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX: 100,
+        clientY: 100,
+        pointerId: 1,
+      })
+    );
+
+    // JSDOM does not implement document.elementsFromPoint — stub it out so the
+    // onMove handler does not throw when the pointermove event fires.
+    const origElementsFromPoint = document.elementsFromPoint;
+    document.elementsFromPoint = vi.fn().mockReturnValue([]);
+
+    // Move past the drag threshold (5px) so KanbanCard fires onDragStart,
+    // which in turn calls startGlobalDragListeners → creates the AbortController.
+    await act(async () => {
+      card!.dispatchEvent(
+        new PointerEvent("pointermove", {
+          bubbles: true,
+          cancelable: true,
+          clientX: 110,
+          clientY: 110,
+          pointerId: 1,
+        })
+      );
+    });
+
+    // Restore elementsFromPoint mock
+    document.elementsFromPoint = origElementsFromPoint;
+
+    // Unmount during drag (AbortController still active, listeners attached to window)
+    unmount();
+
+    // The useEffect cleanup must have called dragAbortRef.current.abort()
+    // to remove all registered pointermove/pointerup listeners.
+    expect(abortSpy).toHaveBeenCalled();
+
+    abortSpy.mockRestore();
   });
 });
