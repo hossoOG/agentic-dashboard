@@ -80,6 +80,37 @@ fn validate_id(id: &str) -> Result<(), ADPError> {
     Ok(())
 }
 
+// ── Pagination constants ─────────────────────────────────────────────
+
+/// Maximum number of pages fetched in a single board load.
+///
+/// At 100 items/page this caps at 10 000 items — more than any real project
+/// board is expected to contain. The guard exists solely to abort on malformed
+/// GitHub API responses where `hasNextPage == true` but `endCursor` is `null`,
+/// which would otherwise cause an infinite loop.
+pub(crate) const MAX_PAGES: usize = 100;
+
+/// Holds pagination state extracted from a single GraphQL response page.
+#[derive(Debug, PartialEq)]
+pub(crate) struct PageInfo {
+    pub has_next_page: bool,
+    pub end_cursor: Option<String>,
+}
+
+/// Extracts `pageInfo` from `items.pageInfo` inside a GraphQL `projectV2` node.
+///
+/// Returns `None` only when the `items` key is absent entirely (parse error
+/// path). `hasNextPage` defaults to `false` when missing/non-bool so the loop
+/// terminates safely.
+pub(crate) fn parse_page_info(items: &serde_json::Value) -> PageInfo {
+    let has_next_page = items["pageInfo"]["hasNextPage"].as_bool().unwrap_or(false);
+    let end_cursor = items["pageInfo"]["endCursor"].as_str().map(String::from);
+    PageInfo {
+        has_next_page,
+        end_cursor,
+    }
+}
+
 // ── Parsing helpers ──────────────────────────────────────────────────
 
 /// Extracts the Status single-select field id and lane definitions from a
@@ -287,8 +318,21 @@ pub mod commands {
         let mut lanes: Vec<ProjectLane> = Vec::new();
         let mut cursor: Option<String> = None;
         let mut first_page = true;
+        let mut pages_fetched: usize = 0;
 
         loop {
+            // Guard: abort on unexpectedly large or malformed paginated responses.
+            pages_fetched += 1;
+            if pages_fetched > MAX_PAGES {
+                log::warn!(
+                    "Pagination exceeded MAX_PAGES ({}) for project #{} — \
+                     possible API malformation or unexpectedly large project; aborting.",
+                    MAX_PAGES,
+                    project_number
+                );
+                break;
+            }
+
             let response = if let Some(ref c) = cursor {
                 let cursor_arg = format!("cursor={}", c);
                 run_command(
@@ -343,10 +387,25 @@ pub mod commands {
             let nodes = items["nodes"].as_array().unwrap_or(&empty);
             all_nodes.extend(nodes.iter().cloned());
 
-            if !items["pageInfo"]["hasNextPage"].as_bool().unwrap_or(false) {
+            let page_info = parse_page_info(items);
+            if !page_info.has_next_page {
                 break;
             }
-            cursor = items["pageInfo"]["endCursor"].as_str().map(String::from);
+            match page_info.end_cursor {
+                Some(c) => cursor = Some(c),
+                None => {
+                    // Malformed response: hasNextPage is true but endCursor is null.
+                    // Continuing would repeat the current page forever — abort.
+                    log::warn!(
+                        "GitHub API returned hasNextPage=true but endCursor=null for project #{} \
+                         (page {}). This is a malformed response; aborting pagination to prevent \
+                         an infinite loop.",
+                        project_number,
+                        pages_fetched
+                    );
+                    break;
+                }
+            }
         }
 
         let items = parse_items_from_graphql(&all_nodes, &lanes);
@@ -615,5 +674,70 @@ mod tests {
         })];
         let items = parse_items_from_graphql(&nodes, &[]);
         assert_eq!(items.len(), 0);
+    }
+
+    // ── parse_page_info ───────────────────────────────────────────────
+
+    #[test]
+    fn parse_page_info_normal_next_page() {
+        let items = serde_json::json!({
+            "pageInfo": {
+                "hasNextPage": true,
+                "endCursor": "Y3Vyc29yOnYyOpHOABCD"
+            }
+        });
+        let info = parse_page_info(&items);
+        assert!(info.has_next_page);
+        assert_eq!(info.end_cursor, Some("Y3Vyc29yOnYyOpHOABCD".to_string()));
+    }
+
+    #[test]
+    fn parse_page_info_last_page() {
+        let items = serde_json::json!({
+            "pageInfo": {
+                "hasNextPage": false,
+                "endCursor": "Y3Vyc29yOnYyOpHOABCD"
+            }
+        });
+        let info = parse_page_info(&items);
+        assert!(!info.has_next_page);
+        // endCursor is present but irrelevant when hasNextPage is false.
+        assert!(info.end_cursor.is_some());
+    }
+
+    /// Regression: malformed API response — hasNextPage true but endCursor null.
+    /// `parse_page_info` must surface this so the caller can abort instead of
+    /// looping forever on the first page.
+    #[test]
+    fn parse_page_info_malformed_has_next_but_null_cursor() {
+        let items = serde_json::json!({
+            "pageInfo": {
+                "hasNextPage": true,
+                "endCursor": null
+            }
+        });
+        let info = parse_page_info(&items);
+        assert!(info.has_next_page, "has_next_page must be true");
+        assert_eq!(
+            info.end_cursor, None,
+            "end_cursor must be None for null endCursor"
+        );
+        // The caller detects (has_next_page && end_cursor.is_none()) and breaks.
+    }
+
+    #[test]
+    fn parse_page_info_missing_page_info_key_defaults_to_no_next() {
+        // Completely absent pageInfo — defaults to no further pages.
+        let items = serde_json::json!({"nodes": []});
+        let info = parse_page_info(&items);
+        assert!(!info.has_next_page);
+        assert_eq!(info.end_cursor, None);
+    }
+
+    /// MAX_PAGES constant must stay at 100 — changing it accidentally would
+    /// either allow runaway loops or break large legitimate boards.
+    #[test]
+    fn max_pages_constant_is_100() {
+        assert_eq!(MAX_PAGES, 100);
     }
 }
