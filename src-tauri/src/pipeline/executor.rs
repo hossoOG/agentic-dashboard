@@ -407,7 +407,7 @@ mod tests {
     fn execute_agent_step_with_simple_prompt() {
         let path = test_project_path();
         let result = execute_agent_step("agent-1", "Say hello", None, true, Some(30), &path);
-        assert!(result.success || !result.success); // Just check it doesn't panic
+        let _ = result.success; // Smoke test: verify the pipeline returns without panic
     }
 
     #[test]
