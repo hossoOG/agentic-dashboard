@@ -461,7 +461,7 @@ mod tests {
         };
         let json = serde_json::to_string(&result).unwrap();
         let deserialized: RetryResult = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.success, false);
+        assert!(!deserialized.success);
         assert_eq!(deserialized.attempts, 3);
         assert_eq!(deserialized.last_output, "error[E0308]");
         assert_eq!(deserialized.last_exit_code, Some(1));

@@ -393,12 +393,7 @@ mod tests {
         let entries: Vec<_> = std::fs::read_dir(tmp.path())
             .unwrap()
             .flatten()
-            .filter(|e| {
-                e.path()
-                    .extension()
-                    .and_then(|ext| ext.to_str())
-                    .map_or(false, |ext| ext == "json")
-            })
+            .filter(|e| e.path().extension().and_then(|ext| ext.to_str()) == Some("json"))
             .collect();
         assert!(entries.is_empty());
     }

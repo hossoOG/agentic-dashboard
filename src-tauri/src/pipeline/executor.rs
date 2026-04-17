@@ -406,8 +406,8 @@ mod tests {
     #[ignore] // Requires Claude CLI installed
     fn execute_agent_step_with_simple_prompt() {
         let path = test_project_path();
-        let result = execute_agent_step("agent-1", "Say hello", None, true, Some(30), &path);
-        assert!(result.success || !result.success); // Just check it doesn't panic
+        let _result = execute_agent_step("agent-1", "Say hello", None, true, Some(30), &path);
+        // Reaching this line means the call did not panic.
     }
 
     #[test]
