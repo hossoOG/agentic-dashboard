@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { UpdateNotification } from "./UpdateNotification";
 import type { UpdateState } from "../../hooks/useAutoUpdate";
 
@@ -42,20 +42,9 @@ describe("UpdateNotification", () => {
     expect(container.innerHTML).toBe("");
   });
 
-  it("renders upToDate with Aktuell text", () => {
-    render(<UpdateNotification {...makeProps({ status: "upToDate" })} />);
-    expect(screen.getByText("Aktuell")).toBeTruthy();
-  });
-
-  it("auto-dismisses upToDate after 4 seconds", () => {
-    const onDismiss = vi.fn();
-    render(<UpdateNotification {...makeProps({ status: "upToDate", onDismiss })} />);
-    expect(onDismiss).not.toHaveBeenCalled();
-
-    act(() => {
-      vi.advanceTimersByTime(4000);
-    });
-    expect(onDismiss).toHaveBeenCalled();
+  it("returns null for upToDate status", () => {
+    const { container } = render(<UpdateNotification {...makeProps({ status: "upToDate" })} />);
+    expect(container.innerHTML).toBe("");
   });
 
   it("renders available status with version and update button", () => {
@@ -133,11 +122,8 @@ describe("UpdateNotification", () => {
 
   it("has correct border color for each status", () => {
     const { rerender } = render(
-      <UpdateNotification {...makeProps({ status: "upToDate" })} />,
+      <UpdateNotification {...makeProps({ status: "error", error: "x" })} />,
     );
-    expect(screen.getByRole("status").className).toContain("border-emerald");
-
-    rerender(<UpdateNotification {...makeProps({ status: "error", error: "x" })} />);
     expect(screen.getByRole("status").className).toContain("border-red");
 
     rerender(<UpdateNotification {...makeProps({ status: "available", newVersion: "2.0" })} />);
