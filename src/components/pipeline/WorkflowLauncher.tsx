@@ -233,7 +233,7 @@ export function WorkflowLauncher({ folder: folderProp }: WorkflowLauncherProps) 
         <button
           onClick={handleRefresh}
           disabled={loading}
-          className="p-1 text-neutral-500 hover:text-neutral-300 transition-colors disabled:opacity-50"
+          className="p-1 text-neutral-500 hover:text-neutral-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           title="Workflows neu erkennen"
         >
           {loading ? (

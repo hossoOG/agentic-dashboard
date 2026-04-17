@@ -178,7 +178,7 @@ export function PipelineControls({ projectPath }: PipelineControlsProps) {
                 value={selectedPath}
                 onChange={(e) => setSelectedPath(e.target.value)}
                 disabled={isRunning || loadingList}
-                className="w-full appearance-none bg-surface-raised border border-neutral-700 text-sm text-neutral-300 rounded px-3 py-1.5 pr-8 focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50"
+                className="w-full appearance-none bg-surface-raised border border-neutral-700 text-sm text-neutral-300 rounded px-3 py-1.5 pr-8 focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {workflows.length === 0 && (
                   <option value="">

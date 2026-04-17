@@ -97,6 +97,19 @@ Non-negotiable:
 - Fokus-Ring: `outline: 2px solid var(--color-accent); outline-offset: 2px` auf `:focus-visible` — niemals `outline: none` ohne Ersatz.
 - Motion-Tokens aus `src/utils/motion.ts` verwenden (`DURATION`, `EASE`) — kein Spring im Prod-Code.
 
+Content-Regeln (UI-Strings):
+- **Pronouns**: Kein `du`/`Sie`/`Ihre`/`Ihnen`. Nur Imperativ/Infinitiv. Beispiel: `Session schliessen` statt `Schliessen Sie die Session`, `Projektordner waehlen` statt `Waehlen Sie Ihren Ordner`.
+- **Number-Formatting**: `ms` fuer Durations (`312 ms`), `mm:ss` fuer Elapsed (`2:14`), Exit-Codes verbatim (`Exit 0`, `Exit 1`).
+- **Panel-Titel**: UPPERCASE + wide-tracking. Toast-Titel ebenso.
+
+Interaction-Patterns (Desktop, kein Touch!):
+- **Hover**: Text brightens one step (`text-neutral-400 → text-neutral-200`), Background bekommt `hover:bg-hover-overlay`, Border lightens (`border-neutral-700 → border-neutral-500`).
+- **Press**: KEIN `scale-*` transform. Dies ist ein Desktop-Tool.
+- **Disabled**: IMMER `disabled:opacity-40` + `disabled:cursor-not-allowed` zusammen setzen.
+- **Card-Action-Chrome**: `opacity-0 group-hover:opacity-100` (Aktionen nur bei Card-Hover sichtbar).
+- **Modal-Backdrop**: `bg-black/70` ohne `backdrop-blur-*`.
+- **Active/Selected**: `border-left: 2px solid` in semantischer Farbe + getoenter Background (`bg-accent-a10` / `bg-success-a05`).
+
 Bei neuen Komponenten: gegen Preview-HTMLs in `docs/design-system/preview/` abgleichen.
 
 ## Kommunikation

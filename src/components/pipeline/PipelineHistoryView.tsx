@@ -90,7 +90,7 @@ export function PipelineHistoryView() {
         <button
           onClick={() => loadRuns()}
           disabled={isLoading}
-          className="p-1 rounded hover:bg-surface-raised text-neutral-500 hover:text-neutral-300 transition-colors disabled:opacity-50"
+          className="p-1 rounded hover:bg-surface-raised text-neutral-500 hover:text-neutral-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           title="Aktualisieren"
           data-testid="refresh-button"
         >

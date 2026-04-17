@@ -190,7 +190,7 @@ export function PinnedDocViewer({ folder, pinId }: PinnedDocViewerProps) {
               <button
                 onClick={saveFile}
                 disabled={!isDirty || isSaving}
-                className="flex items-center gap-1 px-2 py-0.5 text-[11px] rounded transition-colors disabled:opacity-40 text-accent hover:bg-accent-a10"
+                className="flex items-center gap-1 px-2 py-0.5 text-[11px] rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-accent hover:bg-accent-a10"
                 title="Speichern (Ctrl+S)"
                 aria-label="Datei speichern"
               >
