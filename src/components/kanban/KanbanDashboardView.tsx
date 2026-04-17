@@ -84,7 +84,7 @@ export function KanbanDashboardView() {
   if (boardMode === "global") {
     return (
       <div className="flex flex-col h-full">
-        <div className="flex items-center gap-2 px-4 py-2 border-b border-neutral-700 shrink-0">
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-neutral-700 shrink-0">
           <Columns3 className="w-3.5 h-3.5 text-neutral-500" />
           <span className="text-xs text-neutral-500 mr-auto">Globales Board</span>
           {modeToggle}
@@ -101,7 +101,7 @@ export function KanbanDashboardView() {
   if (!folderModeFolder && availableOptions.length === 0) {
     return (
       <div className="flex flex-col h-full">
-        <div className="flex items-center justify-end gap-2 px-4 py-2 border-b border-neutral-700 shrink-0">
+        <div className="flex items-center justify-end gap-2 px-3 py-2 border-b border-neutral-700 shrink-0">
           {modeToggle}
         </div>
         <div className="flex flex-col items-center justify-center flex-1 gap-3 text-neutral-500">
@@ -118,7 +118,7 @@ export function KanbanDashboardView() {
   return (
     <div className="flex flex-col h-full">
       {/* Header: folder picker + mode toggle */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-neutral-700 shrink-0">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-neutral-700 shrink-0">
         <span className="text-xs text-neutral-500">Projekt:</span>
         <select
           value={folderModeFolder ?? ""}

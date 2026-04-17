@@ -98,7 +98,7 @@ export function Modal({
           >
             {/* Header (optional) */}
             {title !== undefined && (
-              <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-700 shrink-0">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-700 shrink-0">
                 <div id={titleId} className="flex-1 min-w-0">{title}</div>
                 <IconButton
                   icon={<X className="w-5 h-5" />}

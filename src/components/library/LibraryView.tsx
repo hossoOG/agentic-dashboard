@@ -436,7 +436,7 @@ export function LibraryView() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-700 bg-surface-raised shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-700 bg-surface-raised shrink-0">
         <div className="flex items-center gap-2">
           <BookOpen className="w-4 h-4 text-accent" />
           <h1 className="text-sm font-semibold text-neutral-200">

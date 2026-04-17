@@ -42,7 +42,7 @@ export function FavoritesList({ onQuickStart }: FavoritesListProps) {
     <div>
       {/* Section header */}
       <div
-        className="flex items-center justify-between px-3 py-1.5 border-b border-neutral-700 cursor-pointer hover:bg-hover-overlay transition-colors"
+        className="flex items-center justify-between px-3 py-2 border-b border-neutral-700 cursor-pointer hover:bg-hover-overlay transition-colors"
         onClick={() => setExpanded((v) => !v)}
       >
         <div className="flex items-center gap-1.5">

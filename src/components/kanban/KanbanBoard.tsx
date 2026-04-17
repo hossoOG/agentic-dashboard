@@ -379,7 +379,7 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-700 shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-700 shrink-0">
         <div className="flex items-center gap-2">
           <Columns3 className="w-4 h-4 text-neutral-400" />
           {/* Project selector */}
