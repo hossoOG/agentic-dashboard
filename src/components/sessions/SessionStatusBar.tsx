@@ -45,7 +45,7 @@ export function SessionStatusBar() {
         </span>
         <span className="text-neutral-600" aria-hidden="true">·</span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-neutral-500 text-neutral-500" aria-hidden="true" />
+          <span className="w-2 h-2 rounded-full bg-sky-500" aria-hidden="true" />
           <span className="text-neutral-400">{idleCount} inaktiv</span>
         </span>
         <span className="text-neutral-600" aria-hidden="true">·</span>

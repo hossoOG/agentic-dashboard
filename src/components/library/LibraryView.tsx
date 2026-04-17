@@ -269,16 +269,20 @@ function MemoryFileCard({ file }: { file: DiscoveredMemoryFile }) {
 // ── Scope Panel ──────────────────────────────────────────────────────
 
 function ScopePanel({
+  scope,
   config,
   label,
   icon: Icon,
   scopeId,
+  folder,
 }: {
   scope: ConfigScope;
   config: ScopeConfig;
   label: string;
   icon: typeof Globe;
   scopeId: string;
+  /** Unique key used to namespace the content cache — must be unique per panel */
+  folder: string;
 }) {
   const open = useUIStore((s) => s.libraryScopeOpen[scopeId] ?? false);
   const setLibraryScopeOpen = useUIStore((s) => s.setLibraryScopeOpen);
@@ -291,10 +295,11 @@ function ScopePanel({
     config.claudeMd.length > 0 ||
     config.memoryFiles.length > 0;
 
-  const settingsContentKey = `${scopeId}:settings`;
+  // Include folder in key to avoid cache collisions across multiple project panels
+  const settingsContentKey = `${scope}:${folder}:settings`;
   const settingsLoader = useCallback(async () => config.settingsRaw, [config.settingsRaw]);
 
-  const claudeMdContentKey = `${scopeId}:claude-md`;
+  const claudeMdContentKey = `${scope}:${folder}:claude-md`;
   const claudeMdLoader = useCallback(async () => config.claudeMd, [config.claudeMd]);
 
   return (
@@ -486,6 +491,7 @@ export function LibraryView() {
                 label="Global (~/.claude/)"
                 icon={Globe}
                 scopeId="global"
+                folder="global"
               />
             )}
 
@@ -497,6 +503,7 @@ export function LibraryView() {
                 label={`Projekt (${folder.split(/[\\/]/).pop() ?? folder})`}
                 icon={FolderOpen}
                 scopeId={`project:${folder}`}
+                folder={folder}
               />
             )}
 
@@ -514,6 +521,7 @@ export function LibraryView() {
                     label={`${fav.label} (${fav.path.split(/[\\/]/).pop() ?? fav.path})`}
                     icon={FolderOpen}
                     scopeId={`fav:${fav.id}`}
+                    folder={fav.path}
                   />
                 );
               })}
