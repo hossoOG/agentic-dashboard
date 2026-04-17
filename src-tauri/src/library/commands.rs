@@ -226,7 +226,7 @@ fn build_index_from_disk() -> Result<LibraryIndex, ADPError> {
         }
     }
 
-    items.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    items.sort_by_key(|a| a.name.to_lowercase());
 
     Ok(LibraryIndex {
         items,
@@ -302,7 +302,7 @@ pub mod commands {
             index.items.push(meta.clone());
             index
                 .items
-                .sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+                .sort_by_key(|a| a.name.to_lowercase());
         }
         index.built_at = now_epoch();
         write_index(&index)?;
