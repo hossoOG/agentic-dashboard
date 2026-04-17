@@ -169,7 +169,7 @@ export function PinnedDocViewer({ folder, pinId }: PinnedDocViewerProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-700 shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-700 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <span className="flex items-center gap-1.5 text-xs text-neutral-400 font-medium truncate" title={relativePath}>
             <Pin className="w-3 h-3 shrink-0" aria-hidden="true" />

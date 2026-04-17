@@ -160,7 +160,7 @@ export function LogViewer() {
   return (
     <div className="flex flex-col h-full bg-surface-base">
       {/* Toolbar */}
-      <div className="flex items-center gap-3 px-4 py-2 border-b border-neutral-700 bg-surface-raised flex-wrap">
+      <div className="flex items-center gap-3 px-3 py-2 border-b border-neutral-700 bg-surface-raised flex-wrap">
         {/* Severity filters */}
         <div className="flex gap-1">
           {SEVERITY_OPTIONS.map((opt) => (

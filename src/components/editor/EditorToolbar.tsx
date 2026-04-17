@@ -29,7 +29,7 @@ export function EditorToolbar() {
   const closeFile = useEditorStore(selectCloseFile);
 
   return (
-    <div className="flex items-center gap-2 px-4 py-2 bg-surface-raised border-b border-neutral-700 min-h-[44px]">
+    <div className="flex items-center gap-2 px-3 py-2 bg-surface-raised border-b border-neutral-700 min-h-[44px]">
       <FileEdit className="w-4 h-4 text-accent shrink-0" aria-hidden="true" />
 
       {/* File name */}

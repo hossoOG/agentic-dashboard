@@ -80,7 +80,7 @@ export function WorktreeViewer({ folder }: WorktreeViewerProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-700 shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-700 shrink-0">
         <div className="flex items-center gap-1.5">
           <GitBranch className="w-3.5 h-3.5 text-neutral-400" />
           <span className="text-xs text-neutral-400 font-medium">
