@@ -4,6 +4,18 @@ Alle relevanten Änderungen an AgenticExplorer werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.6.25] — 2026-04-17 — "Update-Indicator-Cleanup"
+
+### Fixes
+- **UpdateNotification**: "Aktuell"-Toast entfernt — Komponente rendert nur noch bei tatsächlich verfügbarem Update, laufendem Download, installierbarem Update oder Fehler
+- **useAutoUpdate**: Setzt Status nach `upToDate` automatisch nach 800 ms auf `idle` zurück (lastChecked bleibt erhalten)
+- **SideNav StatusIcon**: Zeigt Icon neben Versionsnummer nur noch wenn Update verfügbar oder Fehler — kein Spinner beim Prüfen, kein grüner Haken wenn aktuell
+- **Kanban**: Branch-Chip je Zelle, Sky-Blue Dot für passive Sessions, Library-Cache-Kollision behoben, Nicht-Git-Ordner aus Kanban-Folder-Picker gefiltert
+- **Config-Panel**: Leere Kontext-Tabs werden ausgeblendet (Skills/Hooks/Settings/Agents/claude-md)
+- **Terminal**: Eigener Ctrl+V-Handler entfernt — kollidierte mit xterm Native-Paste
+
+---
+
 ## [1.6.24] — 2026-04-10 — "Session-Name-Fix"
 
 > Bugfix-Release: Session-Namen werden beim App-Restart korrekt zugeordnet und bleiben über Restarts erhalten.
