@@ -13,21 +13,21 @@ describe("SessionStatusDot", () => {
     expect(dot).toBeTruthy();
   });
 
-  it("renders gray dot for starting + idle activity", () => {
+  it("renders sky-blue dot for starting + idle activity", () => {
     const { container } = render(
       <SessionStatusDot status="starting" activityLevel="idle" />,
     );
-    const dot = container.querySelector(".bg-neutral-600");
+    const dot = container.querySelector(".bg-sky-500");
     expect(dot).toBeTruthy();
     expect(container.querySelector(".status-pulse-animation")).toBeNull();
     expect(container.querySelector(".status-breathe-animation")).toBeNull();
   });
 
-  it("renders gray dot for running + idle activity", () => {
+  it("renders sky-blue dot for running + idle activity", () => {
     const { container } = render(
       <SessionStatusDot status="running" activityLevel="idle" />,
     );
-    const dot = container.querySelector(".bg-neutral-500");
+    const dot = container.querySelector(".bg-sky-500");
     expect(dot).toBeTruthy();
     // No pulse or breathe animation for idle
     expect(container.querySelector(".status-pulse-animation")).toBeNull();

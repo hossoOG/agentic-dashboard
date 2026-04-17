@@ -269,11 +269,14 @@ function ScopePanel({
   config,
   label,
   icon: Icon,
+  folder,
 }: {
   scope: ConfigScope;
   config: ScopeConfig;
   label: string;
   icon: typeof Globe;
+  /** Unique key used to namespace the content cache — must be unique per panel */
+  folder: string;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -285,10 +288,11 @@ function ScopePanel({
     config.claudeMd.length > 0 ||
     config.memoryFiles.length > 0;
 
-  const settingsContentKey = `${scope}:settings`;
+  // Include folder in key to avoid cache collisions across multiple project panels
+  const settingsContentKey = `${scope}:${folder}:settings`;
   const settingsLoader = useCallback(async () => config.settingsRaw, [config.settingsRaw]);
 
-  const claudeMdContentKey = `${scope}:claude-md`;
+  const claudeMdContentKey = `${scope}:${folder}:claude-md`;
   const claudeMdLoader = useCallback(async () => config.claudeMd, [config.claudeMd]);
 
   return (
@@ -475,6 +479,7 @@ export function LibraryView() {
                 config={globalConfig}
                 label="Global (~/.claude/)"
                 icon={Globe}
+                folder="global"
               />
             )}
 
@@ -485,6 +490,7 @@ export function LibraryView() {
                 config={projectConfig}
                 label={`Projekt (${folder.split(/[\\/]/).pop() ?? folder})`}
                 icon={FolderOpen}
+                folder={folder}
               />
             )}
 
@@ -501,6 +507,7 @@ export function LibraryView() {
                     config={config}
                     label={`${fav.label} (${fav.path.split(/[\\/]/).pop() ?? fav.path})`}
                     icon={FolderOpen}
+                    folder={fav.path}
                   />
                 );
               })}

@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { KanbanDashboardView } from "./KanbanDashboardView";
 import { useSessionStore } from "../../store/sessionStore";
 import { useSettingsStore } from "../../store/settingsStore";
+import { invoke } from "@tauri-apps/api/core";
 
 // ── Mocks ─────────────────────────────────────────────────────────────
 
@@ -21,6 +22,9 @@ vi.mock("./KanbanBoard", () => ({
   ),
 }));
 
+const mockInvoke = vi.mocked(invoke);
+const GIT_INFO_OK = { branch: "main", remote_url: "", last_commit: null };
+
 // ── Helpers ───────────────────────────────────────────────────────────
 
 /** Click the "Projekt" toggle button to switch from global to folder mode. */
@@ -28,19 +32,45 @@ function switchToFolderMode() {
   fireEvent.click(screen.getByText("Projekt"));
 }
 
+function makeSession(folder: string, id = "s1") {
+  return {
+    id,
+    title: "My Session",
+    folder,
+    shell: "powershell" as const,
+    status: "running" as const,
+    createdAt: Date.now(),
+    finishedAt: null,
+    exitCode: null,
+    lastOutputAt: Date.now(),
+    lastOutputSnippet: "",
+  };
+}
+
+function makeFavorite(id: string, path: string, label: string) {
+  return {
+    id,
+    path,
+    label,
+    shell: "powershell" as const,
+    addedAt: Date.now(),
+    lastUsedAt: Date.now(),
+  };
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────
 
 describe("KanbanDashboardView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Restore default: get_git_info resolves for any folder, others reject
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === "get_git_info") return Promise.resolve(GIT_INFO_OK);
+      return Promise.reject(new Error(`unhandled invoke: ${cmd}`));
+    });
     // Reset stores to defaults
-    useSessionStore.setState({
-      sessions: [],
-      activeSessionId: null,
-    });
-    useSettingsStore.setState({
-      favorites: [],
-    });
+    useSessionStore.setState({ sessions: [], activeSessionId: null });
+    useSettingsStore.setState({ favorites: [] });
   });
 
   // ── Global mode (default) ────────────────────────────────────────────
@@ -48,31 +78,16 @@ describe("KanbanDashboardView", () => {
   it("defaults to global mode and renders board with null folder", () => {
     render(<KanbanDashboardView />);
 
-    // Mode toggle buttons are visible
     expect(screen.getByText("Global")).toBeTruthy();
     expect(screen.getByText("Projekt")).toBeTruthy();
 
-    // Board is rendered with null folder (mock renders "__global__")
     const board = screen.getByTestId("kanban-board");
     expect(board.textContent).toBe("__global__");
   });
 
   it("global mode shows no folder picker regardless of sessions/favorites", () => {
     useSessionStore.setState({
-      sessions: [
-        {
-          id: "s1",
-          title: "My Session",
-          folder: "/projects/my-app",
-          shell: "powershell",
-          status: "running",
-          createdAt: Date.now(),
-          finishedAt: null,
-          exitCode: null,
-          lastOutputAt: Date.now(),
-          lastOutputSnippet: "",
-        },
-      ],
+      sessions: [makeSession("/projects/my-app")],
       activeSessionId: "s1",
     });
 
@@ -90,112 +105,84 @@ describe("KanbanDashboardView", () => {
 
     expect(screen.getByText("Kein Projekt verfügbar")).toBeTruthy();
     expect(
-      screen.getByText(
-        "Erstelle eine Session oder füge einen Favoriten hinzu.",
-      ),
+      screen.getByText("Erstelle eine Session oder füge einen Favoriten hinzu."),
     ).toBeTruthy();
   });
 
-  it("renders KanbanBoard with active session folder in folder mode", () => {
+  it("renders KanbanBoard with active session folder after git validation", async () => {
     useSessionStore.setState({
-      sessions: [
-        {
-          id: "s1",
-          title: "My Session",
-          folder: "/projects/my-app",
-          shell: "powershell",
-          status: "running",
-          createdAt: Date.now(),
-          finishedAt: null,
-          exitCode: null,
-          lastOutputAt: Date.now(),
-          lastOutputSnippet: "",
-        },
-      ],
+      sessions: [makeSession("/projects/my-app")],
       activeSessionId: "s1",
     });
 
     render(<KanbanDashboardView />);
     switchToFolderMode();
 
+    // Git validation is async — wait for the board to reflect the validated folder
+    await waitFor(() => {
+      const board = screen.getByTestId("kanban-board");
+      expect(board.textContent).toBe("/projects/my-app");
+    });
+  });
+
+  it("renders folder picker with favorites after git validation", async () => {
+    useSettingsStore.setState({
+      favorites: [makeFavorite("fav-1", "/projects/fav-project", "Fav Project")],
+    });
+
+    render(<KanbanDashboardView />);
+    switchToFolderMode();
+
+    await waitFor(() => {
+      expect(screen.getByText("Fav Project")).toBeTruthy();
+    });
+  });
+
+  it("switches folder when user selects from picker", async () => {
+    useSettingsStore.setState({
+      favorites: [
+        makeFavorite("fav-1", "/projects/alpha", "Alpha"),
+        makeFavorite("fav-2", "/projects/beta", "Beta"),
+      ],
+    });
+
+    render(<KanbanDashboardView />);
+    switchToFolderMode();
+
+    await waitFor(() => {
+      expect(screen.getByRole("combobox")).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "/projects/beta" } });
+
+    expect(screen.getByTestId("kanban-board").textContent).toBe("/projects/beta");
+  });
+
+  it("keeps a valid folder when user deselects (auto-fallback to first available)", async () => {
+    useSettingsStore.setState({
+      favorites: [
+        makeFavorite("fav-1", "/projects/alpha", "Alpha"),
+        makeFavorite("fav-2", "/projects/beta", "Beta"),
+      ],
+    });
+
+    render(<KanbanDashboardView />);
+    switchToFolderMode();
+
+    await waitFor(() => {
+      expect(screen.getByRole("combobox")).toBeTruthy();
+    });
+
+    // Select beta first
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "/projects/beta" } });
+    expect(screen.getByTestId("kanban-board").textContent).toBe("/projects/beta");
+
+    // Deselect (empty value) → component auto-falls back to first valid folder
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "" } });
+
+    // Board should still show a valid folder (not empty/broken)
     const board = screen.getByTestId("kanban-board");
-    expect(board.textContent).toBe("/projects/my-app");
-  });
-
-  it("renders folder picker with favorites in folder mode", () => {
-    useSettingsStore.setState({
-      favorites: [
-        {
-          id: "fav-1",
-          path: "/projects/fav-project",
-          label: "Fav Project",
-          shell: "powershell",
-          addedAt: Date.now(),
-          lastUsedAt: Date.now(),
-        },
-      ],
-    });
-
-    render(<KanbanDashboardView />);
-    switchToFolderMode();
-
-    // Folder picker should show the favorite
-    expect(screen.getByText("Fav Project")).toBeTruthy();
-  });
-
-  it("switches folder when user selects from picker in folder mode", () => {
-    useSettingsStore.setState({
-      favorites: [
-        {
-          id: "fav-1",
-          path: "/projects/alpha",
-          label: "Alpha",
-          shell: "powershell",
-          addedAt: Date.now(),
-          lastUsedAt: Date.now(),
-        },
-        {
-          id: "fav-2",
-          path: "/projects/beta",
-          label: "Beta",
-          shell: "powershell",
-          addedAt: Date.now(),
-          lastUsedAt: Date.now(),
-        },
-      ],
-    });
-
-    render(<KanbanDashboardView />);
-    switchToFolderMode();
-
-    const select = screen.getByRole("combobox");
-    fireEvent.change(select, { target: { value: "/projects/beta" } });
-
-    const board = screen.getByTestId("kanban-board");
-    expect(board.textContent).toBe("/projects/beta");
-  });
-
-  it("shows 'Projekt auswählen' when favorites exist but none selected and no session", () => {
-    useSettingsStore.setState({
-      favorites: [
-        {
-          id: "fav-1",
-          path: "/projects/alpha",
-          label: "Alpha",
-          shell: "powershell",
-          addedAt: Date.now(),
-          lastUsedAt: Date.now(),
-        },
-      ],
-    });
-
-    render(<KanbanDashboardView />);
-    switchToFolderMode();
-
-    // Select empty value to deselect
-    const select = screen.getByRole("combobox");
-    fireEvent.change(select, { target: { value: "" } });
-
-    expect(screen.getByText("Projekt auswählen")).toBeTruthy();
+    expect(board.textContent).not.toBe("");
+    expect(board.textContent).not.toBe("__global__");
   });
 });

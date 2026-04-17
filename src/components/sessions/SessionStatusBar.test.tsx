@@ -33,30 +33,46 @@ describe("SessionStatusBar", () => {
     render(<SessionStatusBar />);
 
     expect(screen.getByText("0 aktiv")).toBeTruthy();
+    expect(screen.getByText("0 passiv")).toBeTruthy();
     expect(screen.getByText("0 wartend")).toBeTruthy();
-    expect(screen.getByText("0 fertig")).toBeTruthy();
-    expect(screen.getByText("0 Fehler")).toBeTruthy();
+    expect(screen.queryByText(/fertig/)).toBeNull();
+    expect(screen.queryByText(/Fehler/)).toBeNull();
   });
 
-  it("displays correct counts for mixed session statuses", () => {
+  it("displays correct aktiv count for recently-active running session", () => {
+    // lastOutputAt = now → active (within 30s threshold)
+    const now = Date.now();
     useSessionStore.setState({
       sessions: [
-        makeSession({ id: "s1", status: "running" }),
-        makeSession({ id: "s2", status: "running" }),
-        makeSession({ id: "s3", status: "waiting" }),
-        makeSession({ id: "s4", status: "done" }),
-        makeSession({ id: "s5", status: "error" }),
-        makeSession({ id: "s6", status: "error" }),
+        makeSession({ id: "s1", status: "running", lastOutputAt: now }),
+        makeSession({ id: "s2", status: "waiting", lastOutputAt: now }),
       ],
       activeSessionId: "s1",
     });
 
     render(<SessionStatusBar />);
 
-    expect(screen.getByText("2 aktiv")).toBeTruthy();
+    expect(screen.getByText("1 aktiv")).toBeTruthy();
+    expect(screen.getByText("0 passiv")).toBeTruthy();
     expect(screen.getByText("1 wartend")).toBeTruthy();
-    expect(screen.getByText("1 fertig")).toBeTruthy();
-    expect(screen.getByText("2 Fehler")).toBeTruthy();
+  });
+
+  it("counts idle running sessions as passiv", () => {
+    // lastOutputAt = far in the past → idle → passiv
+    const oldTime = Date.now() - 60_000;
+    useSessionStore.setState({
+      sessions: [
+        makeSession({ id: "s1", status: "running", lastOutputAt: oldTime }),
+        makeSession({ id: "s2", status: "running", lastOutputAt: oldTime }),
+      ],
+      activeSessionId: "s1",
+    });
+
+    render(<SessionStatusBar />);
+
+    expect(screen.getByText("0 aktiv")).toBeTruthy();
+    expect(screen.getByText("2 passiv")).toBeTruthy();
+    expect(screen.getByText("0 wartend")).toBeTruthy();
   });
 
   it("shows shell label for active session", () => {
@@ -78,8 +94,9 @@ describe("SessionStatusBar", () => {
   });
 
   it("applies pulse animation when active sessions exist", () => {
+    const now = Date.now();
     useSessionStore.setState({
-      sessions: [makeSession({ id: "s1", status: "running" })],
+      sessions: [makeSession({ id: "s1", status: "running", lastOutputAt: now })],
       activeSessionId: "s1",
     });
 

@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Columns3 } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import { KanbanBoard } from "./KanbanBoard";
 import { useSessionStore, selectActiveSession } from "../../store/sessionStore";
 import { useSettingsStore } from "../../store/settingsStore";
@@ -20,8 +21,42 @@ export function KanbanDashboardView() {
   const activeSession = useSessionStore(selectActiveSession);
   const favorites = useSettingsStore((s) => s.favorites);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [validGitFolders, setValidGitFolders] = useState<Set<string>>(new Set());
 
-  const folderModeFolder = selectedFolder ?? activeSession?.folder ?? null;
+  useEffect(() => {
+    async function checkFolders() {
+      const foldersToCheck = new Set<string>();
+      if (activeSession?.folder) foldersToCheck.add(activeSession.folder);
+      favorites.forEach((f) => foldersToCheck.add(f.path));
+
+      const valid = new Set<string>();
+      for (const folder of Array.from(foldersToCheck)) {
+        try {
+          await invoke("get_git_info", { folder });
+          valid.add(folder);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (err) {
+          // not a git repo
+        }
+      }
+      setValidGitFolders(valid);
+    }
+    checkFolders();
+  }, [activeSession?.folder, favorites]);
+
+  // Compute available git folders
+  const isSessionValid = activeSession && validGitFolders.has(activeSession.folder);
+  const validFavorites = favorites.filter(f => f.path !== activeSession?.folder && validGitFolders.has(f.path));
+
+  const availableOptions = [
+    ...(isSessionValid ? [activeSession.folder] : []),
+    ...validFavorites.map(f => f.path)
+  ];
+
+  let folderModeFolder = selectedFolder;
+  if (!folderModeFolder || !availableOptions.includes(folderModeFolder)) {
+    folderModeFolder = availableOptions.length > 0 ? availableOptions[0] : null;
+  }
 
   // ── Mode toggle ───────────────────────────────────────────────────────
 
@@ -62,7 +97,7 @@ export function KanbanDashboardView() {
 
   // ── Folder mode ───────────────────────────────────────────────────────
 
-  if (!folderModeFolder && favorites.length === 0) {
+  if (!folderModeFolder && availableOptions.length === 0) {
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-end gap-2 px-4 py-2 border-b border-neutral-700 shrink-0">
@@ -89,14 +124,12 @@ export function KanbanDashboardView() {
           onChange={(e) => setSelectedFolder(e.target.value || null)}
           className="text-xs bg-surface-base border border-neutral-700 text-neutral-300 rounded-sm px-2 py-1 outline-none focus:border-accent max-w-xs"
         >
-          {activeSession && (
+          {isSessionValid && (
             <option value={activeSession.folder}>
               {activeSession.title} (aktive Session)
             </option>
           )}
-          {favorites
-            .filter((f) => f.path !== activeSession?.folder)
-            .map((fav) => (
+          {validFavorites.map((fav) => (
               <option key={fav.id} value={fav.path}>
                 {fav.label}
               </option>
