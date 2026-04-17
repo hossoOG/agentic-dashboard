@@ -99,6 +99,7 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
       return true;
     });
 
+
     // Scroll tracking: delay activation so the initial fitAddon.fit() resize event
     // doesn't falsely set userScrolledUpRef=true (which would break auto-scroll).
     let scrollDisposable: { dispose: () => void } = { dispose: () => {} };
