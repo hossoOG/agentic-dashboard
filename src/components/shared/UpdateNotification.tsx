@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { CheckCircle, Download, RefreshCw, RotateCcw, X, AlertCircle } from "lucide-react";
+import { Download, RefreshCw, RotateCcw, X, AlertCircle, CheckCircle } from "lucide-react";
 import { type UpdateState } from "../../hooks/useAutoUpdate";
 
 interface Props extends UpdateState {
@@ -19,32 +18,14 @@ export function UpdateNotification({
   onRetry,
   onDismiss,
 }: Props) {
-  const [visible, setVisible] = useState(true);
-
-  useEffect(() => {
-    if (status === "upToDate") {
-      setVisible(true);
-      const timer = setTimeout(() => {
-        onDismiss();
-      }, 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [status, onDismiss]);
-
-  if (status === "idle" || status === "checking") {
-    return null;
-  }
-
-  if (status === "upToDate" && !visible) {
+  if (status === "idle" || status === "checking" || status === "upToDate") {
     return null;
   }
 
   const borderColor =
-    status === "upToDate"
-      ? "border-emerald-400/40 bg-emerald-400/10"
-      : status === "error"
-        ? "border-red-400/40 bg-red-400/10"
-        : "border-accent/40 bg-accent/10";
+    status === "error"
+      ? "border-red-400/40 bg-red-400/10"
+      : "border-accent/40 bg-accent/10";
 
   return (
     <div
@@ -52,13 +33,6 @@ export function UpdateNotification({
       aria-live="polite"
       className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 text-xs border ${borderColor} px-3 py-1.5 rounded-sm shadow-lg animate-in fade-in`}
     >
-      {status === "upToDate" && (
-        <>
-          <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-          <span className="text-emerald-400">Aktuell</span>
-        </>
-      )}
-
       {status === "available" && (
         <>
           <Download className="w-3.5 h-3.5 text-accent shrink-0" />

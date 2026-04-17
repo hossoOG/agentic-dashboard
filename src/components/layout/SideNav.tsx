@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   Monitor, Columns3, ScrollText, BookOpen, FileEdit,
-  Sun, Moon, Check, RefreshCw, ArrowDownCircle, AlertCircle, ExternalLink,
+  Sun, Moon, ArrowDownCircle, AlertCircle, ExternalLink,
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useUIStore, type ActiveTab } from "../../store/uiStore";
@@ -15,10 +15,6 @@ import { logError } from "../../utils/errorLogger";
 
 function StatusIcon({ status }: { status: string }) {
   switch (status) {
-    case "checking":
-      return <RefreshCw className="w-3 h-3 text-neutral-400 animate-spin" />;
-    case "upToDate":
-      return <Check className="w-3 h-3 text-emerald-400" />;
     case "available":
     case "downloading":
     case "ready":
