@@ -300,9 +300,7 @@ pub mod commands {
             *existing = meta.clone();
         } else {
             index.items.push(meta.clone());
-            index
-                .items
-                .sort_by_key(|a| a.name.to_lowercase());
+            index.items.sort_by_key(|a| a.name.to_lowercase());
         }
         index.built_at = now_epoch();
         write_index(&index)?;

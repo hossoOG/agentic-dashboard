@@ -228,7 +228,11 @@ impl SessionManager {
                                     snippet: snippet.clone(),
                                 },
                             ) {
-                                log::debug!("Session {} failed to emit session-status: {}", read_id, e);
+                                log::debug!(
+                                    "Session {} failed to emit session-status: {}",
+                                    read_id,
+                                    e
+                                );
                             }
                         }
 
