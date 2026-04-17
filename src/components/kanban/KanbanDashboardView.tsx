@@ -58,6 +58,7 @@ export function KanbanDashboardView() {
     folderModeFolder = availableOptions.length > 0 ? availableOptions[0] : null;
   }
 
+
   // ── Mode toggle ───────────────────────────────────────────────────────
 
   const modeToggle = (
