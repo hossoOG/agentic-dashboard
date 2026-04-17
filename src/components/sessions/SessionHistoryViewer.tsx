@@ -167,7 +167,7 @@ const SessionHistoryViewer: React.FC<SessionHistoryViewerProps> = ({ folder, onR
           return (
             <div
               key={session.session_id}
-              className="bg-surface-raised border border-neutral-700 rounded-md px-3 py-2 text-sm group"
+              className="bg-surface-raised border border-neutral-700 rounded-none px-3 py-2 text-sm group"
             >
             {/* Title + Resume button */}
             <div className="flex items-start gap-2">

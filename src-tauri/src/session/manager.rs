@@ -228,7 +228,11 @@ impl SessionManager {
                                     snippet: snippet.clone(),
                                 },
                             ) {
-                                log::debug!("Session {} failed to emit session-status: {}", read_id, e);
+                                log::debug!(
+                                    "Session {} failed to emit session-status: {}",
+                                    read_id,
+                                    e
+                                );
                             }
                         }
 
@@ -547,6 +551,21 @@ impl Drop for SessionManager {
     }
 }
 
+/// Check if an executable exists on PATH (simple cross-platform check).
+fn which_executable(name: &str) -> Option<std::path::PathBuf> {
+    let cmd_name = if cfg!(windows) { "where" } else { "which" };
+    let mut cmd = crate::util::silent_command(cmd_name);
+    cmd.arg(name);
+    crate::util::timed_output(cmd, std::time::Duration::from_secs(5))
+        .ok()
+        .filter(|o| o.status.success())
+        .and_then(|o| {
+            String::from_utf8(o.stdout)
+                .ok()
+                .map(|s| std::path::PathBuf::from(s.lines().next().unwrap_or_default().trim()))
+        })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -661,19 +680,4 @@ mod tests {
     fn waiting_with_trailing_newlines() {
         assert_eq!(status("Continue? \n\r\n"), "waiting");
     }
-}
-
-/// Check if an executable exists on PATH (simple cross-platform check).
-fn which_executable(name: &str) -> Option<std::path::PathBuf> {
-    let cmd_name = if cfg!(windows) { "where" } else { "which" };
-    let mut cmd = crate::util::silent_command(cmd_name);
-    cmd.arg(name);
-    crate::util::timed_output(cmd, std::time::Duration::from_secs(5))
-        .ok()
-        .filter(|o| o.status.success())
-        .and_then(|o| {
-            String::from_utf8(o.stdout)
-                .ok()
-                .map(|s| std::path::PathBuf::from(s.lines().next().unwrap_or_default().trim()))
-        })
 }

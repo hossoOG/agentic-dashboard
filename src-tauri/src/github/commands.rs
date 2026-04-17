@@ -525,7 +525,6 @@ pub mod commands {
         run_command(&cwd_str, "gh", &args)?;
         Ok(())
     }
-
 }
 
 #[cfg(test)]
@@ -552,7 +551,9 @@ mod tests {
     #[test]
     fn effective_cwd_nonexistent_path_falls_back_to_temp() {
         let path = effective_cwd(Some("/this/path/does/not/exist/ever"));
-        assert!(path.exists(), "should fall back to temp_dir when path does not exist");
+        assert!(
+            path.exists(),
+            "should fall back to temp_dir when path does not exist"
+        );
     }
 }
-

@@ -158,7 +158,7 @@ export function KanbanDetailModal({
       onClose={onClose}
       title={headerTitle}
       size="none"
-      className="w-[960px] max-w-[95vw] max-h-[85vh] rounded-md shadow-2xl"
+      className="w-[960px] max-w-[95vw] max-h-[85vh] rounded-none shadow-2xl"
     >
       {loading ? (
         <div className="flex items-center justify-center py-12 text-neutral-500 text-sm">

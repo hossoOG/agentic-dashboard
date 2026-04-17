@@ -152,7 +152,7 @@ pub fn list_runs(limit: usize, offset: usize) -> Result<Vec<PipelineRun>, ADPErr
     }
 
     // Sort newest first
-    runs.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+    runs.sort_by_key(|r| std::cmp::Reverse(r.started_at));
 
     // Apply pagination
     let paginated: Vec<PipelineRun> = runs.into_iter().skip(offset).take(limit).collect();
@@ -207,7 +207,7 @@ pub fn delete_old_runs(max_runs: Option<usize>) -> Result<usize, ADPError> {
     }
 
     // Sort newest first
-    entries.sort_by(|a, b| b.1.cmp(&a.1));
+    entries.sort_by_key(|e| std::cmp::Reverse(e.1));
 
     let to_delete = &entries[max..];
     let mut deleted = 0;
@@ -393,12 +393,7 @@ mod tests {
         let entries: Vec<_> = std::fs::read_dir(tmp.path())
             .unwrap()
             .flatten()
-            .filter(|e| {
-                e.path()
-                    .extension()
-                    .and_then(|ext| ext.to_str())
-                    .map_or(false, |ext| ext == "json")
-            })
+            .filter(|e| e.path().extension().and_then(|ext| ext.to_str()) == Some("json"))
             .collect();
         assert!(entries.is_empty());
     }

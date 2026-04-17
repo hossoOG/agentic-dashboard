@@ -167,8 +167,7 @@ fn parse_items_from_graphql(
                 .as_array()
                 .and_then(|fvs| {
                     fvs.iter().find(|fv| {
-                        fv["__typename"].as_str()
-                            == Some("ProjectV2ItemFieldSingleSelectValue")
+                        fv["__typename"].as_str() == Some("ProjectV2ItemFieldSingleSelectValue")
                             && fv["field"]["name"].as_str() == Some("Status")
                     })
                 })
@@ -314,9 +313,8 @@ pub mod commands {
                 )?
             };
 
-            let val: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
-                ADPError::parse(format!("Failed to parse GraphQL response: {}", e))
-            })?;
+            let val: serde_json::Value = serde_json::from_str(&response)
+                .map_err(|e| ADPError::parse(format!("Failed to parse GraphQL response: {}", e)))?;
 
             // Surface GraphQL-level errors (auth, scope, not found).
             if let Some(errors) = val["errors"].as_array() {
@@ -518,7 +516,10 @@ mod tests {
         let items = parse_items_from_graphql(&nodes, &lanes);
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].issue_number, 42);
-        assert_eq!(items[0].current_lane_option_id, Some("opt_done".to_string()));
+        assert_eq!(
+            items[0].current_lane_option_id,
+            Some("opt_done".to_string())
+        );
         assert_eq!(items[0].repository, Some("owner/repo".to_string()));
         assert_eq!(items[0].labels[0].name, "bug");
         assert_eq!(items[0].assignee, "alice");
@@ -575,7 +576,10 @@ mod tests {
         assert_eq!(items[0].labels[0].name, "enhancement");
         assert_eq!(items[1].repository, Some("org/repo-b".to_string()));
         assert_eq!(items[1].assignee, "bob");
-        assert_eq!(items[1].current_lane_option_id, Some("opt_done".to_string()));
+        assert_eq!(
+            items[1].current_lane_option_id,
+            Some("opt_done".to_string())
+        );
     }
 
     #[test]

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { X, CheckCircle2, AlertTriangle, Trophy, Info } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { DURATION, EASE } from "../../utils/motion";
 
 export interface ToastData {
   id: string;
@@ -65,7 +66,7 @@ export function Toast({ toast, onDismiss }: ToastProps) {
       initial={{ opacity: 0, x: 80, scale: 0.95 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
       exit={{ opacity: 0, x: 80, scale: 0.95 }}
-      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+      transition={{ duration: DURATION.base, ease: EASE.out }}
       className={`w-80 rounded-none border-2 ${config.border} bg-surface-raised pointer-events-auto`}
       style={{ boxShadow: config.glow }}
       role="alert"

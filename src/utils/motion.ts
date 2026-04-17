@@ -34,16 +34,6 @@ export const EASE: Record<"out" | "in" | "inOut", BezierDefinition> = {
   inOut: [0.65, 0, 0.35, 1],
 };
 
-/* ── Spring presets (gentle, no visible bounce) ── */
-export const SPRING = {
-  /** Snappy response, no bounce — toasts, panels */
-  snappy: { type: "spring" as const, stiffness: 300, damping: 30 },
-  /** Gentle settle — progress bars, layout shifts */
-  gentle: { type: "spring" as const, stiffness: 100, damping: 20 },
-  /** Cards entering — staggered reveals */
-  card: { type: "spring" as const, stiffness: 200, damping: 25 },
-} as const;
-
 /* ── Reusable animation variants ── */
 export const VARIANTS = {
   /** Subtle breathing pulse for active elements */

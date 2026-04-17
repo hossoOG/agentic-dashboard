@@ -296,7 +296,7 @@ function ScopePanel({
   const claudeMdLoader = useCallback(async () => config.claudeMd, [config.claudeMd]);
 
   return (
-    <div className="border border-neutral-700 rounded-lg overflow-hidden bg-surface-raised">
+    <div className="border border-neutral-700 rounded-none overflow-hidden bg-surface-raised">
       <button
         onClick={() => setOpen(!open)}
         className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-hover-overlay transition-colors"

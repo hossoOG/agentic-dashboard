@@ -82,6 +82,23 @@ npm run lint             # ESLint
 - Rust: Tauri Commands in `lib.rs` im `mod commands {}` Block
 - Tauri v2: Imports aus `@tauri-apps/api` (v2-Syntax)
 
+## Design System
+
+Kanonische Regeln: `docs/design-system/README.md`. Skill-Hinweis: `docs/design-system/SKILL.md`. Preview-Karten: `docs/design-system/preview/*.html`.
+
+Non-negotiable:
+- Sharp corners (radius 0) ausser Kanban-Cards (2px) und Status-Dots (full-round).
+- Ein Akzent (cyan-teal, hue 190) — keine weiteren einfuehren.
+- Deutsche UI-Copy, englische Code-Identifier. Kein Emoji. Kein Unicode-as-Icon.
+- Lucide-Icons only, 2px stroke, `currentColor`.
+- Exponential Easing `cubic-bezier(0.16, 1, 0.3, 1)`, Durations 100/200/300/500ms, keine Springs/Bounce.
+- Flache Surfaces — keine Gradients, Blur, Glassmorphism, Illustrations.
+- Panel-Header: UPPERCASE, `tracking-widest` (>= 0.12em).
+- Fokus-Ring: `outline: 2px solid var(--color-accent); outline-offset: 2px` auf `:focus-visible` — niemals `outline: none` ohne Ersatz.
+- Motion-Tokens aus `src/utils/motion.ts` verwenden (`DURATION`, `EASE`) — kein Spring im Prod-Code.
+
+Bei neuen Komponenten: gegen Preview-HTMLs in `docs/design-system/preview/` abgleichen.
+
 ## Kommunikation
 
 - Code/Config/Skill LESEN bevor Aussagen machen. Belege mit Dateien und Zeilennummern.
