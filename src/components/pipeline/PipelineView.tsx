@@ -68,7 +68,7 @@ export function PipelineView() {
       {/* Header with session selector + tabs */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-700">
         <div className="flex items-center gap-3">
-          <h2 className="text-sm font-display font-bold text-neutral-300 tracking-wider uppercase">
+          <h2 className="text-sm font-display font-bold text-neutral-300 tracking-widest uppercase">
             Pipeline
           </h2>
           <div className="flex items-center gap-1">

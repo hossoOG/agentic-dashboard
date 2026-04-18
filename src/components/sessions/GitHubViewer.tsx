@@ -183,7 +183,7 @@ export function GitHubViewer({ folder }: GitHubViewerProps) {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-700 shrink-0">
-        <span className="text-xs text-neutral-400 font-medium">GitHub</span>
+        <span className="text-xs text-neutral-400 font-medium uppercase tracking-widest">GitHub</span>
         <button
           onClick={() => load(true)}
           className="p-1 text-neutral-500 hover:text-neutral-300 transition-colors"

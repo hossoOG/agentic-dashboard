@@ -80,7 +80,7 @@ export function ChangelogDialog({ open, onClose }: ChangelogDialogProps) {
 
   const headerTitle = (
     <div>
-      <h2 className="text-accent font-bold text-sm tracking-widest font-display">
+      <h2 className="text-accent font-bold text-sm uppercase tracking-widest font-display">
         CHANGELOG
       </h2>
       <div className="flex items-center gap-3 mt-1.5">

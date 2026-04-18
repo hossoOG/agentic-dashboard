@@ -51,7 +51,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         >
           <div className="flex items-center gap-3 mb-4">
             <AlertTriangle className="w-6 h-6 text-error" />
-            <span className="text-error font-bold text-sm tracking-widest">
+            <span className="text-error font-bold text-sm uppercase tracking-widest">
               RUNTIME ERROR
             </span>
           </div>

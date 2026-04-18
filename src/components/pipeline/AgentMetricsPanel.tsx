@@ -185,7 +185,7 @@ export function AgentMetricsPanel({ sessionId }: AgentMetricsPanelProps) {
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-neutral-800">
         <Activity className="w-4 h-4 text-neutral-400" />
-        <span className="text-xs font-medium text-neutral-300 tracking-wider uppercase">
+        <span className="text-xs font-medium text-neutral-300 tracking-widest uppercase">
           Agent-Metriken
         </span>
       </div>

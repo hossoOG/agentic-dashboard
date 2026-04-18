@@ -86,7 +86,7 @@ export function KanbanDashboardView() {
       <div className="flex flex-col h-full">
         <div className="flex items-center gap-2 px-3 py-2 border-b border-neutral-700 shrink-0">
           <Columns3 className="w-3.5 h-3.5 text-neutral-500" />
-          <span className="text-xs text-neutral-500 mr-auto">Globales Board</span>
+          <span className="text-xs text-neutral-500 mr-auto uppercase tracking-widest">Globales Board</span>
           {modeToggle}
         </div>
         <div className="flex-1 min-h-0">

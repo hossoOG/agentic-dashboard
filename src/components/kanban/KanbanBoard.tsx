@@ -469,7 +469,7 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
               >
                 {/* Column header */}
                 <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-700 shrink-0">
-                  <span className="text-xs font-medium text-neutral-300">
+                  <span className="text-xs font-medium text-neutral-300 uppercase tracking-widest">
                     {lane.name}
                   </span>
                   <span className="text-[10px] text-neutral-400 bg-neutral-800 px-1.5 py-0.5 rounded-sm">
@@ -529,7 +529,7 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
                 className="flex flex-col w-[260px] min-w-[260px] bg-surface-raised border border-dashed border-neutral-700 rounded-sm"
               >
                 <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-700 shrink-0">
-                  <span className="text-xs font-medium text-neutral-500">
+                  <span className="text-xs font-medium text-neutral-500 uppercase tracking-widest">
                     Kein Status
                   </span>
                   <span className="text-[10px] text-neutral-400 bg-neutral-800 px-1.5 py-0.5 rounded-sm">

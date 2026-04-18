@@ -103,7 +103,7 @@ export function AgentsViewer({ folder }: AgentsViewerProps) {
       <div className="w-64 min-w-[256px] border-r border-neutral-700 flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-700 shrink-0">
-          <span className="text-xs text-neutral-400 font-medium">
+          <span className="text-xs text-neutral-400 font-medium uppercase tracking-widest">
             Agents ({agents.length})
           </span>
           <button

@@ -84,7 +84,7 @@ export function PipelineHistoryView() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-700">
-        <h3 className="text-xs font-display font-bold text-neutral-400 tracking-wider uppercase">
+        <h3 className="text-xs font-display font-bold text-neutral-400 tracking-widest uppercase">
           Pipeline-Verlauf
         </h3>
         <button
