@@ -1,5 +1,5 @@
-import { Download, RefreshCw, RotateCcw, X, AlertCircle, CheckCircle } from "lucide-react";
 import { type UpdateState } from "../../hooks/useAutoUpdate";
+import { ICONS, ICON_SIZE } from "../../utils/icons";
 
 interface Props extends UpdateState {
   onUpdate: () => void;
@@ -27,6 +27,13 @@ export function UpdateNotification({
       ? "border-red-400/40 bg-red-400/10"
       : "border-accent/40 bg-accent/10";
 
+  const DownloadIcon = ICONS.action.download;
+  const RefreshIcon = ICONS.action.refresh;
+  const ReadyIcon = ICONS.toast.ready;
+  const ErrorIcon = ICONS.update.error;
+  const RetryIcon = ICONS.action.retry;
+  const CloseIcon = ICONS.action.close;
+
   return (
     <div
       role="status"
@@ -35,7 +42,7 @@ export function UpdateNotification({
     >
       {status === "available" && (
         <>
-          <Download className="w-3.5 h-3.5 text-accent shrink-0" />
+          <DownloadIcon className={`${ICON_SIZE.card} text-accent shrink-0`} />
           <span className="text-neutral-200">v{newVersion} verfügbar</span>
           <button
             onClick={onUpdate}
@@ -48,14 +55,14 @@ export function UpdateNotification({
             className="text-neutral-500 hover:text-neutral-300 ml-1 transition-colors"
             title="Später"
           >
-            <X className="w-3.5 h-3.5" />
+            <CloseIcon className={ICON_SIZE.card} />
           </button>
         </>
       )}
 
       {status === "downloading" && (
         <>
-          <RefreshCw className="w-3.5 h-3.5 text-accent shrink-0 animate-spin" />
+          <RefreshIcon className={`${ICON_SIZE.card} text-accent shrink-0 animate-spin`} />
           <span className="text-neutral-200">Lade Update... {progress}%</span>
           <div className="w-20 h-1.5 bg-neutral-700 rounded-full overflow-hidden">
             <div
@@ -68,7 +75,7 @@ export function UpdateNotification({
 
       {status === "ready" && (
         <>
-          <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+          <ReadyIcon className={`${ICON_SIZE.card} text-emerald-400 shrink-0`} />
           <span className="text-neutral-200">Update bereit</span>
           <button
             onClick={onRelaunch}
@@ -81,7 +88,7 @@ export function UpdateNotification({
 
       {status === "error" && (
         <>
-          <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+          <ErrorIcon className={`${ICON_SIZE.card} text-red-400 shrink-0`} />
           <span className="text-red-400 truncate max-w-[200px]" title={error ?? ""}>
             Update-Fehler: {error}
           </span>
@@ -89,14 +96,14 @@ export function UpdateNotification({
             onClick={onRetry}
             className="text-accent hover:text-accent/80 ml-1 transition-colors"
           >
-            <RotateCcw className="w-3.5 h-3.5 inline mr-0.5" />
+            <RetryIcon className={`${ICON_SIZE.card} inline mr-0.5`} />
             Erneut prüfen
           </button>
           <button
             onClick={onDismiss}
             className="text-neutral-500 hover:text-neutral-300 ml-1 transition-colors"
           >
-            <X className="w-3.5 h-3.5" />
+            <CloseIcon className={ICON_SIZE.card} />
           </button>
         </>
       )}

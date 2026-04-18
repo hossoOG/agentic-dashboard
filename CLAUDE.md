@@ -91,6 +91,7 @@ Non-negotiable:
 - Ein Akzent (cyan-teal, hue 190) — keine weiteren einfuehren.
 - Deutsche UI-Copy, englische Code-Identifier. Kein Emoji. Kein Unicode-as-Icon.
 - Lucide-Icons only, 2px stroke, `currentColor`.
+- Icon-Zuordnungen und Groessen aus `src/utils/icons.ts` verwenden (`ICONS.*` + `ICON_SIZE.{inline|card|nav|close}`). Direkte `lucide-react`-Imports in Komponenten vermeiden.
 - Exponential Easing `cubic-bezier(0.16, 1, 0.3, 1)`, Durations 100/200/300/500ms, keine Springs/Bounce.
 - Flache Surfaces — keine Gradients, Blur, Glassmorphism, Illustrations.
 - Panel-Header: UPPERCASE, `tracking-widest` (>= 0.12em).

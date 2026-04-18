@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { motion } from "framer-motion";
-import { X, CheckCircle2, AlertTriangle, Trophy, Info } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { DURATION, EASE } from "../../utils/motion";
+import { ICONS, ICON_SIZE } from "../../utils/icons";
 
 export interface ToastData {
   id: string;
@@ -17,25 +17,25 @@ const TOAST_CONFIG: Record<
   { icon: LucideIcon; border: string; text: string; glow: string }
 > = {
   success: {
-    icon: CheckCircle2,
+    icon: ICONS.toast.success,
     border: "border-success",
     text: "text-success",
     glow: "0 0 8px oklch(72% 0.16 155), 0 0 12px oklch(72% 0.16 155 / 0.2)",
   },
   error: {
-    icon: AlertTriangle,
+    icon: ICONS.toast.error,
     border: "border-error",
     text: "text-error",
     glow: "0 0 8px oklch(62% 0.22 25), 0 0 12px oklch(62% 0.22 25 / 0.2)",
   },
   achievement: {
-    icon: Trophy,
+    icon: ICONS.toast.achievement,
     border: "border-info",
     text: "text-info",
     glow: "0 0 8px oklch(60% 0.20 300), 0 0 12px oklch(60% 0.20 300 / 0.2)",
   },
   info: {
-    icon: Info,
+    icon: ICONS.toast.info,
     border: "border-accent",
     text: "text-accent",
     glow: "0 0 8px oklch(72% 0.14 190), 0 0 12px oklch(72% 0.14 190 / 0.2)",
@@ -52,6 +52,7 @@ interface ToastProps {
 export function Toast({ toast, onDismiss }: ToastProps) {
   const config = TOAST_CONFIG[toast.type];
   const Icon = config.icon;
+  const CloseIcon = ICONS.action.close;
   const duration = toast.duration ?? DEFAULT_DURATION;
 
   useEffect(() => {
@@ -72,7 +73,7 @@ export function Toast({ toast, onDismiss }: ToastProps) {
       role="alert"
     >
       <div className="flex items-start gap-3 px-4 py-3">
-        <Icon className={`w-5 h-5 ${config.text} shrink-0 mt-0.5`} aria-hidden="true" />
+        <Icon className={`${ICON_SIZE.close} ${config.text} shrink-0 mt-0.5`} aria-hidden="true" />
         <div className="flex-1 min-w-0">
           <p className={`text-sm font-bold tracking-wide ${config.text}`}>
             {toast.title}
@@ -88,7 +89,7 @@ export function Toast({ toast, onDismiss }: ToastProps) {
           className="text-neutral-500 hover:text-neutral-300 transition-colors shrink-0"
           aria-label="Benachrichtigung schließen"
         >
-          <X className="w-4 h-4" aria-hidden="true" />
+          <CloseIcon className={ICON_SIZE.nav} aria-hidden="true" />
         </button>
       </div>
     </motion.div>

@@ -2,13 +2,6 @@ import { useEffect, useRef, useMemo, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
-  RefreshCw,
-  Trash2,
-  ArrowDownToLine,
-  Search,
-  ExternalLink,
-} from "lucide-react";
-import {
   useLogViewerStore,
   parseBackendLogLine,
   groupConsecutiveEntries,
@@ -16,7 +9,14 @@ import {
   type LogSource,
 } from "../../store/logViewerStore";
 import { getRecentLogs, subscribeToLogs, logError } from "../../utils/errorLogger";
+import { ICONS, ICON_SIZE } from "../../utils/icons";
 import { LogEntryRow, LOG_ROW_HEIGHT } from "./LogEntry";
+
+const SearchIcon = ICONS.action.search;
+const ArrowDownToLineIcon = ICONS.action.scrollToBottom;
+const RefreshIcon = ICONS.action.refresh;
+const TrashIcon = ICONS.action.trash;
+const ExternalLinkIcon = ICONS.action.externalLink;
 
 const SEVERITY_OPTIONS: { key: LogSeverity; label: string; color: string }[] = [
   { key: "error", label: "Error", color: "bg-red-400/20 text-red-400 border-red-400/40" },
@@ -201,7 +201,7 @@ export function LogViewer() {
 
         {/* Search */}
         <div className="relative flex-1 min-w-[140px] max-w-[300px]">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-500" />
+          <SearchIcon className={`absolute left-2 top-1/2 -translate-y-1/2 ${ICON_SIZE.card} text-neutral-500`} />
           <input
             type="text"
             value={searchText}
@@ -224,7 +224,7 @@ export function LogViewer() {
             }`}
             title="Live-Tail"
           >
-            <ArrowDownToLine className="w-3.5 h-3.5" />
+            <ArrowDownToLineIcon className={ICON_SIZE.card} />
             Live
           </button>
 
@@ -233,7 +233,7 @@ export function LogViewer() {
             className="flex items-center gap-1 px-2 py-1 text-[11px] text-neutral-400 hover:text-neutral-200 rounded transition-all"
             title="Backend-Logs aktualisieren"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            <RefreshIcon className={ICON_SIZE.card} />
           </button>
 
           <button
@@ -241,7 +241,7 @@ export function LogViewer() {
             className="flex items-center gap-1 px-2 py-1 text-[11px] text-neutral-400 hover:text-red-400 rounded transition-all"
             title="Logs leeren"
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <TrashIcon className={ICON_SIZE.card} />
           </button>
 
           <button
@@ -249,7 +249,7 @@ export function LogViewer() {
             className="flex items-center gap-1 px-2 py-1 text-[11px] text-neutral-400 hover:text-neutral-200 rounded transition-all"
             title="In eigenem Fenster öffnen"
           >
-            <ExternalLink className="w-3.5 h-3.5" />
+            <ExternalLinkIcon className={ICON_SIZE.card} />
           </button>
         </div>
       </div>
