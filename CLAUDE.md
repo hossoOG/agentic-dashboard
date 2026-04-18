@@ -65,6 +65,12 @@ npm run lint             # ESLint
 - **Signature Changes**: Grep nach allen Usages, ALLE Caller updaten
 - **Nicht behaupten, verifizieren**: Build-Log/Screenshot als Beweis
 
+## Rust Toolchain
+
+- **Autoritativ**: `src-tauri/rust-toolchain.toml` pinnt die Rust-Version (aktuell `1.95.0`) + `rustfmt` + `clippy`. `rustup` installiert beim ersten `cargo`-Aufruf automatisch die richtige Version.
+- **CI matcht lokal**: Alle Workflows (`ci.yml`, `release.yml`, `security-audit.yml`) pinnen dieselbe Version via `dtolnay/rust-toolchain@master` mit `toolchain: "1.95.0"`. Bump passiert an beiden Stellen gemeinsam.
+- **Bei Clippy-Drift**: `rustup update` + `cargo clean` + `cargo clippy -- -D warnings` lokal laufen lassen, dann push.
+
 ## Quality Gates (vor "Done")
 
 - [ ] 1 Happy-Path-Test + 1 Edge-Case-Test pro Feature
