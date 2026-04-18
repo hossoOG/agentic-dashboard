@@ -20,6 +20,7 @@ import {
   type DetectedAgent,
   type DetectedWorktree,
 } from "../../store/agentStore";
+import { formatElapsed } from "../../utils/format";
 
 interface AgentBottomPanelProps {
   sessionId: string;
@@ -225,11 +226,7 @@ function AgentDetailCard({
     const duration = agent.completedAt
       ? agent.completedAt - agent.detectedAt
       : Date.now() - agent.detectedAt;
-    const durationSec = Math.floor(duration / 1000);
-    const durationMin = Math.floor(durationSec / 60);
-    return durationMin > 0
-      ? `${durationMin}m ${durationSec % 60}s`
-      : `${durationSec}s`;
+    return formatElapsed(duration);
   })();
 
   const statusLabel = {

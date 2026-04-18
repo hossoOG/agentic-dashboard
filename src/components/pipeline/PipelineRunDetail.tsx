@@ -7,7 +7,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { usePipelineHistoryStore } from "../../store/pipelineHistoryStore";
-import { formatElapsed } from "../../utils/formatElapsed";
+import { formatElapsed } from "../../utils/format";
 import { OUTCOME_CONFIG, formatTimestamp } from "./pipelineOutcomeConfig";
 import type {
   PipelineRun,

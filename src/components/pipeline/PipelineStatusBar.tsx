@@ -6,7 +6,7 @@ import {
   selectIsIdle,
   selectIsTerminal,
 } from "../../store/pipelineStatusStore";
-import { formatElapsed } from "../../utils/formatElapsed";
+import { formatElapsed } from "../../utils/format";
 import type { PipelineState } from "../../protocols/schema";
 
 // ============================================================================

@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { RefreshCw, GitBranch, Bot, MessageSquare, Clock, Play } from "lucide-react";
 import { getErrorMessage } from "../../utils/adpError";
 import { logError } from "../../utils/errorLogger";
+import { formatElapsed } from "../../utils/format";
 import { useSettingsStore } from "../../store/settingsStore";
 
 // ============================================================================
@@ -51,14 +52,7 @@ function formatDuration(startIso: string, endIso: string): string {
   if (!startIso || !endIso) return "–";
   const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
   if (ms < 0) return "–";
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remainingSec = seconds % 60;
-  if (minutes < 60) return `${minutes}m ${remainingSec}s`;
-  const hours = Math.floor(minutes / 60);
-  const remainingMin = minutes % 60;
-  return `${hours}h ${remainingMin}m`;
+  return formatElapsed(ms);
 }
 
 function formatModel(model: string): string {
