@@ -162,7 +162,7 @@ export function AgentsViewer({ folder }: AgentsViewerProps) {
                   )}
                   {metadata.model && (
                     <div className="mt-1">
-                      <span className="inline-block px-1.5 py-0 text-[10px] rounded-full bg-neutral-800 text-neutral-500">
+                      <span className="inline-block px-1.5 py-0 text-[10px] rounded-sm bg-neutral-800 text-neutral-500">
                         {metadata.model}
                       </span>
                     </div>
@@ -200,7 +200,7 @@ function AgentDetail({ entry }: { entry: AgentEntry }) {
             {metadata.name}
           </h2>
           {metadata.model && (
-            <span className="inline-block px-1.5 py-0 text-[10px] rounded-full bg-neutral-800 text-neutral-400">
+            <span className="inline-block px-1.5 py-0 text-[10px] rounded-sm bg-neutral-800 text-neutral-400">
               {metadata.model}
             </span>
           )}
@@ -242,7 +242,7 @@ function AgentDetail({ entry }: { entry: AgentEntry }) {
             {metadata.allowedTools.map((tool) => (
               <span
                 key={tool}
-                className="inline-block px-2 py-0.5 text-xs rounded-full bg-surface-raised text-neutral-300 font-mono"
+                className="inline-block px-2 py-0.5 text-xs rounded-sm bg-surface-raised text-neutral-300 font-mono"
               >
                 {tool}
               </span>

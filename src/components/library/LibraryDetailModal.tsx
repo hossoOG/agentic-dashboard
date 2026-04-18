@@ -37,7 +37,7 @@ function DetailHeader({ detail }: { detail: SelectedDetail }): JSX.Element {
       <Icon className={`w-4 h-4 shrink-0 ${iconClass}`} />
       <span className="text-sm font-semibold text-neutral-200 truncate">{title}</span>
       {scope && (
-        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-neutral-700 text-neutral-400 shrink-0">
+        <span className="text-[10px] px-1.5 py-0.5 rounded-sm bg-neutral-700 text-neutral-400 shrink-0">
           {scope}
         </span>
       )}

@@ -256,7 +256,7 @@ function AgentDetailCard({
         <span className="text-sm font-semibold text-neutral-200">
           {agent.name ?? agent.task ?? "Agent"}
         </span>
-        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${statusColorClass}`}>
+        <span className={`text-[10px] px-1.5 py-0.5 rounded-sm ${statusColorClass}`}>
           {statusLabel}
         </span>
       </div>

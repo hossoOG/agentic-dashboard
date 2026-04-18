@@ -185,7 +185,7 @@ function AgentCard({ agent }: { agent: DiscoveredAgent }) {
           <span className="text-xs font-semibold text-neutral-200">
             {agent.name}
           </span>
-          <span className="text-[10px] px-1.5 rounded-full bg-purple-500/15 text-purple-400 ml-auto shrink-0">
+          <span className="text-[10px] px-1.5 rounded-sm bg-purple-500/15 text-purple-400 ml-auto shrink-0">
             {agent.model}
           </span>
         </div>

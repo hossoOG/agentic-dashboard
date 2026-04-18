@@ -28,7 +28,7 @@ function SkillFrontmatterTable({ skill }: { skill: DiscoveredSkill }) {
             <FrontmatterRow label="description">{skill.description}</FrontmatterRow>
           )}
           <FrontmatterRow label="scope">
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-neutral-700 text-neutral-300">
+            <span className="text-[10px] px-1.5 py-0.5 rounded-sm bg-neutral-700 text-neutral-300">
               {skill.scope}
             </span>
           </FrontmatterRow>

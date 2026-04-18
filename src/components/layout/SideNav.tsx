@@ -85,7 +85,7 @@ export function SideNav({ badges = {} }: SideNavProps) {
 
           {/* Badge */}
           {item.badge != null && item.badge > 0 && (
-            <span className="ml-auto min-w-[16px] h-4 flex items-center justify-center rounded-full bg-error text-white text-[9px] font-bold px-1">
+            <span className="ml-auto min-w-[16px] h-4 flex items-center justify-center rounded-sm bg-error text-white text-[9px] font-bold px-1">
               {item.badge > 99 ? "99+" : item.badge}
             </span>
           )}
