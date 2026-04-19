@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { PipelineStatusBar } from "./PipelineStatusBar";
-import { formatElapsed } from "../../utils/formatElapsed";
 import { usePipelineStatusStore } from "../../store/pipelineStatusStore";
 import type { PipelineStatusInfo } from "../../protocols/schema";
 
@@ -72,7 +71,7 @@ describe("PipelineStatusBar", () => {
   it("renders elapsed time formatted correctly", () => {
     setStatus({ status: "running", elapsedMs: 154000 });
     render(<PipelineStatusBar />);
-    expect(screen.getByText("Laufzeit 2m 34s")).toBeInTheDocument();
+    expect(screen.getByText("Laufzeit 2:34")).toBeInTheDocument();
   });
 
   it("renders workflow name when present", () => {
@@ -84,23 +83,5 @@ describe("PipelineStatusBar", () => {
     });
     render(<PipelineStatusBar />);
     expect(screen.getByText("my-pipeline")).toBeInTheDocument();
-  });
-});
-
-describe("formatElapsed", () => {
-  it("formats sub-second as '< 1s'", () => {
-    expect(formatElapsed(500)).toBe("< 1s");
-  });
-
-  it("formats seconds only", () => {
-    expect(formatElapsed(45000)).toBe("45s");
-  });
-
-  it("formats minutes and seconds", () => {
-    expect(formatElapsed(154000)).toBe("2m 34s");
-  });
-
-  it("pads seconds with leading zero", () => {
-    expect(formatElapsed(65000)).toBe("1m 05s");
   });
 });

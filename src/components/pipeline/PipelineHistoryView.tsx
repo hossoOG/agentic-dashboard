@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { RefreshCw, Loader2, Inbox } from "lucide-react";
 import { usePipelineHistoryStore } from "../../store/pipelineHistoryStore";
-import { formatElapsed } from "../../utils/formatElapsed";
+import { formatElapsed } from "../../utils/format";
 import { OUTCOME_CONFIG, formatTimestamp } from "./pipelineOutcomeConfig";
 import type { PipelineRun } from "../../types/pipelineHistory";
 

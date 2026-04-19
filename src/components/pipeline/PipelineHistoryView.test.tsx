@@ -110,7 +110,7 @@ describe("PipelineHistoryView", () => {
     resetStore({ runs: [run] });
 
     render(<PipelineHistoryView />);
-    expect(screen.getByText(/2m 34s/)).toBeInTheDocument();
+    expect(screen.getByText(/2:34/)).toBeInTheDocument();
   });
 
   it("click selects a run", () => {

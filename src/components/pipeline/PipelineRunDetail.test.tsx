@@ -72,7 +72,7 @@ describe("PipelineRunDetail", () => {
 
     expect(screen.getByText("my-workflow")).toBeInTheDocument();
     expect(screen.getAllByText("Erfolg").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/2m 34s/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/2:34/).length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders step timeline with step details", () => {
