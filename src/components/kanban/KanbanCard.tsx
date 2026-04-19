@@ -74,7 +74,7 @@ export function KanbanCard({ issue, onClick, onDragStart, onDragEnd }: KanbanCar
 
   return (
     <div
-      className={`group bg-surface-base border border-neutral-700 rounded-sm p-3 hover:border-neutral-500 transition-colors select-none ${
+      className={`group bg-surface-base border border-neutral-700 rounded-sm p-3 hover:border-neutral-500 hover:bg-hover-overlay transition-colors select-none ${
         isDragging ? "opacity-50 cursor-grabbing pointer-events-none" : "cursor-grab"
       }`}
       onPointerDown={handlePointerDown}

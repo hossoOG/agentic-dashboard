@@ -104,7 +104,7 @@ export function WorktreeViewer({ folder }: WorktreeViewerProps) {
             {worktrees.map((wt) => (
               <div
                 key={wt.path}
-                className="flex items-center gap-2 bg-surface-base border border-neutral-700 rounded-sm px-3 py-2 hover:border-neutral-600 transition-colors"
+                className="flex items-center gap-2 bg-surface-base border border-neutral-700 rounded-sm px-3 py-2 hover:border-neutral-500 hover:bg-hover-overlay transition-colors"
               >
                 <GitBranch className="w-4 h-4 text-accent shrink-0" />
                 <div className="flex flex-col flex-1 min-w-0">

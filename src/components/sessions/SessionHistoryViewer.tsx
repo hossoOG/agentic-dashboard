@@ -145,7 +145,7 @@ const SessionHistoryViewer: React.FC<SessionHistoryViewerProps> = ({ folder, onR
         </span>
         <button
           onClick={loadSessions}
-          className="text-xs text-neutral-500 hover:text-neutral-200 transition-colors px-2 py-0.5 rounded hover:bg-neutral-800"
+          className="text-xs text-neutral-500 hover:text-neutral-200 transition-colors px-2 py-0.5 rounded hover:bg-hover-overlay"
           title="Neu laden"
         >
           <RefreshCw className="w-3 h-3" />

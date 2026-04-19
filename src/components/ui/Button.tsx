@@ -26,7 +26,7 @@ const variantClasses: Record<ButtonVariant, string> = {
   primary:
     "bg-neon-green text-neutral-900 font-bold tracking-wider hover:bg-neon-green/90 border border-transparent",
   secondary:
-    "border border-neutral-700 text-neutral-400 hover:text-neutral-200 hover:border-neutral-500",
+    "border border-neutral-700 text-neutral-400 hover:text-neutral-200 hover:border-neutral-500 hover:bg-hover-overlay",
   ghost:
     "text-neutral-400 hover:text-neutral-200 hover:bg-hover-overlay",
   danger:

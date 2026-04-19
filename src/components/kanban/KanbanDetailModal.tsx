@@ -171,7 +171,7 @@ export function KanbanDetailModal({
           <span className="text-red-400 text-sm">{error}</span>
           <button
             onClick={() => void loadDetail()}
-            className="px-3 py-1.5 text-xs text-neutral-300 bg-surface-raised border border-neutral-700 rounded-sm hover:bg-hover-overlay transition-colors"
+            className="px-3 py-1.5 text-xs text-neutral-300 bg-surface-raised border border-neutral-700 rounded-sm hover:text-neutral-100 hover:border-neutral-500 hover:bg-hover-overlay transition-colors"
           >
             Erneut versuchen
           </button>

@@ -63,7 +63,7 @@ export const TaskTreeNode = memo(function TaskTreeNode({
               e.stopPropagation();
               setIsExpanded(!isExpanded);
             }}
-            className="p-0.5 hover:bg-neutral-700 rounded shrink-0"
+            className="p-0.5 hover:bg-hover-overlay rounded shrink-0"
           >
             {isExpanded ? (
               <ChevronDown className="w-3 h-3 text-neutral-500" />

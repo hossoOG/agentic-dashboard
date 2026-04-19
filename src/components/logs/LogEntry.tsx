@@ -44,7 +44,7 @@ export const LogEntryRow = memo(function LogEntryRow({
   const hasStack = !!entry.stack;
 
   return (
-    <div className="group border-b border-neutral-800 hover:bg-neutral-800/30 font-mono text-xs">
+    <div className="group border-b border-neutral-800 hover:bg-hover-overlay font-mono text-xs">
       <div
         className={`flex items-center gap-2 px-3 ${hasStack ? "cursor-pointer" : ""}`}
         style={{ height: LOG_ROW_HEIGHT }}
