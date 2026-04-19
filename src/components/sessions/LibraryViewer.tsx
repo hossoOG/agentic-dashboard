@@ -170,7 +170,7 @@ export function LibraryViewer({ folder = "" }: LibraryViewerProps) {
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
+                className={`px-2 py-0.5 text-xs rounded-sm transition-colors ${
                   filter === f
                     ? "bg-accent-a10 text-accent"
                     : "text-neutral-400 hover:text-neutral-200 hover:bg-hover-overlay"
@@ -230,7 +230,7 @@ export function LibraryViewer({ folder = "" }: LibraryViewerProps) {
                   )}
                   <div className="flex items-center gap-1 mt-1">
                     <span
-                      className={`inline-block px-1.5 py-0 text-[10px] rounded-full ${
+                      className={`inline-block px-1.5 py-0 text-[10px] rounded-sm ${
                         TYPE_COLORS[item.item_type]
                       }`}
                     >
@@ -239,7 +239,7 @@ export function LibraryViewer({ folder = "" }: LibraryViewerProps) {
                     {item.tags.slice(0, 2).map((tag) => (
                       <span
                         key={tag}
-                        className="inline-block px-1.5 py-0 text-[10px] rounded-full bg-neutral-800 text-neutral-500"
+                        className="inline-block px-1.5 py-0 text-[10px] rounded-sm bg-neutral-800 text-neutral-500"
                       >
                         {tag}
                       </span>
@@ -348,7 +348,7 @@ function ItemDetail({
             {item.name}
           </h2>
           <span
-            className={`inline-block px-1.5 py-0 text-[10px] rounded-full ${
+            className={`inline-block px-1.5 py-0 text-[10px] rounded-sm ${
               TYPE_COLORS[item.item_type]
             }`}
           >
@@ -363,7 +363,7 @@ function ItemDetail({
             {item.tags.map((tag) => (
               <span
                 key={tag}
-                className="inline-block px-1.5 py-0.5 text-[10px] rounded-full bg-neutral-800 text-neutral-400"
+                className="inline-block px-1.5 py-0.5 text-[10px] rounded-sm bg-neutral-800 text-neutral-400"
               >
                 {tag}
               </span>
@@ -557,7 +557,7 @@ function NewItemForm({
               <button
                 key={type}
                 onClick={() => setItemType(type)}
-                className={`px-2.5 py-1 text-xs rounded-full transition-colors ${
+                className={`px-2.5 py-1 text-xs rounded-sm transition-colors ${
                   itemType === type
                     ? TYPE_COLORS[type]
                     : "text-neutral-400 hover:text-neutral-200 bg-neutral-800 hover:bg-neutral-700"

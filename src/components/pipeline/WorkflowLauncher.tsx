@@ -80,7 +80,7 @@ function WorkflowCard({
           </span>
         </div>
         <span
-          className={`px-1.5 py-0.5 text-[10px] rounded-full shrink-0 ${config.bg} ${config.color}`}
+          className={`px-1.5 py-0.5 text-[10px] rounded-sm shrink-0 ${config.bg} ${config.color}`}
         >
           {config.label}
         </span>
