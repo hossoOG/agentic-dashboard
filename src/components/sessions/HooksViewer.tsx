@@ -202,7 +202,7 @@ export function HooksViewer({ folder }: HooksViewerProps) {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-700 shrink-0">
         <div className="flex items-center gap-3">
-          <span className="text-xs text-neutral-400 font-medium">
+          <span className="ae-body-sm font-medium">
             {eventGroups.length}{" "}
             {eventGroups.length === 1 ? "Event" : "Events"}
           </span>

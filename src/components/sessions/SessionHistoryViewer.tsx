@@ -140,7 +140,7 @@ const SessionHistoryViewer: React.FC<SessionHistoryViewerProps> = ({ folder, onR
     <div className="flex flex-col gap-2 p-2 h-full overflow-y-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-neutral-400">
+        <span className="ae-body-sm">
           {sessions.length} {sessions.length === 1 ? "Session" : "Sessions"}
         </span>
         <button

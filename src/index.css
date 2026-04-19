@@ -314,6 +314,68 @@ code, pre, kbd,
               transform var(--duration-fast) var(--ease-in);
 }
 
+/* ============================================
+   Semantic Type Classes (.ae-*)
+   Kanonische Quelle: docs/design-system/colors_and_type.css
+   Zweck: Wiederkehrende Typografie-Rezepte in einem semantischen Namen
+   buendeln. Klassen sind optional — bestehende Tailwind-Strings bleiben
+   gueltig und werden nur bei exakter visueller Aequivalenz migriert.
+   ============================================ */
+.ae-h1 {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  letter-spacing: 0.02em;
+  color: var(--neutral-100);
+}
+.ae-h2 {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+.ae-h3 {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--neutral-300);
+}
+.ae-body {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--neutral-200);
+}
+.ae-body-sm {
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  color: var(--neutral-400);
+}
+.ae-label {
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  color: var(--neutral-400);
+}
+.ae-mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--neutral-300);
+}
+.ae-code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  padding: 0.15em 0.4em;
+  background: var(--neutral-800);
+  color: var(--color-success);
+}
+
 /* ── Markdown Preview ── */
 .md-preview {
   user-select: text;
