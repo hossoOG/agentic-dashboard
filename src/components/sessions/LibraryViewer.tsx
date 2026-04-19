@@ -115,7 +115,7 @@ export function LibraryViewer({ folder = "" }: LibraryViewerProps) {
           </button>
           <button
             onClick={handleRefresh}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-neutral-400 border border-neutral-700 rounded hover:bg-hover-overlay transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-neutral-400 border border-neutral-700 rounded hover:text-neutral-200 hover:border-neutral-500 hover:bg-hover-overlay transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             Index neu aufbauen
@@ -376,7 +376,7 @@ function ItemDetail({
       <div className="flex items-center gap-2">
         <button
           onClick={handleCopyPath}
-          className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-neutral-300 border border-neutral-700 rounded hover:bg-hover-overlay transition-colors"
+          className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-neutral-300 border border-neutral-700 rounded hover:text-neutral-100 hover:border-neutral-500 hover:bg-hover-overlay transition-colors"
           title="Pfad in Zwischenablage kopieren"
         >
           <Copy className="w-3.5 h-3.5" />
