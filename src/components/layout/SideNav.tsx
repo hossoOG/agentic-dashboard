@@ -1,8 +1,5 @@
 import { useState } from "react";
-import {
-  Monitor, Columns3, ScrollText, BookOpen, FileEdit,
-  Sun, Moon, ArrowDownCircle, AlertCircle, ExternalLink,
-} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useUIStore, type ActiveTab } from "../../store/uiStore";
 import { useSettingsStore } from "../../store/settingsStore";
@@ -12,15 +9,20 @@ import { UpdateNotification } from "../shared/UpdateNotification";
 import { useAutoUpdate } from "../../hooks/useAutoUpdate";
 import { version } from "../../../package.json";
 import { logError } from "../../utils/errorLogger";
+import { ICONS, ICON_SIZE } from "../../utils/icons";
 
 function StatusIcon({ status }: { status: string }) {
   switch (status) {
     case "available":
     case "downloading":
-    case "ready":
-      return <ArrowDownCircle className="w-3 h-3 text-accent status-pulse-animation" />;
-    case "error":
-      return <AlertCircle className="w-3 h-3 text-red-400" />;
+    case "ready": {
+      const Available = ICONS.update.available;
+      return <Available className={`${ICON_SIZE.inline} text-accent status-pulse-animation`} />;
+    }
+    case "error": {
+      const Err = ICONS.update.error;
+      return <Err className={`${ICON_SIZE.inline} text-red-400`} />;
+    }
     default:
       return null;
   }
@@ -29,7 +31,7 @@ function StatusIcon({ status }: { status: string }) {
 interface NavItem {
   id: ActiveTab;
   label: string;
-  icon: typeof Monitor;
+  icon: LucideIcon;
   badge?: number;
 }
 
@@ -49,17 +51,20 @@ export function SideNav({ badges = {} }: SideNavProps) {
     : `Version ${version}`;
 
   const topItems: NavItem[] = [
-    { id: "sessions", label: "Sitzungen", icon: Monitor, badge: badges.sessions },
-    { id: "kanban", label: "Kanban", icon: Columns3, badge: badges.kanban },
-    { id: "library", label: "Bibliothek", icon: BookOpen, badge: badges.library },
-    { id: "editor", label: "Editor", icon: FileEdit, badge: badges.editor },
+    { id: "sessions", label: "Sitzungen", icon: ICONS.nav.sessions, badge: badges.sessions },
+    { id: "kanban", label: "Kanban", icon: ICONS.nav.kanban, badge: badges.kanban },
+    { id: "library", label: "Bibliothek", icon: ICONS.nav.library, badge: badges.library },
+    { id: "editor", label: "Editor", icon: ICONS.nav.editor, badge: badges.editor },
   ];
 
   const bottomItems: NavItem[] = [
-    { id: "logs", label: "Protokolle", icon: ScrollText, badge: badges.logs },
+    { id: "logs", label: "Protokolle", icon: ICONS.nav.logs, badge: badges.logs },
   ];
 
   const detachableViews = new Set<ActiveTab>(["kanban", "library", "editor"]);
+  const ExternalLinkIcon = ICONS.action.externalLink;
+  const LightIcon = ICONS.theme.light;
+  const DarkIcon = ICONS.theme.dark;
 
   function renderItem(item: NavItem) {
     const isActive = activeTab === item.id;
@@ -80,7 +85,7 @@ export function SideNav({ badges = {} }: SideNavProps) {
           `}
           aria-label={item.label}
         >
-          <Icon className="w-4 h-4 shrink-0" />
+          <Icon className={`${ICON_SIZE.nav} shrink-0`} />
           <span className="text-xs truncate">{item.label}</span>
 
           {/* Badge */}
@@ -104,7 +109,7 @@ export function SideNav({ badges = {} }: SideNavProps) {
             title={`${item.label} in eigenem Fenster öffnen`}
             aria-label={`${item.label} in eigenem Fenster öffnen`}
           >
-            <ExternalLink className="w-3 h-3" />
+            <ExternalLinkIcon className={ICON_SIZE.inline} />
           </button>
         )}
       </div>
@@ -141,7 +146,9 @@ export function SideNav({ badges = {} }: SideNavProps) {
             aria-label={mode === "dark" ? "Light Mode aktivieren" : "Dark Mode aktivieren"}
             title={mode === "dark" ? "Light Mode" : "Dark Mode"}
           >
-            {mode === "dark" ? <Sun className="w-4 h-4 shrink-0" /> : <Moon className="w-4 h-4 shrink-0" />}
+            {mode === "dark"
+              ? <LightIcon className={`${ICON_SIZE.nav} shrink-0`} />
+              : <DarkIcon className={`${ICON_SIZE.nav} shrink-0`} />}
             <span className="text-xs truncate">{mode === "dark" ? "Light" : "Dark"}</span>
           </button>
 
