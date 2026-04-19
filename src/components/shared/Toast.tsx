@@ -74,7 +74,7 @@ export function Toast({ toast, onDismiss }: ToastProps) {
       <div className="flex items-start gap-3 px-4 py-3">
         <Icon className={`w-5 h-5 ${config.text} shrink-0 mt-0.5`} aria-hidden="true" />
         <div className="flex-1 min-w-0">
-          <p className={`text-sm font-bold tracking-wide ${config.text}`}>
+          <p className={`text-sm font-bold uppercase tracking-widest ${config.text}`}>
             {toast.title}
           </p>
           {toast.message && (

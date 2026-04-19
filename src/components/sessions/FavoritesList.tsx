@@ -47,7 +47,7 @@ export function FavoritesList({ onQuickStart }: FavoritesListProps) {
       >
         <div className="flex items-center gap-1.5">
           {expanded ? <ChevronDown className="w-3 h-3 text-neutral-500" /> : <ChevronRight className="w-3 h-3 text-neutral-500" />}
-          <span className="text-xs text-neutral-500 tracking-widest">FAVORITEN</span>
+          <span className="text-xs text-neutral-500 uppercase tracking-widest">FAVORITEN</span>
         </div>
         <button
           onClick={(e) => { e.stopPropagation(); handleAddFavorite(); }}

@@ -85,7 +85,7 @@ export function NewSessionDialog({ open: isOpen, onClose }: NewSessionDialogProp
   }
 
   const headerTitle = (
-    <h2 className="text-neon-green font-bold text-sm tracking-widest">
+    <h2 className="text-neon-green font-bold text-sm uppercase tracking-widest">
       NEUE CLAUDE SESSION
     </h2>
   );

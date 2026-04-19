@@ -221,7 +221,7 @@ export function WorkflowLauncher({ folder: folderProp }: WorkflowLauncherProps) 
       <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-800">
         <div className="flex items-center gap-2">
           <Layers className="w-4 h-4 text-neutral-400" />
-          <span className="text-xs font-medium text-neutral-300 tracking-wider uppercase">
+          <span className="text-xs font-medium text-neutral-300 tracking-widest uppercase">
             Erkannte Workflows
           </span>
           {workflows.length > 0 && (
