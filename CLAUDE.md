@@ -109,6 +109,18 @@ Content-Regeln (UI-Strings):
 - **Number-Formatting**: `ms` fuer Durations (`312 ms`), `mm:ss` fuer Elapsed (`2:14`), Exit-Codes verbatim (`Exit 0`, `Exit 1`).
 - **Panel-Titel**: UPPERCASE + wide-tracking. Toast-Titel ebenso.
 
+Semantic Type Classes (`.ae-*` in `src/index.css`):
+- Optional, nicht verpflichtend. Nutzen, wenn ein Tailwind-String >= 4 Tokens wiederholt auftritt und die Klasse 1:1 den Stil trifft.
+- `.ae-h1` — Display-Font, `text-xl`, bold, tight leading, `neutral-100`. Page-/Modal-Heading.
+- `.ae-h2` — Display-Font, `1.25rem`, bold, uppercase, `accent`-farbig. Hero/Section-Heading mit Akzent.
+- `.ae-h3` — Display-Font, `text-sm`, bold, uppercase, tracking `0.12em`, `neutral-300`. Panel-Heading (strict variant).
+- `.ae-body` — Body-Font, `text-sm`, normales Leading, `neutral-200`. Default-Fliesstext.
+- `.ae-body-sm` — Body-Font, `text-xs`, `neutral-400`. Sekundaer-Text, Meta, Timestamps.
+- `.ae-label` — Body-Font, `text-xs`, Letter-Spacing `0.04em`, `neutral-400`. Form-Labels, Separator-Titel.
+- `.ae-mono` — Mono-Font, `text-xs`, `neutral-300`. Inline Pfade/IDs.
+- `.ae-code` — Mono-Font, `0.875em`, Success-Farbe auf `neutral-800`. Inline-Code.
+- Quelle/Preview: `docs/design-system/colors_and_type.css`.
+
 Interaction-Patterns (Desktop, kein Touch!):
 - **Hover**: Text brightens one step (`text-neutral-400 → text-neutral-200`), Background bekommt `hover:bg-hover-overlay`, Border lightens (`border-neutral-700 → border-neutral-500`).
 - **Press**: KEIN `scale-*` transform. Dies ist ein Desktop-Tool.

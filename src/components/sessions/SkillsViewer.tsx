@@ -265,7 +265,7 @@ function SkillDetail({ entry }: { entry: SkillEntry }) {
                     *erforderlich
                   </span>
                 )}
-                <span className="text-xs text-neutral-400">
+                <span className="ae-body-sm">
                   {arg.description}
                 </span>
               </div>

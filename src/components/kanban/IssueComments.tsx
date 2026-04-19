@@ -34,7 +34,7 @@ export function IssueComments({ comments, formatDate }: IssueCommentsProps) {
               {formatDate(comment.created_at)}
             </span>
           </div>
-          <MarkdownBody content={comment.body} className="text-xs text-neutral-400" />
+          <MarkdownBody content={comment.body} className="ae-body-sm" />
         </div>
       ))}
     </div>
