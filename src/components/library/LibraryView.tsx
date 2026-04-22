@@ -269,7 +269,6 @@ function MemoryFileCard({ file }: { file: DiscoveredMemoryFile }) {
 // ── Scope Panel ──────────────────────────────────────────────────────
 
 function ScopePanel({
-  scope,
   config,
   label,
   icon: Icon,
@@ -292,10 +291,10 @@ function ScopePanel({
     config.claudeMd.length > 0 ||
     config.memoryFiles.length > 0;
 
-  const settingsContentKey = `${scope}:settings`;
+  const settingsContentKey = `${scopeId}:settings`;
   const settingsLoader = useCallback(async () => config.settingsRaw, [config.settingsRaw]);
 
-  const claudeMdContentKey = `${scope}:claude-md`;
+  const claudeMdContentKey = `${scopeId}:claude-md`;
   const claudeMdLoader = useCallback(async () => config.claudeMd, [config.claudeMd]);
 
   return (
