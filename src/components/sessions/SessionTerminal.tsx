@@ -168,12 +168,15 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
 
     // Report initial size (slightly delayed so the DOM has settled)
     const initialTimer = setTimeout(() => {
-      fitAddon.fit();
-      wrapInvoke("resize_session", {
-        id: sessionId,
-        cols: term.cols,
-        rows: term.rows,
-      }).catch((err) => logError("SessionTerminal.resize", err));
+      document.fonts.ready.then(() => {
+        if (!term.element) return;
+        fitAddon.fit();
+        wrapInvoke("resize_session", {
+          id: sessionId,
+          cols: term.cols,
+          rows: term.rows,
+        }).catch((err) => logError("SessionTerminal.resize", err));
+      });
     }, 50);
 
     return () => {
