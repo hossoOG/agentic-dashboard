@@ -8,7 +8,6 @@ import { useUIStore, type ActiveTab } from "../../store/uiStore";
 import { useSettingsStore } from "../../store/settingsStore";
 import { NotesPanel } from "../shared/NotesPanel";
 import { ChangelogDialog } from "../shared/ChangelogDialog";
-import { UpdateNotification } from "../shared/UpdateNotification";
 import { useAutoUpdate } from "../../hooks/useAutoUpdate";
 import { version } from "../../../package.json";
 import { logError } from "../../utils/errorLogger";
@@ -16,15 +15,11 @@ import { logError } from "../../utils/errorLogger";
 function StatusIcon({ status }: { status: string }) {
   switch (status) {
     case "checking":
-      return <RefreshCw className="w-3 h-3 text-neutral-400 animate-spin" />;
+      return <RefreshCw className="w-3.5 h-3.5 text-neutral-400 animate-spin" />;
     case "upToDate":
-      return <Check className="w-3 h-3 text-emerald-400" />;
-    case "available":
-    case "downloading":
-    case "ready":
-      return <ArrowDownCircle className="w-3 h-3 text-accent status-pulse-animation" />;
+      return <Check className="w-3.5 h-3.5 text-emerald-400" />;
     case "error":
-      return <AlertCircle className="w-3 h-3 text-red-400" />;
+      return <AlertCircle className="w-3.5 h-3.5 text-red-400" />;
     default:
       return null;
   }
@@ -46,7 +41,7 @@ export function SideNav({ badges = {} }: SideNavProps) {
   const mode = useSettingsStore((s) => s.theme.mode);
   const setTheme = useSettingsStore((s) => s.setTheme);
   const [showChangelog, setShowChangelog] = useState(false);
-  const { status, progress, error, newVersion, lastChecked, checkForUpdate, downloadAndInstall, confirmRelaunch, dismiss } = useAutoUpdate();
+  const { status, progress, newVersion, lastChecked, checkForUpdate, downloadAndInstall, confirmRelaunch } = useAutoUpdate();
 
   const statusTitle = lastChecked
     ? `Version ${version} — Zuletzt geprüft: ${lastChecked.toLocaleTimeString("de-DE")}`
@@ -118,16 +113,46 @@ export function SideNav({ badges = {} }: SideNavProps) {
   return (
     <>
       <nav className="flex flex-col w-32 min-w-[128px] bg-surface-base border-r border-neutral-700 py-2 gap-0.5">
-        {/* Logo + Version */}
-        <div className="flex flex-col items-center px-3 pb-2 mb-1 border-b border-neutral-700">
-          <button
-            onClick={() => { checkForUpdate(); setShowChangelog(true); }}
-            className="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-accent transition-colors cursor-pointer font-bold"
-            title={statusTitle}
-          >
-            v{version}
-            <StatusIcon status={status} />
-          </button>
+        {/* Logo + Version Box */}
+        <div className="flex flex-col px-2 pb-2 mb-1 border-b border-neutral-700 min-h-[40px] justify-center">
+          {status === "available" ? (
+            <button
+              onClick={() => { downloadAndInstall(); setShowChangelog(true); }}
+              className="flex items-center justify-center gap-1.5 w-full py-1.5 px-2 bg-accent/10 border border-accent/30 rounded text-accent hover:bg-accent/20 text-[11px] font-bold transition-all shadow-[0_0_8px_rgba(var(--color-accent),0.2)]"
+              title="Klicken, um das Update zu starten"
+            >
+              <ArrowDownCircle className="w-3.5 h-3.5" />
+              Update v{newVersion}
+            </button>
+          ) : status === "downloading" ? (
+            <div className="flex flex-col w-full py-1 px-1.5 gap-1.5 bg-surface-raised rounded border border-neutral-700">
+              <div className="flex items-center justify-between text-[10px] text-neutral-400 font-medium">
+                <span>Laden...</span>
+                <span>{progress}%</span>
+              </div>
+              <div className="w-full h-1 bg-neutral-800 rounded-full overflow-hidden">
+                <div className="h-full bg-accent transition-all duration-300" style={{ width: `${progress}%` }} />
+              </div>
+            </div>
+          ) : status === "ready" ? (
+            <button
+              onClick={confirmRelaunch}
+              className="flex items-center justify-center gap-1.5 w-full py-1.5 px-2 bg-emerald-400/10 border border-emerald-400/30 rounded text-emerald-400 hover:bg-emerald-400/20 text-[11px] font-bold transition-all shadow-[0_0_8px_rgba(52,211,153,0.2)]"
+              title="Klicken, um die App neu zu starten"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Neu starten
+            </button>
+          ) : (
+            <button
+              onClick={() => { checkForUpdate(); setShowChangelog(true); }}
+              className="flex items-center justify-between w-full py-1.5 px-2 rounded-sm hover:bg-hover-overlay text-neutral-400 hover:text-accent transition-colors group"
+              title={statusTitle}
+            >
+              <span className="text-[11px] font-bold tracking-wide">v{version}</span>
+              <StatusIcon status={status} />
+            </button>
+          )}
         </div>
 
         {topItems.map(renderItem)}
@@ -156,17 +181,6 @@ export function SideNav({ badges = {} }: SideNavProps) {
 
       {/* Dialogs — outside nav to avoid layout interference */}
       <ChangelogDialog open={showChangelog} onClose={() => setShowChangelog(false)} />
-      <UpdateNotification
-        status={status}
-        progress={progress}
-        error={error}
-        newVersion={newVersion}
-        lastChecked={lastChecked}
-        onUpdate={downloadAndInstall}
-        onRelaunch={confirmRelaunch}
-        onRetry={checkForUpdate}
-        onDismiss={dismiss}
-      />
     </>
   );
 }
