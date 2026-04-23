@@ -326,7 +326,7 @@ mod tests {
             let run: PipelineRun = serde_json::from_str(&data).unwrap();
             runs.push(run);
         }
-        runs.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+        runs.sort_by_key(|r| std::cmp::Reverse(r.started_at));
 
         assert_eq!(runs.len(), 3);
         assert_eq!(runs[0].workflow_name, "new");
@@ -349,7 +349,7 @@ mod tests {
             let run: PipelineRun = serde_json::from_str(&data).unwrap();
             runs.push(run);
         }
-        runs.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+        runs.sort_by_key(|r| std::cmp::Reverse(r.started_at));
 
         // Page: offset=1, limit=2
         let page: Vec<_> = runs.into_iter().skip(1).take(2).collect();
@@ -373,7 +373,7 @@ mod tests {
             let run: PipelineRun = serde_json::from_str(&data).unwrap();
             entries.push((path, run.started_at));
         }
-        entries.sort_by(|a, b| b.1.cmp(&a.1));
+        entries.sort_by_key(|e| std::cmp::Reverse(e.1));
 
         let to_delete = &entries[2..];
         let mut deleted = 0;
