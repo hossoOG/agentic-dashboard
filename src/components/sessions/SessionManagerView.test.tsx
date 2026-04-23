@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
+import { useEffect } from "react";
 import { SessionManagerView } from "./SessionManagerView";
 import { useSessionStore } from "../../store/sessionStore";
 import { useUIStore } from "../../store/uiStore";
@@ -14,11 +15,28 @@ vi.mock("@tauri-apps/plugin-shell", () => ({
   open: vi.fn(),
 }));
 
-// Mock heavy child components to keep tests fast and isolated
+// Shared unmount-spy for the SessionTerminal mock — populated per test.
+// Allows a Regression-Test to verify that Tab-Switches do NOT unmount
+// previously mounted SessionTerminal-Instances (Scroll-Bug-Fix aus 8b820f5).
+const sessionTerminalUnmountSpy = vi.fn<(sessionId: string) => void>();
+
+// Mock heavy child components to keep tests fast and isolated.
+// Two testids are emitted:
+//   - "session-terminal" → legacy-Selector (bestehende Tests).
+//   - `terminal-${sessionId}` → dynamischer Selector (Regression-Tests).
 vi.mock("./SessionTerminal", () => ({
-  SessionTerminal: ({ sessionId }: { sessionId: string }) => (
-    <div data-testid="session-terminal">{sessionId}</div>
-  ),
+  SessionTerminal: ({ sessionId }: { sessionId: string }) => {
+    useEffect(() => {
+      return () => {
+        sessionTerminalUnmountSpy(sessionId);
+      };
+    }, [sessionId]);
+    return (
+      <div data-testid="session-terminal">
+        <div data-testid={`terminal-${sessionId}`}>{sessionId}</div>
+      </div>
+    );
+  },
 }));
 
 vi.mock("./SessionGrid", () => ({
@@ -54,6 +72,7 @@ vi.mock("./hooks/useSessionCreation", () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  sessionTerminalUnmountSpy.mockClear();
   useSessionStore.setState({
     sessions: [],
     activeSessionId: null,
@@ -63,6 +82,22 @@ beforeEach(() => {
   });
   useUIStore.setState({ previewFolder: null });
 });
+
+// Test-Helper: Session-Fabrik für Regression-Tests.
+function mockSession(id: string) {
+  return {
+    id,
+    title: `Session ${id}`,
+    folder: "/test",
+    shell: "powershell" as const,
+    status: "running" as const,
+    createdAt: Date.now(),
+    finishedAt: null,
+    exitCode: null,
+    lastOutputAt: Date.now(),
+    lastOutputSnippet: "",
+  };
+}
 
 // ── Tests ─────────────────────────────────────────────────────────────
 
@@ -178,5 +213,79 @@ describe("SessionManagerView", () => {
     render(<SessionManagerView />);
 
     expect(screen.getByTestId("session-grid")).toBeTruthy();
+  });
+});
+
+// ── Regression-Tests: Scroll-Bug-Fix (Commit 8b820f5) ────────────────
+// Sichern ab, dass im Single-Mode ALLE Sessions gleichzeitig gemountet
+// bleiben, damit xterm-Scrollback einen Tab-Switch überlebt.
+describe("SessionManagerView — Scroll-Regression (always-mounted Terminals)", () => {
+  it("rendert alle Sessions gleichzeitig im Single-Mode (3 Sessions → 3 Terminal-Instanzen)", () => {
+    useSessionStore.setState({
+      sessions: [mockSession("A"), mockSession("B"), mockSession("C")],
+      activeSessionId: "A",
+      layoutMode: "single",
+      gridSessionIds: [],
+      focusedGridSessionId: null,
+    });
+
+    render(<SessionManagerView />);
+
+    // Alle drei Terminal-Instanzen müssen gerendert sein — nicht nur die aktive.
+    expect(screen.getByTestId("terminal-A")).toBeTruthy();
+    expect(screen.getByTestId("terminal-B")).toBeTruthy();
+    expect(screen.getByTestId("terminal-C")).toBeTruthy();
+  });
+
+  it("zeigt nur die aktive Session, versteckt die anderen (display:none)", () => {
+    useSessionStore.setState({
+      sessions: [mockSession("A"), mockSession("B")],
+      activeSessionId: "B",
+      layoutMode: "single",
+      gridSessionIds: [],
+      focusedGridSessionId: null,
+    });
+
+    const { container } = render(<SessionManagerView />);
+
+    const wrapperA = container.querySelector('[data-session-wrapper="A"]');
+    const wrapperB = container.querySelector('[data-session-wrapper="B"]');
+
+    expect(wrapperA).toBeTruthy();
+    expect(wrapperB).toBeTruthy();
+    // Inaktive Session → display:none.
+    expect((wrapperA as HTMLElement).style.display).toBe("none");
+    // Aktive Session → display:block (nicht none).
+    expect((wrapperB as HTMLElement).style.display).toBe("block");
+  });
+
+  it("unmountet SessionTerminal nicht beim Tab-Switch (Scrollback-Buffer bleibt erhalten)", () => {
+    useSessionStore.setState({
+      sessions: [mockSession("A"), mockSession("B")],
+      activeSessionId: "A",
+      layoutMode: "single",
+      gridSessionIds: [],
+      focusedGridSessionId: null,
+    });
+
+    const { rerender } = render(<SessionManagerView />);
+
+    // Initial: keine Unmounts.
+    expect(sessionTerminalUnmountSpy).not.toHaveBeenCalled();
+
+    // Tab-Switch von A zu B — beide Sessions bleiben im DOM.
+    act(() => {
+      useSessionStore.setState({ activeSessionId: "B" });
+    });
+    rerender(<SessionManagerView />);
+
+    // Weder A noch B dürfen unmountet worden sein.
+    expect(sessionTerminalUnmountSpy).not.toHaveBeenCalledWith("A");
+    expect(sessionTerminalUnmountSpy).not.toHaveBeenCalledWith("B");
+    expect(sessionTerminalUnmountSpy).not.toHaveBeenCalled();
+
+    // Beide Terminals weiterhin im DOM.
+    expect(screen.getByTestId("terminal-A")).toBeTruthy();
+    expect(screen.getByTestId("terminal-B")).toBeTruthy();
   });
 });

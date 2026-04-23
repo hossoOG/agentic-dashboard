@@ -95,6 +95,7 @@ export function SessionManagerView() {
                         sessions.map((session) => (
                           <div
                             key={session.id}
+                            data-session-wrapper={session.id}
                             className="absolute inset-0"
                             style={{ display: session.id === activeSessionId ? "block" : "none" }}
                           >
