@@ -95,6 +95,16 @@ describe("SessionTerminal", () => {
     mockBuffer.active.viewportY = 0;
     mockBuffer.active.baseY = 0;
 
+    // Mock document.fonts.ready (not available in jsdom). SessionTerminal
+    // awaits this before initial fit/resize.
+    if (!(document as unknown as { fonts?: unknown }).fonts) {
+      Object.defineProperty(document, "fonts", {
+        value: { ready: Promise.resolve() },
+        writable: true,
+        configurable: true,
+      });
+    }
+
     // Capture the listen callback for session-output events
     vi.mocked(listen).mockImplementation(
       (_eventName, cb) => {
@@ -229,34 +239,9 @@ describe("SessionTerminal", () => {
     );
   });
 
-  it("clipboard paste failure is logged via logError", async () => {
-    // Stub clipboard.readText to reject
-    const clipboardError = new Error("clipboard read denied");
-    const readTextMock = vi.fn(() => Promise.reject(clipboardError));
-    Object.defineProperty(navigator, "clipboard", {
-      value: { writeText: vi.fn(() => Promise.resolve()), readText: readTextMock },
-      writable: true,
-      configurable: true,
-    });
-
-    render(<SessionTerminal sessionId="sess-1" />);
-
-    expect(mockAttachCustomKeyEventHandler).toHaveBeenCalled();
-    const keyHandler = mockAttachCustomKeyEventHandler.mock.calls[0]![0] as (
-      e: KeyboardEvent,
-    ) => boolean;
-
-    keyHandler(new KeyboardEvent("keydown", { ctrlKey: true, key: "v" }));
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(vi.mocked(logError)).toHaveBeenCalledWith(
-      "SessionTerminal.clipboardPaste",
-      clipboardError,
-    );
-  });
+  // Note: Ctrl+V paste handler was removed in 9cee12b (collided with xterm
+  // native paste); there is no longer a code path that calls
+  // logError("SessionTerminal.clipboardPaste", ...).
 
   it("resize invoke failure is logged via logError", async () => {
     const { invoke } = await import("@tauri-apps/api/core");
@@ -272,8 +257,10 @@ describe("SessionTerminal", () => {
     });
     vi.useRealTimers();
 
-    // Flush microtasks so the .catch runs
+    // Flush microtasks so document.fonts.ready.then(...).catch(...) runs
     await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
       await Promise.resolve();
     });
 

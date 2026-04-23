@@ -310,12 +310,14 @@ describe("LibraryView", () => {
       globalConfig: makeConfig({ skills: [mockSkill] }),
     });
 
-    // Pre-set the global scope as open in the store
+    // Pre-set the global scope AND the skills section as open in the store
+    // (sections default to collapsed after baecf4f)
     useUIStore.getState().setLibraryScopeOpen("global", true);
+    useUIStore.getState().setLibrarySectionOpen("global:skills", true);
 
-    // First mount — panel should be open (state from store)
+    // First mount — panel + section should be open (state from store)
     const { unmount } = render(<LibraryView />);
-    // Skills section should be visible without clicking because scope is expanded
+    // Skills section should be visible without clicking because scope+section are expanded
     expect(screen.getByText("implement")).toBeTruthy();
     unmount();
 
