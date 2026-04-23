@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, waitFor, act } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { KanbanBoard } from "./KanbanBoard";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -41,6 +41,10 @@ vi.mock("../../store/projectStore", () => ({
 import { useProjectStore } from "../../store/projectStore";
 
 // ── Test fixtures ─────────────────────────────────────────────────────
+
+const MOCK_PROJECTS = [
+  { id: "PVT_abc123", number: 2, title: "Agentic Dashboard", items_total: 10 },
+];
 
 function makeBoard() {
   return {
@@ -111,17 +115,13 @@ function makeBoard() {
 // ── Store setup ───────────────────────────────────────────────────────
 
 const mockSetFolderProject = vi.fn();
-const mockSetGlobalProject = vi.fn();
 const mockGetProjectForFolder = vi.fn();
-const mockGetGlobalProject = vi.fn();
 const mockInvoke = vi.mocked(invoke);
 
 function setupStore(withProject = true) {
   vi.mocked(useProjectStore).mockReturnValue({
     projectByFolder: {},
-    globalProject: null,
     setFolderProject: mockSetFolderProject,
-    setGlobalProject: mockSetGlobalProject,
     getProjectForFolder: withProject
       ? mockGetProjectForFolder.mockReturnValue({
           projectNumber: 2,
@@ -129,22 +129,6 @@ function setupStore(withProject = true) {
           title: "Agentic Dashboard",
         })
       : mockGetProjectForFolder.mockReturnValue(undefined),
-    getGlobalProject: mockGetGlobalProject.mockReturnValue(undefined),
-  } as ReturnType<typeof useProjectStore>);
-}
-
-function setupGlobalStore() {
-  vi.mocked(useProjectStore).mockReturnValue({
-    projectByFolder: {},
-    globalProject: { projectNumber: 5, projectId: "PVT_g1", title: "Global Board" },
-    setFolderProject: mockSetFolderProject,
-    setGlobalProject: mockSetGlobalProject,
-    getProjectForFolder: mockGetProjectForFolder.mockReturnValue(undefined),
-    getGlobalProject: mockGetGlobalProject.mockReturnValue({
-      projectNumber: 5,
-      projectId: "PVT_g1",
-      title: "Global Board",
-    }),
   } as ReturnType<typeof useProjectStore>);
 }
 
@@ -157,19 +141,18 @@ describe("KanbanBoard — Projects v2", () => {
   });
 
   it("shows loading state initially", () => {
-    // Project already in store → only get_project_board is called; keep it pending.
     setupStore();
-    mockInvoke.mockReturnValue(new Promise(() => {})); // never resolves
+    mockInvoke.mockReturnValue(new Promise(() => {}));
     render(<KanbanBoard folder="/test/loading" />);
 
     expect(screen.getByText("Lade Kanban-Daten...")).toBeTruthy();
   });
 
   it("renders dynamic lanes from GitHub Projects v2 Status field", async () => {
-    // setupStore(true) → getProjectForFolder returns a project immediately,
-    // so loadProjects is skipped and only get_project_board is called.
     setupStore();
-    mockInvoke.mockResolvedValueOnce(makeBoard()); // get_project_board
+    mockInvoke
+      .mockResolvedValueOnce(MOCK_PROJECTS)  // list_user_projects
+      .mockResolvedValueOnce(makeBoard());    // get_project_board
 
     render(<KanbanBoard folder="/test/lanes" />);
 
@@ -185,7 +168,9 @@ describe("KanbanBoard — Projects v2", () => {
 
   it("renders items in their correct GitHub Projects lane", async () => {
     setupStore();
-    mockInvoke.mockResolvedValueOnce(makeBoard()); // get_project_board
+    mockInvoke
+      .mockResolvedValueOnce(MOCK_PROJECTS)
+      .mockResolvedValueOnce(makeBoard());
 
     render(<KanbanBoard folder="/test/items" />);
 
@@ -199,7 +184,9 @@ describe("KanbanBoard — Projects v2", () => {
 
   it("renders 'Kein Status' column for items without a status set", async () => {
     setupStore();
-    mockInvoke.mockResolvedValueOnce(makeBoard()); // get_project_board
+    mockInvoke
+      .mockResolvedValueOnce(MOCK_PROJECTS)
+      .mockResolvedValueOnce(makeBoard());
 
     render(<KanbanBoard folder="/test/nostatus" />);
 
@@ -211,7 +198,9 @@ describe("KanbanBoard — Projects v2", () => {
 
   it("data-lane-id uses Projects v2 option_id (not hardcoded slug)", async () => {
     setupStore();
-    mockInvoke.mockResolvedValueOnce(makeBoard()); // get_project_board
+    mockInvoke
+      .mockResolvedValueOnce(MOCK_PROJECTS)
+      .mockResolvedValueOnce(makeBoard());
 
     const { container } = render(<KanbanBoard folder="/test/laneids" />);
 
@@ -231,7 +220,9 @@ describe("KanbanBoard — Projects v2", () => {
 
   it("shows error state on board load failure", async () => {
     setupStore();
-    mockInvoke.mockRejectedValueOnce(new Error("Network error")); // get_project_board fails
+    mockInvoke
+      .mockResolvedValueOnce(MOCK_PROJECTS)
+      .mockRejectedValueOnce(new Error("Network error"));
 
     render(<KanbanBoard folder="/test/error" />);
 
@@ -244,7 +235,9 @@ describe("KanbanBoard — Projects v2", () => {
 
   it("shows scope hint when error mentions 'project'", async () => {
     setupStore();
-    mockInvoke.mockRejectedValueOnce(new Error("Missing project scope")); // get_project_board fails
+    mockInvoke
+      .mockResolvedValueOnce(MOCK_PROJECTS)
+      .mockRejectedValueOnce(new Error("Missing project scope"));
 
     render(<KanbanBoard folder="/test/scope" />);
 
@@ -257,7 +250,9 @@ describe("KanbanBoard — Projects v2", () => {
 
   it("shows project title in board header", async () => {
     setupStore();
-    mockInvoke.mockResolvedValueOnce(makeBoard()); // get_project_board
+    mockInvoke
+      .mockResolvedValueOnce(MOCK_PROJECTS)
+      .mockResolvedValueOnce(makeBoard());
 
     render(<KanbanBoard folder="/test/header" />);
 
@@ -268,7 +263,9 @@ describe("KanbanBoard — Projects v2", () => {
 
   it("columns have no HTML5 DnD attributes", async () => {
     setupStore();
-    mockInvoke.mockResolvedValueOnce(makeBoard()); // get_project_board
+    mockInvoke
+      .mockResolvedValueOnce(MOCK_PROJECTS)
+      .mockResolvedValueOnce(makeBoard());
 
     const { container } = render(<KanbanBoard folder="/test/nodnd" />);
 
@@ -280,92 +277,5 @@ describe("KanbanBoard — Projects v2", () => {
     columns.forEach((col) => {
       expect(col.getAttribute("draggable")).toBeNull();
     });
-  });
-
-  it("global mode (folder=null) loads board and passes folder:null to backend", async () => {
-    setupGlobalStore();
-    mockInvoke.mockResolvedValueOnce(makeBoard()); // get_project_board
-
-    render(<KanbanBoard folder={null} />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Backlog")).toBeTruthy();
-      expect(screen.getByText("Global Board")).toBeTruthy();
-    });
-
-    // Board was fetched with folder: null — backend uses temp_dir fallback.
-    expect(mockInvoke).toHaveBeenCalledWith(
-      "get_project_board",
-      expect.objectContaining({ folder: null })
-    );
-  });
-
-  it("global pointer listeners are removed when component unmounts during drag", async () => {
-    setupStore();
-    mockInvoke.mockResolvedValueOnce(makeBoard()); // get_project_board
-
-    // Spy on AbortController.prototype.abort — the AbortController-based cleanup
-    // calls abort() on unmount, which removes all Listener registered with { signal }.
-    const abortSpy = vi.spyOn(AbortController.prototype, "abort");
-
-    const { unmount } = render(<KanbanBoard folder="/test/unmount-drag" />);
-
-    // Wait for board to render
-    await waitFor(() => {
-      expect(screen.getByText("Backlog issue")).toBeTruthy();
-    });
-
-    // Reset spy so we only count aborts triggered after drag start.
-    abortSpy.mockClear();
-
-    // Simulate pointerdown on a card to start a drag.
-    // KanbanCard fires onDragStart after DRAG_THRESHOLD_PX movement —
-    // we trigger the drag listeners by simulating the full gesture:
-    // pointerdown → pointermove (past threshold) which fires onDragStart
-    // → startGlobalDragListeners registers listeners with { signal }.
-    const card = screen.getByText("Backlog issue").closest("[class]");
-    expect(card).toBeTruthy();
-
-    card!.dispatchEvent(
-      new PointerEvent("pointerdown", {
-        bubbles: true,
-        cancelable: true,
-        button: 0,
-        clientX: 100,
-        clientY: 100,
-        pointerId: 1,
-      })
-    );
-
-    // JSDOM does not implement document.elementsFromPoint — stub it out so the
-    // onMove handler does not throw when the pointermove event fires.
-    const origElementsFromPoint = document.elementsFromPoint;
-    document.elementsFromPoint = vi.fn().mockReturnValue([]);
-
-    // Move past the drag threshold (5px) so KanbanCard fires onDragStart,
-    // which in turn calls startGlobalDragListeners → creates the AbortController.
-    await act(async () => {
-      card!.dispatchEvent(
-        new PointerEvent("pointermove", {
-          bubbles: true,
-          cancelable: true,
-          clientX: 110,
-          clientY: 110,
-          pointerId: 1,
-        })
-      );
-    });
-
-    // Restore elementsFromPoint mock
-    document.elementsFromPoint = origElementsFromPoint;
-
-    // Unmount during drag (AbortController still active, listeners attached to window)
-    unmount();
-
-    // The useEffect cleanup must have called dragAbortRef.current.abort()
-    // to remove all registered pointermove/pointerup listeners.
-    expect(abortSpy).toHaveBeenCalled();
-
-    abortSpy.mockRestore();
   });
 });

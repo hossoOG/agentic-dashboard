@@ -42,7 +42,6 @@ pub struct KanbanLabel {
 
 #[derive(Serialize, Clone)]
 pub struct IssueComment {
-    pub id: String,
     pub author: String,
     pub body: String,
     pub created_at: String,
@@ -81,16 +80,6 @@ pub struct LinkedPR {
     pub checks: Vec<CheckRun>,
 }
 
-/// Returns the directory to use as `cwd` for subprocess calls.
-/// Falls back to `std::env::temp_dir()` when no folder is provided —
-/// `gh api graphql` and `gh project` commands are not git-directory-sensitive.
-pub(crate) fn effective_cwd(folder: Option<&str>) -> std::path::PathBuf {
-    folder
-        .map(std::path::PathBuf::from)
-        .filter(|p| p.exists())
-        .unwrap_or_else(std::env::temp_dir)
-}
-
 pub(crate) fn run_command(folder: &str, program: &str, args: &[&str]) -> Result<String, ADPError> {
     let mut cmd = silent_command(program);
     cmd.args(args).current_dir(folder);
@@ -114,24 +103,6 @@ pub(crate) fn is_command_available(cmd_name: &str) -> bool {
     crate::util::timed_output(cmd, std::time::Duration::from_secs(5))
         .map(|o| o.status.success())
         .unwrap_or(false)
-}
-
-/// Validates a `owner/name` repository slug to prevent shell injection.
-/// Allows alphanumeric characters, hyphens, underscores, dots, and exactly one slash.
-pub(crate) fn validate_repo(repo: &str) -> Result<(), ADPError> {
-    let valid_chars = repo
-        .chars()
-        .all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == '.' || c == '/');
-    let single_slash = repo.matches('/').count() == 1;
-    let no_leading_trailing = !repo.starts_with('/') && !repo.ends_with('/');
-    if valid_chars && single_slash && no_leading_trailing {
-        Ok(())
-    } else {
-        Err(ADPError::validation(format!(
-            "Invalid repository format '{}': expected owner/name",
-            repo
-        )))
-    }
 }
 
 /// Extract label names from a GitHub JSON value containing a "labels" array.
@@ -309,18 +280,8 @@ pub mod commands {
         Ok(issues)
     }
 
-    /// Fetches full issue details including comments.
-    ///
-    /// `repo` (optional) specifies the repository as `owner/name`. When provided,
-    /// `gh issue view --repo <repo>` is used — required for cross-repo issues in
-    /// a global Project v2 board. When omitted, the gh CLI auto-detects the repo
-    /// from the `folder` git remote (folder-mode behaviour).
     #[tauri::command]
-    pub async fn get_issue_detail(
-        folder: Option<String>,
-        repo: Option<String>,
-        number: u64,
-    ) -> Result<IssueDetail, ADPError> {
+    pub async fn get_issue_detail(folder: String, number: u64) -> Result<IssueDetail, ADPError> {
         if !is_command_available("gh") {
             return Err(ADPError::new(
                 ADPErrorCode::ServiceRequestFailed,
@@ -328,23 +289,17 @@ pub mod commands {
             ));
         }
 
-        let cwd = effective_cwd(folder.as_deref());
-        let cwd_str = cwd.to_string_lossy().to_string();
-
-        if let Some(ref r) = repo {
-            validate_repo(r)?;
-        }
-
-        let num_str = number.to_string();
-        let json_fields =
-            "number,title,body,state,author,createdAt,updatedAt,closedAt,labels,assignees,milestone,url,comments";
-        // Note: gh issue view --json includes `id` within each comment object by default.
-        let mut args = vec!["issue", "view", &num_str, "--json", json_fields];
-        if let Some(ref r) = repo {
-            args.extend_from_slice(&["--repo", r]);
-        }
-
-        let output = run_command(&cwd_str, "gh", &args)?;
+        let output = run_command(
+            &folder,
+            "gh",
+            &[
+                "issue",
+                "view",
+                &number.to_string(),
+                "--json",
+                "number,title,body,state,author,createdAt,updatedAt,closedAt,labels,assignees,milestone,url,comments",
+            ],
+        )?;
 
         if output.is_empty() {
             return Err(ADPError::parse("Empty response from gh"));
@@ -370,7 +325,6 @@ pub mod commands {
             .map(|arr| {
                 arr.iter()
                     .map(|c| IssueComment {
-                        id: c["id"].as_str().unwrap_or("").to_string(),
                         author: c["author"]["login"].as_str().unwrap_or("").to_string(),
                         body: c["body"].as_str().unwrap_or("").to_string(),
                         created_at: c["createdAt"].as_str().unwrap_or("").to_string(),
@@ -396,16 +350,8 @@ pub mod commands {
         })
     }
 
-    /// Searches for PRs that reference this issue, including their CI check results.
-    ///
-    /// `repo` (optional) scopes the search to a specific repository (`owner/name`).
-    /// Required when the issue belongs to a different repo than the current folder.
     #[tauri::command]
-    pub async fn get_issue_checks(
-        folder: Option<String>,
-        repo: Option<String>,
-        number: u64,
-    ) -> Result<Vec<LinkedPR>, ADPError> {
+    pub async fn get_issue_checks(folder: String, number: u64) -> Result<Vec<LinkedPR>, ADPError> {
         if !is_command_available("gh") {
             return Err(ADPError::new(
                 ADPErrorCode::ServiceRequestFailed,
@@ -413,32 +359,24 @@ pub mod commands {
             ));
         }
 
-        let cwd = effective_cwd(folder.as_deref());
-        let cwd_str = cwd.to_string_lossy().to_string();
-
-        if let Some(ref r) = repo {
-            validate_repo(r)?;
-        }
-
         // Search for PRs that reference this issue number
         let search_query = format!("#{}", number);
-        let mut args = vec![
-            "pr",
-            "list",
-            "--search",
-            &search_query,
-            "--state",
-            "all",
-            "--json",
-            "number,title,state,url,statusCheckRollup",
-            "--limit",
-            "5",
-        ];
-        if let Some(ref r) = repo {
-            args.extend_from_slice(&["--repo", r]);
-        }
-
-        let output = run_command(&cwd_str, "gh", &args)?;
+        let output = run_command(
+            &folder,
+            "gh",
+            &[
+                "pr",
+                "list",
+                "--search",
+                &search_query,
+                "--state",
+                "all",
+                "--json",
+                "number,title,state,url,statusCheckRollup",
+                "--limit",
+                "5",
+            ],
+        )?;
 
         if output.is_empty() {
             return Ok(Vec::new());
@@ -495,13 +433,11 @@ pub mod commands {
 
     /// Post a new comment on a GitHub issue via gh CLI.
     ///
-    /// `repo` (optional) specifies `owner/name` for cross-repo issues in global mode.
-    /// Security: body is passed as a CLI argument (not shell-interpolated), so injection
-    /// is not possible. Input is validated for emptiness before invoking gh.
+    /// Security: body is passed as a CLI argument (not shell-interpolated), so injection is not
+    /// possible. Input is validated for emptiness before invoking gh.
     #[tauri::command]
     pub async fn post_issue_comment(
-        folder: Option<String>,
-        repo: Option<String>,
+        folder: String,
         number: u64,
         body: String,
     ) -> Result<(), ADPError> {
@@ -514,134 +450,12 @@ pub mod commands {
         if body.trim().is_empty() {
             return Err(ADPError::validation("Comment body cannot be empty"));
         }
-        if let Some(ref r) = repo {
-            validate_repo(r)?;
-        }
-
-        let cwd = effective_cwd(folder.as_deref());
-        let cwd_str = cwd.to_string_lossy().to_string();
         let num_str = number.to_string();
-        let mut args = vec!["issue", "comment", &num_str, "--body", &body];
-        if let Some(ref r) = repo {
-            args.extend_from_slice(&["--repo", r]);
-        }
-        run_command(&cwd_str, "gh", &args)?;
+        run_command(
+            &folder,
+            "gh",
+            &["issue", "comment", &num_str, "--body", &body],
+        )?;
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // ── IssueComment parser ───────────────────────────────────────────
-
-    #[test]
-    fn parse_issue_comment_includes_id() {
-        let raw = serde_json::json!({
-            "id": "IC_kwDOABC123",
-            "author": { "login": "alice" },
-            "body": "Looks good",
-            "createdAt": "2024-01-15T10:00:00Z"
-        });
-
-        let comment = IssueComment {
-            id: raw["id"].as_str().unwrap_or("").to_string(),
-            author: raw["author"]["login"].as_str().unwrap_or("").to_string(),
-            body: raw["body"].as_str().unwrap_or("").to_string(),
-            created_at: raw["createdAt"].as_str().unwrap_or("").to_string(),
-        };
-
-        assert_eq!(comment.id, "IC_kwDOABC123");
-        assert_eq!(comment.author, "alice");
-        assert_eq!(comment.body, "Looks good");
-        assert_eq!(comment.created_at, "2024-01-15T10:00:00Z");
-    }
-
-    #[test]
-    fn parse_two_comments_same_author_same_time_get_different_ids() {
-        // Simuliert den Bug-Szenario: gleicher Author, gleicher Timestamp -> IDs muessen verschieden sein
-        let raw_comments = serde_json::json!([
-            {
-                "id": "IC_kwDOFirst111",
-                "author": { "login": "bob" },
-                "body": "First comment",
-                "createdAt": "2024-01-15T10:00:00Z"
-            },
-            {
-                "id": "IC_kwDOSecond222",
-                "author": { "login": "bob" },
-                "body": "Second comment",
-                "createdAt": "2024-01-15T10:00:00Z"
-            }
-        ]);
-
-        let comments: Vec<IssueComment> = raw_comments
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|c| IssueComment {
-                id: c["id"].as_str().unwrap_or("").to_string(),
-                author: c["author"]["login"].as_str().unwrap_or("").to_string(),
-                body: c["body"].as_str().unwrap_or("").to_string(),
-                created_at: c["createdAt"].as_str().unwrap_or("").to_string(),
-            })
-            .collect();
-
-        assert_eq!(comments.len(), 2);
-        // Beide haben gleichen author und created_at - aber unterschiedliche IDs
-        assert_eq!(comments[0].author, comments[1].author);
-        assert_eq!(comments[0].created_at, comments[1].created_at);
-        assert_ne!(
-            comments[0].id, comments[1].id,
-            "Zwei Kommentare mit gleichem Author/Timestamp muessen verschiedene IDs haben"
-        );
-    }
-
-    #[test]
-    fn parse_comment_with_missing_id_falls_back_to_empty_string() {
-        let raw = serde_json::json!({
-            "author": { "login": "carol" },
-            "body": "No id field",
-            "createdAt": "2024-01-15T12:00:00Z"
-        });
-
-        let comment = IssueComment {
-            id: raw["id"].as_str().unwrap_or("").to_string(),
-            author: raw["author"]["login"].as_str().unwrap_or("").to_string(),
-            body: raw["body"].as_str().unwrap_or("").to_string(),
-            created_at: raw["createdAt"].as_str().unwrap_or("").to_string(),
-        };
-
-        assert_eq!(comment.id, "");
-        assert_eq!(comment.author, "carol");
-    }
-
-    // ── effective_cwd ─────────────────────────────────────────────────
-
-    #[test]
-    fn effective_cwd_some_valid_path_returns_it() {
-        let tmp = std::env::temp_dir();
-        let path = effective_cwd(Some(tmp.to_str().unwrap()));
-        assert_eq!(path, tmp);
-    }
-
-    #[test]
-    fn effective_cwd_none_returns_existing_dir() {
-        let path = effective_cwd(None);
-        assert!(
-            path.exists(),
-            "effective_cwd(None) must return an existing directory, got: {:?}",
-            path
-        );
-    }
-
-    #[test]
-    fn effective_cwd_nonexistent_path_falls_back_to_temp() {
-        let path = effective_cwd(Some("/this/path/does/not/exist/ever"));
-        assert!(
-            path.exists(),
-            "should fall back to temp_dir when path does not exist"
-        );
     }
 }

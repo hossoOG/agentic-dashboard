@@ -54,7 +54,7 @@ export function KanbanDashboardView() {
           {modeToggle}
         </div>
         <div className="flex-1 min-h-0">
-          <KanbanBoard folder={null} />
+          <KanbanBoard folder={""} />
         </div>
       </div>
     );

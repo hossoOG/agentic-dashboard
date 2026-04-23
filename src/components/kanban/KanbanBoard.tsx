@@ -32,8 +32,6 @@ interface ProjectItem {
   url: string;
   state: string;
   current_lane_option_id: string | null;
-  /** `"owner/name"` — set for cross-repo items in global board, null for same-repo. */
-  repository?: string | null;
 }
 
 interface ProjectBoard {
@@ -52,14 +50,6 @@ interface CacheEntry {
 const cache = new Map<string, CacheEntry>();
 const CACHE_TTL = 60_000;
 
-/** Per-project-list cache so reopening the picker doesn't re-invoke. */
-interface ProjectListEntry {
-  projects: ProjectSummary[];
-  timestamp: number;
-}
-const projectListCache = new Map<string, ProjectListEntry>();
-const PROJECT_LIST_TTL = 30_000;
-
 /** Converts a backend ProjectItem to the KanbanIssue shape the card expects. */
 function toKanbanIssue(item: ProjectItem): KanbanIssue {
   return {
@@ -70,15 +60,13 @@ function toKanbanIssue(item: ProjectItem): KanbanIssue {
     labels: item.labels,
     assignee: item.assignee,
     url: item.url,
-    repository: item.repository ?? null,
   };
 }
 
 // ── Props ─────────────────────────────────────────────────────────────
 
 interface KanbanBoardProps {
-  /** Folder path for folder-mode boards; null for the global user board. */
-  folder: string | null;
+  folder: string;
 }
 
 // ── Component ─────────────────────────────────────────────────────────
@@ -88,25 +76,17 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
   const [board, setBoard] = useState<ProjectBoard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
-  /** Tracks the clicked card — stores number + repository for cross-repo modal. */
-  const [selectedIssue, setSelectedIssue] = useState<{
-    number: number;
-    repository: string | null;
-  } | null>(null);
+  const [selectedIssue, setSelectedIssue] = useState<number | null>(null);
   const [dragOverOptionId, setDragOverOptionId] = useState<string | null>(null);
   const [moving, setMoving] = useState<string | null>(null); // item_id being moved
   const [moveError, setMoveError] = useState<string | null>(null);
   const [projectPickerOpen, setProjectPickerOpen] = useState(false);
 
-  const { setFolderProject, getProjectForFolder, setGlobalProject, getGlobalProject } =
-    useProjectStore();
-
-  /** True when operating in folder-free global user-board mode. */
-  const isGlobal = folder === null;
-
-  /** Stable ref pointing to the latest board — used in drag-drop callbacks
-   * to avoid stale-closure issues without listing `board` in useCallback deps. */
-  const boardRef = useRef<ProjectBoard | null>(null);
+  const { setFolderProject, getProjectForFolder } = useProjectStore();
+  const mountedRef = useRef(true);
+  /** Tracks whether the initial load (loadProjects → loadBoard) has fired.
+   * Prevents the second useEffect from double-loading on mount. */
+  const boardInitializedRef = useRef(false);
   const draggedItemRef = useRef<{ itemId: string; issueNumber: number } | null>(
     null
   );
@@ -116,12 +96,7 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
    * unmountet wird. */
   const dragAbortRef = useRef<AbortController | null>(null);
 
-  const selectedProject = isGlobal
-    ? getGlobalProject()
-    : getProjectForFolder(folder ?? "");
-
-  // Keep boardRef in sync on every render.
-  boardRef.current = board;
+  const selectedProject = getProjectForFolder(folder);
 
   // Cleanup globaler Drag-Listener beim Unmount, damit kein Listener-Leak
   // entsteht, wenn die Komponente während eines aktiven Drags unmountet wird.
@@ -133,59 +108,47 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
 
   // ── Data loading ────────────────────────────────────────────────────
 
-  const loadProjects = useCallback(
-    async (signal: AbortSignal) => {
-      const listKey = isGlobal ? "__global__" : (folder ?? "__null__");
-      const cached = projectListCache.get(listKey);
-      if (cached && Date.now() - cached.timestamp < PROJECT_LIST_TTL) {
-        if (!signal.aborted) setProjects(cached.projects);
-        return cached.projects;
-      }
-
-      try {
-        const result = await wrapInvoke<ProjectSummary[]>("list_user_projects", {
-          folder,
+  const loadProjects = useCallback(async () => {
+    try {
+      const result = await wrapInvoke<ProjectSummary[]>("list_user_projects", {
+        folder,
+      });
+      if (!mountedRef.current) return;
+      setProjects(result);
+      // Auto-select first project if none stored for this folder
+      if (result.length > 0 && !getProjectForFolder(folder)) {
+        setFolderProject(folder, {
+          projectNumber: result[0].number,
+          projectId: result[0].id,
+          title: result[0].title,
         });
-        if (signal.aborted) return result;
-        projectListCache.set(listKey, { projects: result, timestamp: Date.now() });
-        setProjects(result);
-        return result;
-      } catch (err) {
-        if (!signal.aborted) {
-          setError(getErrorMessage(err));
-          setLoading(false);
-        }
-        return [];
       }
-    },
-    [folder, isGlobal]
-  );
+    } catch (err) {
+      if (mountedRef.current) {
+        setError(getErrorMessage(err));
+        setLoading(false);
+      }
+    }
+  }, [folder, getProjectForFolder, setFolderProject]);
 
   const loadBoard = useCallback(
-    async (signal: AbortSignal, forceRefresh = false) => {
-      const proj = isGlobal ? getGlobalProject() : getProjectForFolder(folder ?? "");
+    async (forceRefresh = false) => {
+      const proj = getProjectForFolder(folder);
       if (!proj) return;
 
-      const cacheKey = isGlobal
-        ? `global:${proj.projectNumber}`
-        : `${folder}:${proj.projectNumber}`;
-
+      const cacheKey = `${folder}:${proj.projectNumber}`;
       if (!forceRefresh) {
         const cached = cache.get(cacheKey);
         if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-          if (!signal.aborted) {
-            setBoard(cached.board);
-            setError("");
-            setLoading(false);
-          }
+          setBoard(cached.board);
+          setError("");
+          setLoading(false);
           return;
         }
       }
 
-      if (!signal.aborted) {
-        setLoading(true);
-        setError("");
-      }
+      setLoading(true);
+      setError("");
 
       try {
         const result = await wrapInvoke<ProjectBoard>("get_project_board", {
@@ -193,52 +156,42 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
           projectId: proj.projectId,
           folder,
         });
-        if (signal.aborted) return;
         const cacheEntry: CacheEntry = { board: result, timestamp: Date.now() };
         cache.set(cacheKey, cacheEntry);
-        setBoard(result);
-        setLoading(false);
+        if (mountedRef.current) {
+          setBoard(result);
+          setLoading(false);
+        }
       } catch (err) {
-        if (!signal.aborted) {
+        if (mountedRef.current) {
           setError(getErrorMessage(err));
           setLoading(false);
         }
       }
     },
-    [folder, isGlobal, getProjectForFolder, getGlobalProject]
+    [folder, getProjectForFolder]
   );
 
-  // Single effect keyed on both folder and selected project number.
-  // AbortController prevents stale async callbacks from updating state after
-  // unmount or before the next effect fires.
   useEffect(() => {
-    const controller = new AbortController();
-    const { signal } = controller;
-
-    setLoading(true);
-    setError("");
-    setBoard(null);
-
-    const proj = isGlobal ? getGlobalProject() : getProjectForFolder(folder ?? "");
-
-    if (proj) {
-      // Project already known (e.g. user switched via picker) — load board directly.
-      void loadBoard(signal);
-    } else {
-      // First visit: load project list, auto-select first, then board.
-      void loadProjects(signal).then((list) => {
-        if (signal.aborted || list.length === 0) return;
-        const auto = { projectNumber: list[0].number, projectId: list[0].id, title: list[0].title };
-        if (isGlobal) setGlobalProject(auto);
-        else setFolderProject(folder ?? "", auto);
-        // loadBoard reads store — defer one tick so Zustand state has updated.
-        void loadBoard(signal);
-      });
-    }
-
-    return () => controller.abort();
+    mountedRef.current = true;
+    boardInitializedRef.current = false;
+    void loadProjects().then(() => {
+      boardInitializedRef.current = true;
+      return loadBoard();
+    });
+    return () => {
+      mountedRef.current = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [folder, isGlobal, selectedProject?.projectNumber]);
+  }, [folder]);
+
+  // Re-load board when the user switches projects via the picker.
+  // Skip if the initial load sequence already handles it.
+  useEffect(() => {
+    if (!boardInitializedRef.current) return;
+    if (selectedProject) void loadBoard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProject?.projectNumber]);
 
   // ── Drag & drop ─────────────────────────────────────────────────────
 
@@ -247,71 +200,48 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
       const dragged = draggedItemRef.current;
       draggedItemRef.current = null;
       setDragOverOptionId(null);
+      if (!dragged || !board) return;
 
-      // Read current board from ref — avoids stale closure, always up-to-date.
-      const currentBoard = boardRef.current;
-      if (!dragged || !currentBoard) return;
-
-      const item = currentBoard.items.find((i) => i.item_id === dragged.itemId);
+      const item = board.items.find((i) => i.item_id === dragged.itemId);
       if (!item || item.current_lane_option_id === targetOptionId) return;
 
       setMoving(dragged.itemId);
       setMoveError(null);
 
-      // Snapshot the item IDs before update so rollback targets the right item.
-      const movedItemId = dragged.itemId;
-      const previousOptionId = item.current_lane_option_id;
-
-      // Optimistic update via functional updater — no stale board captured.
-      setBoard((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          items: prev.items.map((i) =>
-            i.item_id === movedItemId
-              ? { ...i, current_lane_option_id: targetOptionId }
-              : i
-          ),
-        };
+      // Optimistic update
+      const prevBoard = board;
+      setBoard({
+        ...board,
+        items: board.items.map((i) =>
+          i.item_id === dragged.itemId
+            ? { ...i, current_lane_option_id: targetOptionId }
+            : i
+        ),
       });
 
       try {
         await invoke("move_project_item", {
-          projectId: currentBoard.project_id,
-          itemId: movedItemId,
-          fieldId: currentBoard.status_field_id,
+          projectId: board.project_id,
+          itemId: dragged.itemId,
+          fieldId: board.status_field_id,
           optionId: targetOptionId,
           folder,
         });
-        // Invalidate cache so next refresh reflects server state.
-        const proj = isGlobal ? getGlobalProject() : getProjectForFolder(folder ?? "");
-        if (proj) {
-          const key = isGlobal ? `global:${proj.projectNumber}` : `${folder}:${proj.projectNumber}`;
-          cache.delete(key);
-        }
+        // Invalidate cache so next refresh reflects server state
+        const proj = getProjectForFolder(folder);
+        if (proj) cache.delete(`${folder}:${proj.projectNumber}`);
       } catch (err) {
         logError("KanbanBoard.moveItem", err);
         setMoveError(
           `Verschieben fehlgeschlagen: ${getErrorMessage(err)}`
         );
-        // Rollback via functional updater — restores the specific item only,
-        // does not clobber any concurrent board changes.
-        setBoard((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            items: prev.items.map((i) =>
-              i.item_id === movedItemId
-                ? { ...i, current_lane_option_id: previousOptionId }
-                : i
-            ),
-          };
-        });
+        // Rollback to previous state
+        setBoard(prevBoard);
       } finally {
         setMoving(null);
       }
     },
-    [folder, isGlobal, getProjectForFolder, getGlobalProject]
+    [board, folder, getProjectForFolder]
   );
 
   const startGlobalDragListeners = useCallback(() => {
@@ -349,11 +279,14 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
   // ── Project picker ───────────────────────────────────────────────────
 
   const handleSelectProject = (proj: ProjectSummary) => {
-    const entry = { projectNumber: proj.number, projectId: proj.id, title: proj.title };
-    if (isGlobal) setGlobalProject(entry);
-    else setFolderProject(folder ?? "", entry);
+    setFolderProject(folder, {
+      projectNumber: proj.number,
+      projectId: proj.id,
+      title: proj.title,
+    });
     setProjectPickerOpen(false);
-    // State update above triggers the useEffect via selectedProject?.projectNumber dep.
+    setBoard(null);
+    setLoading(true);
   };
 
   // ── Loading / error states ───────────────────────────────────────────
@@ -372,17 +305,13 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
       <div className="flex flex-col items-center justify-center h-full gap-3 text-neutral-500">
         <AlertCircle className="w-10 h-10 text-neutral-600" />
         <span className="text-sm">Fehler beim Laden des Boards</span>
-        <span className="text-xs text-neutral-500 max-w-md text-center">
+        <span className="text-xs text-neutral-600 max-w-md text-center">
           {isScope
             ? 'GitHub Scope fehlt. Führe aus: gh auth refresh -s project,read:project'
             : error}
         </span>
         <button
-          onClick={() => {
-            const controller = new AbortController();
-            setError("");
-            void loadBoard(controller.signal, true);
-          }}
+          onClick={() => { setError(""); void loadBoard(true); }}
           className="mt-2 px-3 py-1.5 text-xs text-neutral-300 bg-surface-raised border border-neutral-700 rounded-sm hover:bg-hover-overlay transition-colors"
         >
           Erneut versuchen
@@ -433,13 +362,10 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
               </div>
             )}
           </div>
-          <span className="text-xs text-neutral-500">({itemCount} Issues)</span>
+          <span className="text-xs text-neutral-600">({itemCount} Issues)</span>
         </div>
         <button
-          onClick={() => {
-            const controller = new AbortController();
-            void loadBoard(controller.signal, true);
-          }}
+          onClick={() => void loadBoard(true)}
           className="p-1 text-neutral-500 hover:text-neutral-300 transition-colors"
           title="Neu laden"
         >
@@ -462,15 +388,6 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
 
       {/* Board — lanes from GitHub Projects v2 Status field */}
       <div className="flex-1 overflow-x-auto overflow-y-hidden p-4">
-        {board.lanes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-3 text-neutral-500">
-            <Columns3 className="w-10 h-10 text-neutral-700" />
-            <span className="text-sm">Kein Kanban-Board konfiguriert</span>
-            <span className="text-xs text-neutral-500 max-w-sm text-center">
-              Dieses Projekt hat kein Status-Feld. Füge in GitHub Projects ein <strong className="text-neutral-400">Single-Select-Feld</strong> namens <em>Status</em> hinzu, um Lanes zu aktivieren.
-            </span>
-          </div>
-        ) : (
         <div className="flex gap-3 h-full min-w-min">
           {board.lanes.map((lane) => {
             const laneItems = board.items.filter(
@@ -491,7 +408,7 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
                   <span className="text-xs font-medium text-neutral-300">
                     {lane.name}
                   </span>
-                  <span className="text-[10px] text-neutral-400 bg-neutral-800 px-1.5 py-0.5 rounded-sm">
+                  <span className="text-[10px] text-neutral-500 bg-neutral-800 px-1.5 py-0.5 rounded-sm">
                     {laneItems.length}
                   </span>
                 </div>
@@ -499,7 +416,7 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
                 {/* Cards */}
                 <div className="flex-1 overflow-y-auto p-2 space-y-2">
                   {laneItems.length === 0 ? (
-                    <div className="text-[11px] text-neutral-500 text-center py-4">
+                    <div className="text-[11px] text-neutral-600 text-center py-4">
                       Keine Issues
                     </div>
                   ) : (
@@ -514,7 +431,7 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
                       >
                         <KanbanCard
                           issue={toKanbanIssue(item)}
-                          onClick={() => setSelectedIssue({ number: item.issue_number, repository: item.repository ?? null })}
+                          onClick={() => setSelectedIssue(item.issue_number)}
                           onDragStart={() => {
                             draggedItemRef.current = {
                               itemId: item.item_id,
@@ -551,7 +468,7 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
                   <span className="text-xs font-medium text-neutral-500">
                     Kein Status
                   </span>
-                  <span className="text-[10px] text-neutral-400 bg-neutral-800 px-1.5 py-0.5 rounded-sm">
+                  <span className="text-[10px] text-neutral-500 bg-neutral-800 px-1.5 py-0.5 rounded-sm">
                     {noStatusItems.length}
                   </span>
                 </div>
@@ -560,7 +477,7 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
                     <KanbanCard
                       key={item.item_id}
                       issue={toKanbanIssue(item)}
-                      onClick={() => setSelectedIssue({ number: item.issue_number, repository: item.repository ?? null })}
+                      onClick={() => setSelectedIssue(item.issue_number)}
                       onDragStart={() => {
                         draggedItemRef.current = {
                           itemId: item.item_id,
@@ -579,7 +496,6 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
             );
           })()}
         </div>
-        )}
       </div>
 
       {/* Detail Modal */}
@@ -587,17 +503,13 @@ export function KanbanBoard({ folder }: KanbanBoardProps) {
         <KanbanDetailModal
           open
           folder={folder}
-          repository={selectedIssue.repository}
-          issueNumber={selectedIssue.number}
+          repository={null}
+          issueNumber={selectedIssue}
           onClose={() => setSelectedIssue(null)}
           onIssueChanged={() => {
-            const proj = isGlobal ? getGlobalProject() : getProjectForFolder(folder ?? "");
-            if (proj) {
-              const key = isGlobal ? `global:${proj.projectNumber}` : `${folder}:${proj.projectNumber}`;
-              cache.delete(key);
-            }
-            const controller = new AbortController();
-            void loadBoard(controller.signal, true);
+            const proj = getProjectForFolder(folder);
+            if (proj) cache.delete(`${folder}:${proj.projectNumber}`);
+            void loadBoard(true);
           }}
         />
       )}
