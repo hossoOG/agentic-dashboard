@@ -248,6 +248,17 @@ describe("SessionTerminal", () => {
     const resizeError = new Error("resize failed");
     vi.mocked(invoke).mockRejectedValueOnce(resizeError);
 
+    // runFit-Guard (eingeführt mit Always-Mounted-Terminals) skippt fit(),
+    // wenn der Container 0x0 ist — was in jsdom ohne Layout-Engine der Default ist.
+    // Für diesen Test simulieren wir einen sichtbaren Container, damit fit() läuft
+    // und der Resize-invoke tatsächlich stattfindet.
+    const offsetWidthSpy = vi
+      .spyOn(HTMLElement.prototype, "offsetWidth", "get")
+      .mockReturnValue(800);
+    const offsetHeightSpy = vi
+      .spyOn(HTMLElement.prototype, "offsetHeight", "get")
+      .mockReturnValue(600);
+
     vi.useFakeTimers();
     render(<SessionTerminal sessionId="sess-1" />);
 
@@ -265,5 +276,8 @@ describe("SessionTerminal", () => {
     });
 
     expect(vi.mocked(logError)).toHaveBeenCalledWith("SessionTerminal.resize", resizeError);
+
+    offsetWidthSpy.mockRestore();
+    offsetHeightSpy.mockRestore();
   });
 });

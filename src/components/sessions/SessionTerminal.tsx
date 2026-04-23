@@ -77,7 +77,12 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
     term.loadAddon(fitAddon);
     term.loadAddon(new WebLinksAddon());
     term.open(containerRef.current);
-    fitAddon.fit();
+    // Initial fit nur wenn Container sichtbar ist (offsetWidth/Height > 0).
+    // Bei Always-Mounted-Strategie startet ein inaktives Terminal mit display:none,
+    // dann liefert fit() NaN-Dimensions. ResizeObserver triggert fit() beim Unhide.
+    if (containerRef.current.offsetWidth > 0 && containerRef.current.offsetHeight > 0) {
+      fitAddon.fit();
+    }
     terminalRef.current = term;
 
     // Clipboard: Ctrl+C copies selection (if any), otherwise sends SIGINT.
@@ -140,16 +145,25 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
       },
     );
 
+    // Fit-Guard: Wenn Container 0x0 ist (z.B. display:none beim Initial-Mount
+    // durch Always-Mounted-Strategie in SessionManagerView), skippe fit().
+    // Der ResizeObserver triggert fit() automatisch sobald der Container sichtbar wird
+    // und echte Dimensions bekommt.
+    const runFit = () => {
+      const el = containerRef.current;
+      if (!term.element) return;
+      if (!el || el.offsetWidth === 0 || el.offsetHeight === 0) return;
+      fitAddon.fit();
+      wrapInvoke("resize_session", {
+        id: sessionId,
+        cols: term.cols,
+        rows: term.rows,
+      }).catch((err) => logError("SessionTerminal.resize", err));
+    };
+
     // Debounced fit — prevents layout thrashing during rapid resizes
     const debouncedFit = debounce(() => {
-      if (term.element) {
-        fitAddon.fit();
-        wrapInvoke("resize_session", {
-          id: sessionId,
-          cols: term.cols,
-          rows: term.rows,
-        }).catch((err) => logError("SessionTerminal.resize", err));
-      }
+      runFit();
     }, 100);
 
     // Resize observer with debounced fit
@@ -161,13 +175,7 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
     // Report initial size (slightly delayed so the DOM has settled)
     const initialTimer = setTimeout(() => {
       document.fonts.ready.then(() => {
-        if (!term.element) return;
-        fitAddon.fit();
-        wrapInvoke("resize_session", {
-          id: sessionId,
-          cols: term.cols,
-          rows: term.rows,
-        }).catch((err) => logError("SessionTerminal.resize", err));
+        runFit();
       });
     }, 50);
 

@@ -24,6 +24,7 @@ export function SessionManagerView() {
 
   const configPanelOpen = useUIStore((s) => s.configPanelOpen);
   const toggleConfigPanel = useUIStore((s) => s.toggleConfigPanel);
+  const sessions = useSessionStore((s) => s.sessions);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const activeSession = useSessionStore(selectActiveSession);
   const layoutMode = useSessionStore((s) => s.layoutMode);
@@ -84,17 +85,30 @@ export function SessionManagerView() {
                   onClose={closePreview}
                   onResumeSession={handleResumeSession}
                 />
-              ) : activeSessionId ? (
+              ) : sessions.length > 0 ? (
                 <div className="flex flex-row h-full" ref={containerRef}>
-                  {/* Terminal — always rendered, flex-1 */}
+                  {/* Terminals — ALL sessions mounted simultaneously, only active visible.
+                      Verhindert term.dispose() bei Tab-Switch → Scrollback-Buffer bleibt erhalten. */}
                   <div className="flex-1 min-w-0 flex flex-col">
-                    <div className="flex-1 min-h-0">
-                      <SessionTerminal sessionId={activeSessionId} />
+                    <div className="flex-1 min-h-0 relative">
+                      {activeSessionId ? (
+                        sessions.map((session) => (
+                          <div
+                            key={session.id}
+                            className="absolute inset-0"
+                            style={{ display: session.id === activeSessionId ? "block" : "none" }}
+                          >
+                            <SessionTerminal sessionId={session.id} />
+                          </div>
+                        ))
+                      ) : (
+                        <EmptyState onNewSession={() => setShowNewDialog(true)} />
+                      )}
                     </div>
                   </div>
 
                   {/* Resize handle + Config panel — conditionally shown */}
-                  {configPanelOpen && (
+                  {configPanelOpen && activeSession && (
                     <>
                       <div
                         onMouseDown={handleResizeStart}
