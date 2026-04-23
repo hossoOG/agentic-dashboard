@@ -4,6 +4,49 @@ Alle relevanten Änderungen an AgenticExplorer werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.6.26] — 2026-04-22 — "Kanban v2 + Bugfix-Sprint"
+
+> Reconcile-Release: Kanban-Migration auf GitHub Projects v2 plus der
+> komplette v1.6.25-Bugfix-Sprint vom Heim-Rechner, integriert in einen
+> Commit-Strang. Design-System-Intake bewusst zurückgestellt auf v1.6.27.
+
+### Added
+- Kanban: Migration auf GitHub Projects v2 (ersetzt Label-Pseudo-Kanban)
+- Kanban: Global Board Mode mit Cross-Repo-Issue-Details
+- Kanban: GraphQL Single-Call Enrichment (Assignees + Labels)
+- UI: Grid-Mode Branch-Chip pro Zelle (#230)
+- UI: Inline Update-Button in Sidebar mit Download-Progress + Relaunch
+- Status: active/idle-Split im StatusBar via getActivityLevel + useNowTick
+- Config: #192 leere Kontext-Tabs ausblenden + git-Repo-Detection
+
+### Fixed
+- Terminal: xterm Ctrl+V Paste kollidiert nicht mehr mit Custom-Handler
+- Terminal: initial fit erst nach document.fonts.ready
+- CLAUDE.md: Linked-Worktree Root-Resolution (resolve_project_root)
+- Library: ScopePanel/Section Persistenz, Cache-Collision-Fix, Collapse-by-default
+- Sessions: Idle-Dot sky-blue, konsistente Error-Surface (Clipboard/Resize)
+- Sessions: Rolling 500-Byte Output-Buffer gegen abgehackte Previews
+- Kanban: Non-Git-Folder-Filter (#196), PointerEvent-Cleanup bei Unmount, stabile React-Keys
+- GitHub: Pagination-Loop max_pages-Guard (Schutz gegen malformed API)
+- Store: agentStore räumt selectedAgentId + bottomPanelCollapsed beim Session-Close
+
+### Performance
+- useShallow in StatusBar + Session-Counts (verhindert 100/s Re-Renders)
+- ActivityDot als separate Komponente extrahiert
+
+### Tests
+- E2E-Playwright-Suite mit Tauri-IPC-Mock (6 Specs)
+- Cross-Store-Integrationstests (session + agent + ui)
+- localStorage-Polyfill für jsdom 25
+
+### Removed / Deferred
+- Design-System-Intake (semantische `.ae-*`-Classes, icon-registry, UPPERCASE-Titles,
+  Panel-Header-Unify, number-format-Standards, 3D-Hover-Pattern): **nicht in v1.6.26
+  enthalten**, wird in v1.6.27 als eigener Zyklus nachgezogen. Quelle:
+  `backup/origin-master-snapshot`.
+
+---
+
 ## [1.6.24] — 2026-04-10 — "Session-Name-Fix"
 
 > Bugfix-Release: Session-Namen werden beim App-Restart korrekt zugeordnet und bleiben über Restarts erhalten.
