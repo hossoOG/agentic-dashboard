@@ -1,8 +1,7 @@
 use crate::error::{ADPError, ADPErrorCode};
 use serde::Serialize;
-use std::collections::HashMap;
 
-use super::commands::{is_command_available, run_command};
+use super::commands::{effective_cwd, is_command_available, run_command};
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -32,11 +31,15 @@ pub struct ProjectItem {
     pub item_id: String,
     pub issue_number: u64,
     pub title: String,
+    /// First assignee login — kept for frontend backwards compatibility.
     pub assignee: String,
     pub labels: Vec<ProjectLabel>,
     pub url: String,
     pub state: String,
     pub current_lane_option_id: Option<String>,
+    /// `"owner/name"` of the source repository. `None` for Draft issues.
+    /// Populated from GraphQL `repository { nameWithOwner }`.
+    pub repository: Option<String>,
 }
 
 #[derive(Serialize, Clone)]
@@ -46,6 +49,21 @@ pub struct ProjectBoard {
     pub lanes: Vec<ProjectLane>,
     pub items: Vec<ProjectItem>,
 }
+
+// ── GraphQL query ─────────────────────────────────────────────────────
+
+/// Single-call GraphQL query for the board.
+///
+/// Fetches in one round trip:
+/// - Status single-select field (id + options → lanes)
+/// - All items with their current Status option id
+/// - Per-item Issue content: number, title, url, state, repository,
+///   labels (with hex color), assignees
+///
+/// Variables: `$number: Int!`, `$cursor: String` (optional, for paging).
+/// Uses `viewer` so no login parameter is needed — the `gh` CLI auth
+/// context supplies the authenticated user automatically.
+const PROJECT_BOARD_QUERY: &str = r#"query($number: Int!, $cursor: String) { viewer { projectV2(number: $number) { id field(name: "Status") { ... on ProjectV2SingleSelectField { id options { id name } } } items(first: 100, after: $cursor) { pageInfo { hasNextPage endCursor } nodes { id fieldValues(first: 20) { nodes { __typename ... on ProjectV2ItemFieldSingleSelectValue { optionId field { ... on ProjectV2FieldCommon { name } } } } } content { __typename ... on Issue { number title url state repository { nameWithOwner } labels(first: 10) { nodes { name color } } assignees(first: 5) { nodes { login } } } } } } } } }"#;
 
 // ── Validation ───────────────────────────────────────────────────────
 
@@ -64,27 +82,21 @@ fn validate_id(id: &str) -> Result<(), ADPError> {
 
 // ── Parsing helpers ──────────────────────────────────────────────────
 
-fn parse_lanes(fields_val: &serde_json::Value) -> Result<(String, Vec<ProjectLane>), ADPError> {
-    let empty = vec![];
-    let fields = fields_val["fields"].as_array().unwrap_or(&empty);
+/// Extracts the Status single-select field id and lane definitions from a
+/// GraphQL `projectV2` response node.
+fn parse_status_field(project: &serde_json::Value) -> Result<(String, Vec<ProjectLane>), ADPError> {
+    let field = &project["field"];
 
-    let status_field = fields
-        .iter()
-        .find(|f| {
-            f["type"].as_str() == Some("ProjectV2SingleSelectField")
-                && f["name"].as_str() == Some("Status")
-        })
-        .ok_or_else(|| {
-            ADPError::command_failed(
-                "Project has no 'Status' single-select field. \
-                 Add one on github.com → Project settings → Fields."
-                    .to_string(),
-            )
-        })?;
+    let field_id = field["id"].as_str().ok_or_else(|| {
+        ADPError::command_failed(
+            "Project has no 'Status' single-select field. \
+             Add one on github.com \u{2192} Project settings \u{2192} Fields."
+                .to_string(),
+        )
+    })?;
 
-    let field_id = status_field["id"].as_str().unwrap_or("").to_string();
     let empty_opts = vec![];
-    let options = status_field["options"].as_array().unwrap_or(&empty_opts);
+    let options = field["options"].as_array().unwrap_or(&empty_opts);
 
     let lanes: Vec<ProjectLane> = options
         .iter()
@@ -98,84 +110,76 @@ fn parse_lanes(fields_val: &serde_json::Value) -> Result<(String, Vec<ProjectLan
         })
         .collect();
 
-    Ok((field_id, lanes))
+    Ok((field_id.to_string(), lanes))
 }
 
-/// Builds a map of issue_number → {labels_with_color, assignee} from gh issue list output.
-fn build_issue_meta(issues_val: &serde_json::Value) -> HashMap<u64, (Vec<ProjectLabel>, String)> {
-    let mut map = HashMap::new();
-    let empty = vec![];
-    let issues = issues_val.as_array().unwrap_or(&empty);
-
-    for issue in issues {
-        let number = match issue["number"].as_u64() {
-            Some(n) => n,
-            None => continue,
-        };
-
-        let labels: Vec<ProjectLabel> = issue["labels"]
-            .as_array()
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|l| {
-                        Some(ProjectLabel {
-                            name: l["name"].as_str()?.to_string(),
-                            color: l["color"].as_str().unwrap_or("6b7280").to_string(),
-                        })
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
-
-        let assignee = issue["assignees"]
-            .as_array()
-            .and_then(|arr| arr.first())
-            .and_then(|a| a["login"].as_str())
-            .unwrap_or("")
-            .to_string();
-
-        map.insert(number, (labels, assignee));
-    }
-    map
-}
-
-fn parse_items(
-    items_val: &serde_json::Value,
+/// Parses board items from a GraphQL `items.nodes` array.
+///
+/// Skips PRs, DraftIssues, and REDACTED items — only GitHub Issues are shown.
+/// Labels and assignees are read directly from the GraphQL response, so
+/// cross-repo items receive correct metadata without a second request.
+fn parse_items_from_graphql(
+    nodes: &[serde_json::Value],
     lanes: &[ProjectLane],
-    issue_meta: &HashMap<u64, (Vec<ProjectLabel>, String)>,
 ) -> Vec<ProjectItem> {
-    let empty = vec![];
-    let items = items_val["items"].as_array().unwrap_or(&empty);
-
-    items
+    nodes
         .iter()
-        .filter_map(|item| {
-            // Only show GitHub Issues — skip PRs and DraftIssues
-            if item["content"]["type"].as_str()? != "Issue" {
+        .filter_map(|node| {
+            let content = &node["content"];
+            if content["__typename"].as_str()? != "Issue" {
                 return None;
             }
-            let issue_number = item["content"]["number"].as_u64()?;
-            let item_id = item["id"].as_str()?.to_string();
-            let title = item["title"].as_str().unwrap_or("").to_string();
-            let url = item["content"]["url"].as_str().unwrap_or("").to_string();
-            let state = item["content"]["state"]
+
+            let item_id = node["id"].as_str()?.to_string();
+            let issue_number = content["number"].as_u64()?;
+            let title = content["title"].as_str().unwrap_or("").to_string();
+            let url = content["url"].as_str().unwrap_or("").to_string();
+            let state = content["state"].as_str().unwrap_or("OPEN").to_string();
+            let repository = content["repository"]["nameWithOwner"]
                 .as_str()
-                .unwrap_or("OPEN")
+                .map(String::from);
+
+            let labels: Vec<ProjectLabel> = content["labels"]["nodes"]
+                .as_array()
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|l| {
+                            Some(ProjectLabel {
+                                name: l["name"].as_str()?.to_string(),
+                                color: l["color"].as_str().unwrap_or("6b7280").to_string(),
+                            })
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            // First assignee login kept for frontend backwards compatibility.
+            let assignee = content["assignees"]["nodes"]
+                .as_array()
+                .and_then(|arr| arr.first())
+                .and_then(|a| a["login"].as_str())
+                .unwrap_or("")
                 .to_string();
 
-            // Map status name → option_id for the frontend to use in moves
-            let status_name = item["status"].as_str().unwrap_or("");
-            let current_lane_option_id = if status_name.is_empty() {
-                None
-            } else {
-                lanes
-                    .iter()
-                    .find(|l| l.name == status_name)
-                    .map(|l| l.option_id.clone())
-            };
-
-            // Enrich with labels (+ colors) and assignee from gh issue list data
-            let (labels, assignee) = issue_meta.get(&issue_number).cloned().unwrap_or_default();
+            // Find the Status option_id from fieldValues — look for the
+            // ProjectV2ItemFieldSingleSelectValue whose field name is "Status".
+            let current_lane_option_id = node["fieldValues"]["nodes"]
+                .as_array()
+                .and_then(|fvs| {
+                    fvs.iter().find(|fv| {
+                        fv["__typename"].as_str() == Some("ProjectV2ItemFieldSingleSelectValue")
+                            && fv["field"]["name"].as_str() == Some("Status")
+                    })
+                })
+                .and_then(|fv| fv["optionId"].as_str())
+                .and_then(|option_id| {
+                    // Verify the option_id exists in our lanes so we never
+                    // produce a dangling reference.
+                    lanes
+                        .iter()
+                        .find(|l| l.option_id == option_id)
+                        .map(|l| l.option_id.clone())
+                });
 
             Some(ProjectItem {
                 item_id,
@@ -186,6 +190,7 @@ fn parse_items(
                 url,
                 state,
                 current_lane_option_id,
+                repository,
             })
         })
         .collect()
@@ -198,8 +203,14 @@ pub mod commands {
     use super::*;
 
     /// Returns all GitHub Projects (v2) owned by the authenticated user.
+    ///
+    /// `folder` is used as the working directory for the `gh` subprocess.
+    /// Passing `None` is safe — `gh project list` does not require a git
+    /// repository and falls back to `std::env::temp_dir()`.
     #[tauri::command]
-    pub async fn list_user_projects(folder: String) -> Result<Vec<ProjectSummary>, ADPError> {
+    pub async fn list_user_projects(
+        folder: Option<String>,
+    ) -> Result<Vec<ProjectSummary>, ADPError> {
         if !is_command_available("gh") {
             return Err(ADPError::new(
                 ADPErrorCode::ServiceRequestFailed,
@@ -207,8 +218,11 @@ pub mod commands {
             ));
         }
 
+        let cwd = effective_cwd(folder.as_deref());
+        let cwd_str = cwd.to_string_lossy().to_string();
+
         let output = run_command(
-            &folder,
+            &cwd_str,
             "gh",
             &["project", "list", "--owner", "@me", "--format", "json"],
         )?;
@@ -238,16 +252,21 @@ pub mod commands {
 
     /// Loads the full Kanban board for a GitHub Project v2.
     ///
-    /// Makes 3 CLI calls: field-list (lanes), item-list (status), issue-list (label colors + assignees).
-    /// Results are merged so each item has complete display data.
+    /// Uses a single `gh api graphql` call per page instead of the former
+    /// three parallel CLI calls. This fixes cross-repo label/assignee enrichment:
+    /// all metadata is read directly from the GraphQL response regardless of which
+    /// repository each issue belongs to.
     ///
-    /// Note: items from repos other than the current folder are excluded since
-    /// `gh issue list` only returns issues from the local repo.
+    /// Paginates automatically — boards with more than 100 items require
+    /// multiple round trips (GitHub caps `items(first:)` at 100).
+    ///
+    /// Required `gh` auth scope: `read:project` (for read) or `project` (for
+    /// write). If missing: `gh auth refresh -s project,read:project`.
     #[tauri::command]
     pub async fn get_project_board(
         project_number: u32,
         project_id: String,
-        folder: String,
+        folder: Option<String>,
     ) -> Result<ProjectBoard, ADPError> {
         if !is_command_available("gh") {
             return Err(ADPError::new(
@@ -257,70 +276,80 @@ pub mod commands {
         }
 
         validate_id(&project_id)?;
-        let num_str = project_number.to_string();
 
-        // 1. Load Status field definition → lanes
-        let fields_output = run_command(
-            &folder,
-            "gh",
-            &[
-                "project",
-                "field-list",
-                &num_str,
-                "--owner",
-                "@me",
-                "--format",
-                "json",
-            ],
-        )?;
+        let cwd = effective_cwd(folder.as_deref());
+        let cwd_str = cwd.to_string_lossy().to_string();
+        let query_arg = format!("query={}", PROJECT_BOARD_QUERY);
+        let number_arg = format!("number={}", project_number);
 
-        let fields_val: serde_json::Value = serde_json::from_str(&fields_output)
-            .map_err(|e| ADPError::parse(format!("Failed to parse field list: {}", e)))?;
+        let mut all_nodes: Vec<serde_json::Value> = Vec::new();
+        let mut status_field_id = String::new();
+        let mut lanes: Vec<ProjectLane> = Vec::new();
+        let mut cursor: Option<String> = None;
+        let mut first_page = true;
 
-        let (status_field_id, lanes) = parse_lanes(&fields_val)?;
+        loop {
+            let response = if let Some(ref c) = cursor {
+                let cursor_arg = format!("cursor={}", c);
+                run_command(
+                    &cwd_str,
+                    "gh",
+                    &[
+                        "api",
+                        "graphql",
+                        "-f",
+                        &query_arg,
+                        "-F",
+                        &number_arg,
+                        "-f",
+                        &cursor_arg,
+                    ],
+                )?
+            } else {
+                run_command(
+                    &cwd_str,
+                    "gh",
+                    &["api", "graphql", "-f", &query_arg, "-F", &number_arg],
+                )?
+            };
 
-        // 2. Load project items (item_id, issue_number, current status)
-        // Note: --limit 300 covers boards up to 300 items without pagination.
-        let items_output = run_command(
-            &folder,
-            "gh",
-            &[
-                "project",
-                "item-list",
-                &num_str,
-                "--owner",
-                "@me",
-                "--format",
-                "json",
-                "--limit",
-                "300",
-            ],
-        )?;
+            let val: serde_json::Value = serde_json::from_str(&response)
+                .map_err(|e| ADPError::parse(format!("Failed to parse GraphQL response: {}", e)))?;
 
-        let items_val: serde_json::Value = serde_json::from_str(&items_output)
-            .map_err(|e| ADPError::parse(format!("Failed to parse item list: {}", e)))?;
+            // Surface GraphQL-level errors (auth, scope, not found).
+            if let Some(errors) = val["errors"].as_array() {
+                let msg = errors
+                    .first()
+                    .and_then(|e| e["message"].as_str())
+                    .unwrap_or("Unknown GraphQL error");
+                return Err(ADPError::command_failed(format!(
+                    "GitHub API error: {}",
+                    msg
+                )));
+            }
 
-        // 3. Load issue metadata for label colors + assignees from current repo
-        let issues_output = run_command(
-            &folder,
-            "gh",
-            &[
-                "issue",
-                "list",
-                "--state",
-                "all",
-                "--json",
-                "number,labels,assignees",
-                "--limit",
-                "300",
-            ],
-        )?;
+            let project = &val["data"]["viewer"]["projectV2"];
 
-        let issues_val: serde_json::Value = serde_json::from_str(&issues_output)
-            .map_err(|e| ADPError::parse(format!("Failed to parse issue list: {}", e)))?;
+            // Parse Status field on the first page only — options don't change.
+            if first_page {
+                let (fid, ls) = parse_status_field(project)?;
+                status_field_id = fid;
+                lanes = ls;
+                first_page = false;
+            }
 
-        let issue_meta = build_issue_meta(&issues_val);
-        let items = parse_items(&items_val, &lanes, &issue_meta);
+            let items = &project["items"];
+            let empty = vec![];
+            let nodes = items["nodes"].as_array().unwrap_or(&empty);
+            all_nodes.extend(nodes.iter().cloned());
+
+            if !items["pageInfo"]["hasNextPage"].as_bool().unwrap_or(false) {
+                break;
+            }
+            cursor = items["pageInfo"]["endCursor"].as_str().map(String::from);
+        }
+
+        let items = parse_items_from_graphql(&all_nodes, &lanes);
 
         Ok(ProjectBoard {
             project_id,
@@ -340,7 +369,7 @@ pub mod commands {
         item_id: String,
         field_id: String,
         option_id: String,
-        folder: String,
+        folder: Option<String>,
     ) -> Result<(), ADPError> {
         validate_id(&project_id)?;
         validate_id(&item_id)?;
@@ -354,8 +383,11 @@ pub mod commands {
             ));
         }
 
+        let cwd = effective_cwd(folder.as_deref());
+        let cwd_str = cwd.to_string_lossy().to_string();
+
         run_command(
-            &folder,
+            &cwd_str,
             "gh",
             &[
                 "project",
@@ -379,32 +411,43 @@ pub mod commands {
 mod tests {
     use super::*;
 
-    fn make_field_list_json() -> serde_json::Value {
+    // ── validate_id ───────────────────────────────────────────────────
+
+    #[test]
+    fn validate_id_accepts_valid_ids() {
+        assert!(validate_id("PVT_abc123-XY").is_ok());
+        assert!(validate_id("PVTSSF_abc123").is_ok());
+        assert!(validate_id("PVTI_issue1").is_ok());
+    }
+
+    #[test]
+    fn validate_id_rejects_shell_chars() {
+        assert!(validate_id("").is_err());
+        assert!(validate_id("abc; rm -rf /").is_err());
+        assert!(validate_id("abc$(whoami)").is_err());
+        assert!(validate_id("../etc/passwd").is_err());
+    }
+
+    // ── parse_status_field ────────────────────────────────────────────
+
+    fn make_graphql_project_node() -> serde_json::Value {
         serde_json::json!({
-            "fields": [
-                {
-                    "id": "PVTSSF_abc123",
-                    "name": "Status",
-                    "type": "ProjectV2SingleSelectField",
-                    "options": [
-                        {"id": "opt_backlog", "name": "Backlog"},
-                        {"id": "opt_ready",   "name": "Ready"},
-                        {"id": "opt_done",    "name": "Done"}
-                    ]
-                },
-                {
-                    "id": "PVTF_title",
-                    "name": "Title",
-                    "type": "ProjectV2Field"
-                }
-            ]
+            "id": "PVT_kwABC",
+            "field": {
+                "id": "PVTSSF_abc123",
+                "options": [
+                    {"id": "opt_backlog", "name": "Backlog"},
+                    {"id": "opt_ready",   "name": "Ready"},
+                    {"id": "opt_done",    "name": "Done"}
+                ]
+            }
         })
     }
 
     #[test]
-    fn parse_lanes_extracts_status_field() {
-        let json = make_field_list_json();
-        let (field_id, lanes) = parse_lanes(&json).unwrap();
+    fn parse_status_field_extracts_lanes() {
+        let project = make_graphql_project_node();
+        let (field_id, lanes) = parse_status_field(&project).unwrap();
         assert_eq!(field_id, "PVTSSF_abc123");
         assert_eq!(lanes.len(), 3);
         assert_eq!(lanes[0].option_id, "opt_backlog");
@@ -413,66 +456,164 @@ mod tests {
     }
 
     #[test]
-    fn parse_lanes_missing_status_returns_error() {
-        let json = serde_json::json!({"fields": []});
-        assert!(parse_lanes(&json).is_err());
+    fn parse_status_field_missing_returns_error() {
+        let project = serde_json::json!({"id": "PVT_kwABC", "field": {}});
+        assert!(parse_status_field(&project).is_err());
+    }
+
+    // ── parse_items_from_graphql ──────────────────────────────────────
+
+    fn make_lanes() -> Vec<ProjectLane> {
+        vec![
+            ProjectLane {
+                option_id: "opt_todo".to_string(),
+                name: "Todo".to_string(),
+                order: 0,
+            },
+            ProjectLane {
+                option_id: "opt_done".to_string(),
+                name: "Done".to_string(),
+                order: 1,
+            },
+        ]
     }
 
     #[test]
     fn parse_items_filters_non_issues() {
-        let lanes = vec![ProjectLane {
-            option_id: "opt_done".to_string(),
-            name: "Done".to_string(),
-            order: 0,
-        }];
-        let items_val = serde_json::json!({
-            "items": [
-                {
-                    "id": "PVTI_issue1",
-                    "title": "Fix bug",
-                    "status": "Done",
-                    "content": {"type": "Issue", "number": 42, "url": "https://github.com/x/y/issues/42", "state": "OPEN"}
+        let lanes = make_lanes();
+        let nodes = vec![
+            serde_json::json!({
+                "id": "PVTI_issue1",
+                "fieldValues": {
+                    "nodes": [{
+                        "__typename": "ProjectV2ItemFieldSingleSelectValue",
+                        "optionId": "opt_done",
+                        "field": {"name": "Status"}
+                    }]
                 },
-                {
-                    "id": "PVTI_pr1",
-                    "title": "Add feature",
-                    "status": "Done",
-                    "content": {"type": "PullRequest", "number": 43, "url": "https://github.com/x/y/pull/43"}
+                "content": {
+                    "__typename": "Issue",
+                    "number": 42,
+                    "title": "Fix bug",
+                    "url": "https://github.com/owner/repo/issues/42",
+                    "state": "OPEN",
+                    "repository": {"nameWithOwner": "owner/repo"},
+                    "labels": {"nodes": [{"name": "bug", "color": "d73a4a"}]},
+                    "assignees": {"nodes": [{"login": "alice"}]}
                 }
-            ]
-        });
-        let meta = HashMap::new();
-        let items = parse_items(&items_val, &lanes, &meta);
+            }),
+            serde_json::json!({
+                "id": "PVTI_pr1",
+                "fieldValues": {"nodes": []},
+                "content": {
+                    "__typename": "PullRequest",
+                    "number": 43,
+                    "url": "https://github.com/owner/repo/pull/43",
+                    "state": "OPEN"
+                }
+            }),
+        ];
+        let items = parse_items_from_graphql(&nodes, &lanes);
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].issue_number, 42);
         assert_eq!(
             items[0].current_lane_option_id,
             Some("opt_done".to_string())
         );
+        assert_eq!(items[0].repository, Some("owner/repo".to_string()));
+        assert_eq!(items[0].labels[0].name, "bug");
+        assert_eq!(items[0].assignee, "alice");
+    }
+
+    #[test]
+    fn parse_items_cross_repo_has_correct_metadata() {
+        let lanes = make_lanes();
+        let nodes = vec![
+            serde_json::json!({
+                "id": "PVTI_a",
+                "fieldValues": {
+                    "nodes": [{
+                        "__typename": "ProjectV2ItemFieldSingleSelectValue",
+                        "optionId": "opt_todo",
+                        "field": {"name": "Status"}
+                    }]
+                },
+                "content": {
+                    "__typename": "Issue",
+                    "number": 10,
+                    "title": "Issue from repo-a",
+                    "url": "https://github.com/org/repo-a/issues/10",
+                    "state": "OPEN",
+                    "repository": {"nameWithOwner": "org/repo-a"},
+                    "labels": {"nodes": [{"name": "enhancement", "color": "84b6eb"}]},
+                    "assignees": {"nodes": []}
+                }
+            }),
+            serde_json::json!({
+                "id": "PVTI_b",
+                "fieldValues": {
+                    "nodes": [{
+                        "__typename": "ProjectV2ItemFieldSingleSelectValue",
+                        "optionId": "opt_done",
+                        "field": {"name": "Status"}
+                    }]
+                },
+                "content": {
+                    "__typename": "Issue",
+                    "number": 55,
+                    "title": "Issue from repo-b",
+                    "url": "https://github.com/org/repo-b/issues/55",
+                    "state": "CLOSED",
+                    "repository": {"nameWithOwner": "org/repo-b"},
+                    "labels": {"nodes": [{"name": "bug", "color": "d73a4a"}]},
+                    "assignees": {"nodes": [{"login": "bob"}]}
+                }
+            }),
+        ];
+        let items = parse_items_from_graphql(&nodes, &lanes);
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[0].repository, Some("org/repo-a".to_string()));
+        assert_eq!(items[0].labels[0].name, "enhancement");
+        assert_eq!(items[1].repository, Some("org/repo-b".to_string()));
+        assert_eq!(items[1].assignee, "bob");
+        assert_eq!(
+            items[1].current_lane_option_id,
+            Some("opt_done".to_string())
+        );
     }
 
     #[test]
     fn parse_items_no_status_gives_none() {
-        let lanes: Vec<ProjectLane> = vec![];
-        let items_val = serde_json::json!({
-            "items": [{
-                "id": "PVTI_no_status",
+        let nodes = vec![serde_json::json!({
+            "id": "PVTI_no_status",
+            "fieldValues": {"nodes": []},
+            "content": {
+                "__typename": "Issue",
+                "number": 99,
                 "title": "Triage me",
-                "status": null,
-                "content": {"type": "Issue", "number": 99, "url": "", "state": "OPEN"}
-            }]
-        });
-        let meta = HashMap::new();
-        let items = parse_items(&items_val, &lanes, &meta);
+                "url": "",
+                "state": "OPEN",
+                "repository": {"nameWithOwner": "owner/repo"},
+                "labels": {"nodes": []},
+                "assignees": {"nodes": []}
+            }
+        })];
+        let items = parse_items_from_graphql(&nodes, &[]);
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].current_lane_option_id, None);
     }
 
     #[test]
-    fn validate_id_rejects_shell_chars() {
-        assert!(validate_id("PVT_abc123-XY").is_ok());
-        assert!(validate_id("").is_err());
-        assert!(validate_id("abc; rm -rf /").is_err());
-        assert!(validate_id("abc$(whoami)").is_err());
+    fn parse_items_draft_issue_is_skipped() {
+        let nodes = vec![serde_json::json!({
+            "id": "PVTI_draft",
+            "fieldValues": {"nodes": []},
+            "content": {
+                "__typename": "DraftIssue",
+                "title": "Draft item"
+            }
+        })];
+        let items = parse_items_from_graphql(&nodes, &[]);
+        assert_eq!(items.len(), 0);
     }
 }
