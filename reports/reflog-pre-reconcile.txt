@@ -1,0 +1,29 @@
+dcbb597 HEAD@{2026-04-22 18:04:59 +0200}: commit: feat(ui): WIP Feature-Paket — #192 Tab-Filter + Update-UI + Status-Idle + Output-Buffer
+67c847c HEAD@{2026-04-22 18:04:18 +0200}: reset: moving to HEAD
+67c847c HEAD@{2026-04-22 18:04:17 +0200}: reset: moving to HEAD
+67c847c HEAD@{2026-04-16 08:56:29 +0200}: commit: chore(release): v1.6.25 "Bugfix-Sprint"
+f6119a2 HEAD@{2026-04-16 08:51:04 +0200}: cherry-pick: fix(kanban): IssueComment.id fuer stabile React-Keys
+d5bc9be HEAD@{2026-04-16 08:51:04 +0200}: cherry-pick: fix(sessions): konsistente Error-Surface fuer Clipboard und Resize invokes
+85e06fa HEAD@{2026-04-16 08:51:03 +0200}: cherry-pick: fix(store): agentStore räumt selectedAgentId + bottomPanelCollapsed beim Session-Close
+88277c7 HEAD@{2026-04-16 08:51:03 +0200}: cherry-pick: fix(library): ScopePanel und Section persistieren Open-Status via uiStore
+5e2a6d9 HEAD@{2026-04-16 08:50:41 +0200}: commit: fix(github): Pagination-Loop mit max_pages-Guard gegen API-Malformation
+cea3567 HEAD@{2026-04-16 08:50:27 +0200}: reset: moving to HEAD
+cea3567 HEAD@{2026-04-16 08:50:27 +0200}: reset: moving to HEAD
+cea3567 HEAD@{2026-04-16 08:31:01 +0200}: commit: fix(kanban): PointerEvent-Listener-Cleanup bei Unmount während Drag
+c5e6602 HEAD@{2026-04-16 08:25:52 +0200}: commit: test(e2e): Playwright-Smoke-Tests mit Tauri-IPC-Mock
+5fb5eb4 HEAD@{2026-04-16 08:19:20 +0200}: commit: chore(tauri): Clippy 1.94 Lints bereinigen + rustfmt Drift
+f32e7a1 HEAD@{2026-04-16 08:18:36 +0200}: reset: moving to HEAD
+f32e7a1 HEAD@{2026-04-16 08:18:36 +0200}: reset: moving to HEAD
+f32e7a1 HEAD@{2026-04-16 08:18:10 +0200}: commit: fix(test): localStorage-Polyfill in setup.ts für jsdom 25
+13db6d4 HEAD@{2026-04-16 07:39:33 +0200}: pull: Fast-forward
+1e8ce5e HEAD@{2026-04-02 16:17:50 +0200}: pull --ff-only: Fast-forward
+98a853f HEAD@{2026-04-02 16:17:50 +0200}: reset: moving to HEAD
+98a853f HEAD@{2026-03-24 10:37:06 +0100}: pull --tags origin master: Fast-forward
+258b0a7 HEAD@{2026-03-24 10:36:48 +0100}: checkout: moving from master to master
+258b0a7 HEAD@{2026-03-24 10:07:15 +0100}: pull: Fast-forward
+e22cad7 HEAD@{2026-03-05 22:04:55 +0100}: commit: feat: update AI Architect Sync documentation and enhance log parsing logic
+0399213 HEAD@{2026-03-05 21:59:39 +0100}: pull: Fast-forward
+34b1384 HEAD@{2026-03-05 21:12:48 +0100}: commit: fix: tauri app now starts successfully
+bb4fb73 HEAD@{2026-03-05 20:45:26 +0100}: pull: Fast-forward
+4a2a300 HEAD@{2026-03-05 20:24:49 +0100}: pull: Fast-forward
+24fdeb6 HEAD@{2026-03-05 19:18:52 +0100}: commit (initial): Initial commit: project setup and context

@@ -4,11 +4,13 @@ Alle relevanten Änderungen an AgenticExplorer werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
-## [1.6.26] — 2026-04-22 — "Kanban v2 + Bugfix-Sprint"
+## [1.6.26] — 2026-04-23 — "Kanban v2 + Bugfix-Sprint + Session Scroll History Fix"
 
-> Reconcile-Release: Kanban-Migration auf GitHub Projects v2 plus der
-> komplette v1.6.25-Bugfix-Sprint vom Heim-Rechner, integriert in einen
-> Commit-Strang. Design-System-Intake bewusst zurückgestellt auf v1.6.27.
+> Reconcile-Release: Kanban-Migration auf GitHub Projects v2, v1.6.25-Bugfix-Sprint
+> vom Heim-Rechner, **plus** Session-Scroll-History-Fix (Multi-Agent-Analyse identifizierte
+> architektonischen Root-Cause: Ternary in SessionManagerView erzwang Remount aller
+> SessionTerminals beim Layout-Switch). Design-System-Intake weiterhin zurückgestellt
+> auf v1.6.27.
 
 ### Added
 - Kanban: Migration auf GitHub Projects v2 (ersetzt Label-Pseudo-Kanban)
@@ -18,6 +20,8 @@ Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 - UI: Inline Update-Button in Sidebar mit Download-Progress + Relaunch
 - Status: active/idle-Split im StatusBar via getActivityLevel + useNowTick
 - Config: #192 leere Kontext-Tabs ausblenden + git-Repo-Detection
+- **Sessions: Neuer Utility-Modul `sessionGridLayout.ts` (GRID_AREAS, getGridStyle, SINGLE_LAYOUT_STYLE)** — entkoppelt Layout-Berechnung von Rendering
+- **Backend: Neuer Tauri-Command `check_project_presence(folder)`** — liefert `{ has_git, has_github, remote_url }` in <50ms ohne gh-CLI-Roundtrip
 
 ### Fixed
 - Terminal: xterm Ctrl+V Paste kollidiert nicht mehr mit Custom-Handler
@@ -26,9 +30,17 @@ Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Library: ScopePanel/Section Persistenz, Cache-Collision-Fix, Collapse-by-default
 - Sessions: Idle-Dot sky-blue, konsistente Error-Surface (Clipboard/Resize)
 - Sessions: Rolling 500-Byte Output-Buffer gegen abgehackte Previews
+- Sessions: Scroll-Verlauf überlebt Tab-Switch (always-mounted Terminals, `8b820f5`)
+- **Sessions: Scroll-History überlebt jetzt auch Layout-Switch (Single ↔ Grid).** Ternary `layoutMode === "single" ? <single-tree> : <grid-tree>` in SessionManagerView durch **einen** CSS-Grid-Baum ersetzt — alle SessionTerminals leben jetzt in einer stabilen JSX-Position, React remountet sie nicht mehr bei Layout-Wechsel. xterm-Instanz + Scrollback-Puffer bleiben über beliebig viele Switches erhalten.
+- **Sessions: Config-Tabs GitHub/Worktrees/Kanban werden bei Projekten ohne `.git`-Repo bzw. ohne github.com-Remote ausgeblendet.** `requiresPresence`-Pattern aus context-Gruppe auf project-Gruppe erweitert. Keine toten Klicks mehr auf "Kein Git-Repository"-Fehlerseiten.
+- **Sessions: Async `unlistenPromise`-Cleanup in SessionTerminal loggt Fehler jetzt via `logError` statt stummem `.catch(() => {})`.** Zombie-Tauri-Listener werden jetzt sichtbar, falls sie auftreten.
 - Kanban: Non-Git-Folder-Filter (#196), PointerEvent-Cleanup bei Unmount, stabile React-Keys
 - GitHub: Pagination-Loop max_pages-Guard (Schutz gegen malformed API)
 - Store: agentStore räumt selectedAgentId + bottomPanelCollapsed beim Session-Close
+
+### Refactored
+- **Sessions: `SessionGrid.tsx` entfernt** — Grid-Layout-Verantwortung wandert vollständig in `SessionManagerView`. `GRID_AREAS` + `getGridStyle` nach neuem Utility-Modul extrahiert.
+- **Sessions: `GridCell` umgebaut zu `GridCellChrome`** — rendert nur noch die Title-Bar (Status-Dot, Git-Branch-Chip, Maximize/Remove). SessionTerminal wird nicht mehr aus GridCell heraus gemountet, sondern ausschließlich aus SessionManagerView. `GridCell`-Alias bleibt für Backwards-Compat.
 
 ### Performance
 - useShallow in StatusBar + Session-Counts (verhindert 100/s Re-Renders)
@@ -38,12 +50,23 @@ Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 - E2E-Playwright-Suite mit Tauri-IPC-Mock (6 Specs)
 - Cross-Store-Integrationstests (session + agent + ui)
 - localStorage-Polyfill für jsdom 25
+- **Regression-Test: Layout-Switch Single→Grid→Single unmountet SessionTerminal NICHT** (erweitert `c8d64d3` um Layout-Pfad)
+- **Regression-Test: `data-session-wrapper`-Divs sind dieselben DOM-Nodes vor und nach Layout-Switch**
+- **Regression-Test: Grid-Mode-Visibility — nicht-Grid-Member bleiben gemountet mit `display:none`**
+- **7 Unit-Tests in `sessionGridLayout.test.ts`** (GRID_AREAS-Order, getGridStyle 1..5, Fallback, SINGLE_LAYOUT_STYLE)
+- **3 Rust-Command-Tests** für `check_project_presence` + 3 Helper-Tests für `is_github_remote`
+- **4 Vitest-Tests** in `ConfigPanelTabList.test.tsx` für die neuen `git`/`github`-Presence-Keys
+- Gesamt-Suite: **1074 Tests grün**, plus 299 cargo-Tests grün (clippy clean, typecheck clean)
+
+### Analyse-Artefakte
+- `reports/terminal-scroll-layout-switch-analyse-v1.{md,pptx,pdf,html}` — 30-Slide Multi-Agent-Analyse des Layout-Switch-Bugs (Root-Cause, drei Fix-Optionen, ranked Hypothesen)
+- `praesentation/` — 30-Slide Bug-Analyse des Config-Tab-Bugs (GitHub-Optionen bei Nicht-Git-Projekten)
 
 ### Removed / Deferred
 - Design-System-Intake (semantische `.ae-*`-Classes, icon-registry, UPPERCASE-Titles,
   Panel-Header-Unify, number-format-Standards, 3D-Hover-Pattern): **nicht in v1.6.26
   enthalten**, wird in v1.6.27 als eigener Zyklus nachgezogen. Quelle:
-  `backup/origin-master-snapshot`.
+  `backup/origin-master-snapshot` + `reports/origin-master-pre-reconcile.bundle`.
 
 ---
 

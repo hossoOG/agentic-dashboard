@@ -1,0 +1,290 @@
+5a34876 feat(ui): add semantic type classes (.ae-*) + initial adoption (#254)
+ab48cc9 chore(ui): audit & enforce 3-dimension hover pattern (#253)
+0c8f020 feat(ui): add icon-registry with size tokens (#250)
+982d481 chore(ui): unify pill shapes to rounded-sm (option A) (#249)
+92371fd chore(ui): enforce UPPERCASE + tracking-widest on panel & toast titles (#252)
+c3ea26f chore(ui): enforce number-format standards (ms, mm:ss, Exit N) (#251)
+a31791e chore(ui): remove unused Panel component (#247)
+3431f0a chore(rust): pin toolchain to 1.95 via rust-toolchain.toml (#248)
+42d7c07 refactor(ui): Panel-Header Padding-Unify (main vs compact) (#240)
+da53c3f feat(design): Style-Contract haerten (Content + Interaction Rules) (#239)
+412e129 chore(design): Design-System-Intake + Drift-Fix (#233)
+b28ba91 chore(tasks): v1.6.25 Sprint als abgeschlossen markiert
+feb5c57 chore(release): bump version to 1.6.25, add CHANGELOG entry
+4dc439a test(ui): update UpdateNotification tests for null upToDate behavior
+a9ab3eb fix(ui): remove upToDate toast, show update icon only when available
+c9c09ef Merge branch 'feature/kanban-projects-v2'
+f097f26 Merge branch 'feature/230-grid-branch-chip-per-cell'
+4a3c3dd fix(status): sky-blue dot for passiv sessions, fix library cache collision, filter non-git kanban folders
+dd755c9 fix(config-panel): hide empty context tabs (skills/hooks/settings/agents/claude-md)
+9cee12b fix(terminal): remove custom ctrl+v handler — collided with xterm native paste
+4778f17 perf(status-bar): wrap selectSessionCounts with useShallow
+77588a3 fix(claude-md): resolve main worktree root before reading project file
+baecf4f fix(library): collapse skills/agents/hooks sections by default
+13db6d4 merge: resolve squash-merge conflict, preserve clipboard handler + improved scroll tracking
+9ec3f22 fix(sessions): session manager bugfixes, perf optimization, error handling
+49350f5 fix(sessions): cleanup agents on session close, optimize re-renders, add error handling
+05cda29 fix(sessions): status event spam, copy/paste, scroll, idle dot color
+86864cd feat(ui): show git branch chip per cell in grid mode (#230)
+1a8d22a fix(ui): improve text contrast in light and dark mode
+516eff3 fix(sessions): status event spam, copy/paste, scroll, idle dot color
+35e9602 fix(ui): grid branch chip, library collapsed by default, kanban no-lanes state
+89a248a chore(ci): remove add-to-project workflow — sessions handle board directly
+b350187 refactor(ui): address code review findings for git branch chip
+e48e6a9 feat(ui): show current git branch chip in TerminalToolbar
+0d3b541 ci(board): auto-add all new issues to Board #4 as Todo + ready-label → Ready lane
+90c60af chore(config): wire global board #4 + add project-context.md
+302086b feat(kanban): GitHub Projects v2 global board with cross-repo support (#228)
+0b37f3f fix(kanban): commit missing global store fields and KanbanCard repo badge
+4618853 fix(kanban): commit missing Rust command signatures for folder-free mode
+1ddeb80 feat(kanban): add global board mode with cross-repo issue details
+ec9c97e refactor(kanban): make folder optional + GraphQL single-call enrichment
+b790848 feat(kanban): replace label-based pseudo-kanban with GitHub Projects v2
+7ad7dde fix(ui): Changelog-Button Rahmen entfernen + Modal Höhe begrenzen (#191)
+9656a77 fix(status): resolve 5 session status bugs (#221–#226) (#227)
+582f6ad fix(library): Skill-Detail-Modal zeigt Inhalt für einfache .md Skills (#186) (#190)
+ec3a12d fix(kanban): Replace HTML5 DnD with PointerEvent API for WebView2 (#185) (#189)
+636f66c fix(ui): Skill-Cards — .md Skills gelesen + konsistente Preview-Zeile (#184) (#188)
+206a01e fix(ui): Modal size="none" — behebt Library Detail Modal zu schmal (#183) (#187)
+1e33f10 feat(kanban): Issue-Modal 2-Spalten + Kommentar-Post + D&D-Fixes (#179) (#182)
+bca32df feat(ui): Library Detail Modal — M1 Walking Skeleton (#178)
+c8dbe2d fix(store): Session-Rename-Kollision bei leerer zweiter Session im selben Folder (#177)
+22b0222 chore(tasks): v1.6.24 Sprint als abgeschlossen markiert
+7b9e7ac chore(release): v1.6.24 "Session-Name-Fix"
+1e49576 fix(store): Session-Restore auf Folder-Keys umstellen, Custom-Namen persistent durchreichen
+b8aadbd chore(release): v1.6.23 "Test-Fix"
+dc01af1 fix(test): SideNav-Test an neues Layout anpassen (AGENTIC Logo entfernt)
+f7a7a2a fix(ci): DetachedViewApp committen + SessionList-Test anpassen
+642ae63 chore(release): v1.6.22 "Session-Resume Fix"
+4515106 chore(release): v1.6.21 "Session-Resume Fix"
+c0bc84d fix(ui): UpdateNotification bottom-10 — Toast ueber StatusBar positioniert
+3403b47 fix(ui): GridCell h-full — weisse Flaeche unter Terminal-Boxen behoben
+b80e7f5 chore(tasks): v1.6.2 Sprint abgeschlossen
+9d756a5 chore(release): v1.6.2 "Session-Restore & Library-Fix"
+802af99 chore(config): CLAUDE.md straffen und Lessons/Sprint-Pflicht ergaenzen
+40f2107 docs: Lessons Learned — Library-View Regression
+e95cd2f fix(ui): NotesPanel-Position und UpdateNotification-Layout
+687f4f6 fix(ui): Library globale Config-Discovery und Skill-Content
+1ae477d refactor(ui): Pipeline-View und Agent-Events entfernen
+9e5096b feat(store): Session-Restore beim App-Start
+2ea394e feat(ui): Session-Rename per Doppelklick auf SessionCard
+772b6bc fix(tauri): plugin-dialog NPM/Rust Version-Mismatch beheben
+2be5037 feat(pipeline): Pipeline-Engine vom Session-System entkoppeln (v1.6.1)
+5f63799 Merge pull request #175 from hossoOG/feat/161-pipeline-history-view
+fdf9e38 feat(ui): Pipeline-History-Ansicht (#161)
+2bdbe89 Merge pull request #173 from hossoOG/feat/160-pipeline-controls
+99cfff1 Merge pull request #174 from hossoOG/feat/154-implement-yaml
+54dde15 feat(pipeline): /implement als YAML-Workflow (#154)
+aaf08f2 feat(ui): Pipeline starten/stoppen (#160)
+27312aa Merge pull request #172 from hossoOG/feat/pipeline-executor-153
+84c2fcf feat(pipeline): Step-Executor + PipelineRunner (#153)
+8b4cab2 Merge pull request #171 from hossoOG/worktree-agent-a6a4e00b
+1f8e29c Merge pull request #170 from hossoOG/feat/157-retry-logic
+5088868 feat(ui): Pipeline-Status mit echten Daten (#159)
+f911803 feat(pipeline): Retry-Logik (#157)
+c839d57 Merge pull request #168 from hossoOG/feat/156-error-detection
+115b91e Merge pull request #169 from hossoOG/feat/pipeline-state-machine-155
+8104577 feat(pipeline): Pipeline State Machine + ADP Events (#155)
+7946c01 Merge pull request #167 from hossoOG/feat/152-workflow-parser
+211096b feat(pipeline): Error-Detection + Failure-Logging (#156)
+99c7e7d feat(pipeline): Workflow-Parser + Validator (#152)
+d7f7ddf Merge pull request #165 from hossoOG/refactor/agent-detector-modules
+a474590 Merge pull request #164 from hossoOG/feat/158-pipeline-history
+71593a3 feat(pipeline): Pipeline-Execution-History persistieren (#158)
+2e859b2 chore: merge master with Wave 1 PRs
+545d974 Merge pull request #166 from hossoOG/feat/151-workflow-schema
+f7c1e4f Merge pull request #163 from hossoOG/worktree-agent-a246412c
+e1f1bfa feat(pipeline): Workflow-Definition-Schema YAML (#151)
+7ca93ec refactor(tauri): agent_detector.rs in 3 Module aufteilen (#150)
+5b47f33 chore: Session Manager Feature-Freeze dokumentieren (#162)
+68dc8a9 chore: post-sprint cleanup v1.6.0
+7e49119 feat(skills): add /requirements-workshop skill
+a301085 docs: sync arc42 v3.0 and sprint plan with v1.6.0 status
+ce157e3 chore(release): v1.6.0 "Tech-Debt & QA-Härtung"
+06efcc2 chore: update sprint backlog, lessons, gitignore
+2d7261a fix(library): Skill-Body aus Discovery-Daten anzeigen statt leeren String
+44fb6ed fix(sessions): Favoriten-Klick zeigt Preview auch bei aktiver Session
+beae592 fix(tauri): improve waiting detection patterns (#146) (#149)
+b530602 fix(ui): simplify session status colors — remove thinking state, make idle distinguishable from done (#146) (#148)
+be3c036 fix(ui): echte Umlaute in allen UI-Strings (#132) (#145)
+4dc019f fix(a11y): Light-Mode Kontrast auf WCAG AA 4.5:1+ (#135) (#140)
+8fa1046 fix(ui): Filled CTA-Buttons für primäre Aktionen (#139) (#142)
+9b097c1 fix(ui): SideNav Labels + Sprachmix + Settings ausblenden (#133, #137, #138) (#141)
+b20e6a9 fix(a11y): Toast aria-live + aria-hidden auf dekorativen Icons (#134) (#143)
+07f037a feat(logs): Error-Grouping + Virtualisierung + React.memo (#136) (#144)
+7b1687f chore(config): raise coverage thresholds to 75/75/65/75 (#90, #66) (#131)
+448f88b test(sessions): add tests for session viewer components (#90, #66) (#130)
+c8fb73d test(shared): add tests for shared components and utils (#90, #66) (#129)
+d8cc251 test(stores): add tests for stores, hooks, and session components (#90, #66) (#128)
+2271fea test(sessions): add tests for session sidebar components (#90, #66) (#127)
+5b3f229 test(layout): add tests for layout, app root, and editor (#90, #66) (#126)
+66898d3 test(kanban): add tests for kanban module (#90, #66) (#125)
+d7abe9c fix(ui): show agents from .claude/agents/ in Config Panel (#115) (#124)
+52ab357 fix(ui): show project Claude settings in Config Panel (#116) (#123)
+f398efc perf(editor): reduce @codemirror/language-data to ~20 languages (#113) (#122)
+ab57fe9 fix(ui): show favorite projects in Library view (#117) (#121)
+09bb9d2 fix(ui): show hook name and command in Hooks tab (#114) (#120)
+e176e29 fix(ui): sort log entries and filter noise (#118) (#119)
+23a27e8 refactor(pipeline): evaluate and clean up pipeline feature (#103) (#112)
+3e97f9e feat(library): Uebersicht aller Skills, Agents, Hooks und Configs (#110) (#111)
+25e3f8d refactor(ui): Hooks-Reiter und Konfig-Panel ueberarbeiten (#109)
+8ac53f9 fix(ui): resolve Log-Ansicht bugs (#104) (#108)
+9e769b0 fix(ui): stabilize terminal scrolling (#101) (#107)
+0588d08 fix(ui): centralize session status colors (#100) (#106)
+0ed1796 refactor(ui): Component-Library formalisieren — Button, Modal, Input (#65) (#105)
+e552124 fix(tauri): remove unused ADPErrorCode import + fix clippy warnings
+1ac0169 fix(tauri): use validation error code for non-existent paths in folder_actions
+0d0dad5 Merge branch 'master' of https://github.com/hossoOG/agentic-dashboard
+ae7bf7f refactor(tauri): migrate all commands to structured ADPError (#63) (#99)
+514ba95 Merge branch 'master' of https://github.com/hossoOG/agentic-dashboard
+8434ff4 refactor(ui): decompose SessionManagerView into custom hooks (#62) (#98)
+c67edbd chore: update Cargo.lock version + todo.md sprint progress
+b89b600 test(tauri): 17 integration tests for file-reader commands (#97)
+94a04ad chore(docs): note /parallel-implement skill in CLAUDE.md + todo.md
+da6c359 test(ui): component tests for SessionCard, SideNav, Toast, ErrorBoundary (#96)
+1fd3965 test(editor): component tests for Toolbar, Preview, EditorView (#95)
+22dedba docs: expand release gate in arc42 + kick off v1.6.0 sprint
+15dc064 ci(security): add weekly npm + cargo audit workflow
+47af573 test(store): editorStore Tests auf 26 Cases erweitert (#89) (#94)
+0ae127c chore(tasks): v1.5.1 abgeschlossen, Follow-ups abgehakt
+762aaa7 chore(release): v1.5.1 Kompass Aufraeum-Patch
+9df1376 feat(ui): pin rename (double-click) + unsaved-changes guard
+60be069 chore: remove orphan ContentTabs.tsx
+322516a feat(skill): /release Pipeline — Quality-Gates bis GitHub Release
+adcf2e3 chore(release): v1.5.0 "Kompass"
+c51a66d chore(docs): archive Softwareprozess/lessons-learned.md → history/
+355216e refactor(ui): shared ConfigPanelTabList für ConfigPanel + FavoritePreview
+34eef68 chore(tasks): MD-Pinning Stage 2 abgehakt, follow-ups notiert
+31d3589 feat(ui): MD-Pinning im Config-Panel — Dateien anpinnen und bearbeiten
+ee3f6b2 feat(store): pinned docs per project in settingsStore
+8fc7802 chore(docs): v1.4.2 housekeeping — doku-drift beheben
+83322c8 fix(config): bump version to 1.4.1 for updater detection
+90d6729 chore: add sprint-review skill docs and v1.4.0 review PPTX
+641402c chore: update docs, config and lessons for v1.4.1
+ae43715 feat(editor): add in-app Markdown editor with CodeMirror (#68)
+996bef3 refactor(store): remove rawLogs from logParser and pipelineStore
+af0c321 feat(security): add centralized input validation module
+0c62ff9 fix(security): harden path traversal protection with tests
+4965992 fix(security): harden DOMPurify config and add XSS prevention tests
+c3982d5 refactor(ui): remove DashboardMap legacy code and dead components
+3f94f59 docs: add arc42 v2.1 specification and sprint plan v1.5-v2.0
+133cd16 docs: add Rust pre-commit lesson learned + update CLAUDE.md hook docs
+6596b6d fix(config): add cargo fmt + cargo check to pre-commit hook via lint-staged
+cdb815b feat: release v1.4.0 — Agent Detection & Pipeline Rewrite
+0c78a9a chore: mark Sprint v1.3.1 as completed in todo.md
+6fc4e19 chore(config): add post-edit hook and pipeline component smoke tests (#76, #77)
+6579a14 test(tauri): add AgentDetector tests for buffer, dedup, name-matching, lifecycle (#73, #74)
+fbcb73e fix(config): enforce LF line endings for husky hooks via .gitattributes
+0a44311 fix(config): add shebang to husky pre-commit hook for Windows compatibility
+b22c981 docs: update CLAUDE.md testing section with current QA infrastructure (#72)
+8956013 fix(test): align pipelineAdapter tests with actual implementation
+f006975 chore(deps): run npm audit fix for safe dependency updates (#57)
+e6f60e0 perf(store): debounce updateLastOutput to eliminate UI jank (#58)
+1476e69 fix(tauri): improve status detection for ultrathink/long thinking pauses (#67)
+d9f028b test(store): add pipelineAdapter and tauriStorage tests (#75, #60)
+6f728cc chore(devops): add pre-commit hooks (husky + lint-staged) and CI coverage gate (#61, #70, #71)
+4947194 fix(tauri): add subprocess timeouts for all external commands (#64)
+eb8f4cb fix(tauri): harden CSP — remove unsafe-eval and unsafe-inline for scripts (#56)
+5d2438d fix(tauri): validate resume_session_id to prevent shell injection (#55)
+6cec78a chore: track project docs in repository
+d621032 docs: add key documents overview for contributors
+a5c910a feat(tauri): improve agent detector buffer handling and detection
+cd3254a feat(pipeline): enhance PipelineView layout and AgentMetricsPanel
+21c105e refactor(ui): simplify pipeline view components and remove unused CSS
+1e8ce5e fix(ui): move KanbanBoard drag state from module-level to useRef
+c199f94 refactor(tauri): standardize Rust error messages (#54)
+e3b4033 refactor(tauri): deduplicate pipeline stream reader logic (#53)
+23f9b94 fix(tauri): add agent detector pruning to prevent memory leak (#52)
+55892e2 fix(ui): remove Framer Motion ease type assertions (#51)
+e13f56a refactor(tauri): extract GitHub JSON parsing helpers (#49)
+c6f5094 chore(config): remove unused CSS class and deregister unused commands (#47)
+0086cdf perf(ui): debounce DashboardMap resize observer (#45)
+df3c784 refactor(tauri): unify path resolution helpers in file_reader (#44)
+f046025 refactor(ui): extract shortenPath and folderLabel utilities to reduce duplication (#43)
+aad6a56 chore: bump version to v1.3.0
+df02eb8 fix(ui): resolve ESLint warnings — hook deps, structured logging, CI lint gate
+c630308 feat(ui,tauri): Kanban detail modal, GitHub commands, session history resume, notes persistence
+7fc59d0 chore(ui): integrate session history tab and listener
+d81bbc4 feat(store): add session history with per-project persistence (#29)
+85ac6ca fix(store): harden workflow detection and fix edge cases (#13)
+01477da feat(ui): connect pipeline view to real agent data (#12)
+5f4d085 fix(ui): separate update download from install to prevent app kill
+ff3d6f7 feat(ui): add GitHub Kanban board in dashboard and session view (#17, #24)
+47a3f8c feat(ui): add split-view layout — terminal + config side by side (#28, #42)
+a0ebe9f fix(tauri): eliminate noisy backend log errors (#41)
+1c8d0f5 fix(ui): correct log timestamps and restore log window feature (#40, #26)
+3b72b9b fix(store): prevent settings data loss from race condition (#23)
+537ef19 chore: remove internal scripts from public repo
+fdad06e chore: prepare repository for public release
+b3a0677 chore: bump version to 1.2.51
+4e4b6eb feat(tauri): support auto-update for private GitHub repos
+4fdeed0 chore: bump version to 1.2.5
+00c562a Merge pull request #39 from hossoOG/feat/library-config-detection
+56751f6 Merge pull request #37 from hossoOG/feat/worktree-viewer-22
+38fcbe3 Merge pull request #36 from hossoOG/style/pipeline-polish-12
+634468a Merge pull request #38 from hossoOG/chore/rebranding-27
+c21fe6f Merge pull request #30 from hossoOG/fix/session-list-scroll-25
+42c6ce7 style(tauri): apply cargo fmt to fix CI formatting check
+1685c0b feat(ui): add project config detection in Library view
+9d87de1 chore(config): complete AgenticExplorer rebranding (#27)
+4e7dc64 feat(ui): add Worktree overview tab in session config (#22)
+2ccd5f8 style(pipeline): polish empty state and idle displays
+b7f6473 chore(docs): update roadmap, sprint backlog and ideas
+bf3609a feat(ui): add Pipeline view with adapter, workflow detection and metrics (#12, #13)
+6ef05d1 feat(ui): add Library as dedicated SideNav tab (#11)
+84eb9d3 fix(ui): improve auto-update notification and check logic
+674a350 chore(ci): streamline pipeline — remove redundant checks
+99dccea fix(tauri): resolve clippy errors and harden update check
+071a474 chore: update changelog and clean up stale skills/worktrees
+9fe329a feat(tauri): add automatic update system via GitHub Releases
+4232bd4 fix(store): load favorites and notes from dedicated files on startup
+78b4553 fix(ui): add min-h-0 to session list flex chain for reliable scrolling
+100fb9f Merge branch 'master' of https://github.com/hossoOG/agentic-dashboard
+8597fc1 perf(tauri): compile agent detector regex patterns once via OnceLock (#10)
+855da98 perf(store): use useShallow for agent/worktree selector stability (#7)
+d65c8d0 perf(ui): lazy-load config viewers and stabilize tab change handler (#5)
+92db1d3 Merge branch 'master' of https://github.com/hossoOG/agentic-dashboard
+685d46f chore(config): remove unused tauri-plugin-notification dependency (#9)
+312cce4 fix(tauri): standardize error handling in session manager (#8)
+9aab061 perf(ui): shared timer hook + SessionCard memoization (#6)
+11e70ed perf(config): add Vite manual chunks to split vendor bundles (#4)
+7bda2ea chore(config): bump version to 1.2.3
+b908f73 feat(tauri,store): persist notes and favorites as separate files in Documents/AgenticExplorer/
+f1fedcc feat(tauri,store): persist settings via Tauri to Documents/AgenticExplorer/
+b03067b feat(config): versioned deploy with running-app check
+64a502c chore(config): rename app to AgenticExplorer
+6332550 chore(config): migrate sprint backlog to GitHub Projects
+c9f060f chore(config): add version bump script to deploy pipeline
+d9427a5 feat(ui,tauri): add Log Viewer as dedicated SideNav tab
+863c9b1 feat(ui,tauri): add agent detection, library system, and enhanced content tabs
+8fdffb1 chore(config): consolidation sprint — remove dead code, update process docs
+502e375 feat(ui): allow browsing project notes without active session
+98a853f feat(ui): add theming system, changelog dialog, notes panel, and UI polish
+492fdff feat(ui,tauri): add GitHub integration with PRs, Issues, and git info
+366e16c chore(config): bump version to 1.1.0 and update CHANGELOG
+e8ae03c feat(ui,tauri): add Agent Config viewer with CLAUDE.md, Skills, and Hooks tabs
+ebff210 docs(process): add Phase 3 design for v1.1.0 Agent Transparency
+8203c09 docs(process): restructure Phase.txt with user stories, priorities and roadmap
+ef2319a feat(ui): replace pipeline controls with session context and global notes
+263eba7 feat(ui): add activity indicator to session sidebar and grid
+8d75354 chore(config): bump version to 1.0.0 and add CHANGELOG
+258b0a7 feat(ui,tauri): add Session Manager, folder actions, and grid highlight fix
+681d604 Update Phase.txt
+bbd1eba Add feasibility analysis to requirements phase
+901d47a feat: add CLAUDE.md for project guidance and development workflow
+be0cf3f Enhance Phase.txt with Persona C requirements
+3cf3761 feat: add initial project phases and user personas for dashboard development
+e22cad7 feat: update AI Architect Sync documentation and enhance log parsing logic
+0399213 Merge pull request #3 from hossoOG/copilot/add-tauri-listener-frontend
+192e726 feat: Phase 1-3 – Tauri listener, log demultiplexing & isometric 2.5D UI
+b817adc Initial plan
+34b1384 fix: tauri app now starts successfully
+bb4fb73 Merge pull request #2 from hossoOG/copilot/add-tauri-listener-and-regex-update
+a5a76fc Add Tauri pipeline-log listener, sharpen regex patterns, and add worktree context-tracking
+e8dfe7f Initial plan
+4a2a300 Merge pull request #1 from hossoOG/copilot/create-desktop-dashboard-app
+99ebd38 docs: add AI_ARCHITECT_SYNC.md with store types, log parser, Rust bridge, and UI status
+834d8f8 fix: Address code review issues - log trimming, QA pass logic, Rust error handling
+8e154f3 feat: Add complete Tauri v2 + React/TypeScript Gamified AI Pipeline Dashboard
+111fd66 Initial plan
+24fdeb6 Initial commit: project setup and context
