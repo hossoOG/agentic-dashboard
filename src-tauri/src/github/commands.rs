@@ -17,6 +17,13 @@ pub struct GitInfo {
 }
 
 #[derive(Serialize, Clone)]
+pub struct ProjectPresence {
+    pub has_git: bool,
+    pub has_github: bool,
+    pub remote_url: Option<String>,
+}
+
+#[derive(Serialize, Clone)]
 pub struct GithubPR {
     pub number: u64,
     pub title: String,
@@ -133,6 +140,12 @@ pub(crate) fn validate_repo(repo: &str) -> Result<(), ADPError> {
     }
 }
 
+/// Returns `true` if the given remote URL points to github.com.
+/// Extracted as a helper so the detection logic can be unit-tested in isolation.
+pub(crate) fn is_github_remote(url: &str) -> bool {
+    url.contains("github.com")
+}
+
 /// Extract label names from a GitHub JSON value containing a "labels" array.
 fn parse_labels(value: &serde_json::Value) -> Vec<String> {
     value["labels"]
@@ -211,6 +224,32 @@ pub mod commands {
         Ok(GitInfo {
             branch,
             last_commit,
+            remote_url,
+        })
+    }
+
+    /// Leichtgewichtiger Presence-Check: ermittelt, ob der Ordner ein Git-Repo
+    /// ist und ob dessen Origin auf GitHub zeigt. Kein `gh`-CLI-Aufruf — nur
+    /// Pfad-Check + `git remote get-url origin`. Muss schnell sein (<50ms).
+    #[tauri::command]
+    pub async fn check_project_presence(folder: String) -> Result<ProjectPresence, ADPError> {
+        let path = std::path::Path::new(&folder);
+        let has_git = path.join(".git").exists();
+
+        let remote_url = if has_git {
+            run_command(&folder, "git", &["remote", "get-url", "origin"])
+                .ok()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+        } else {
+            None
+        };
+
+        let has_github = remote_url.as_deref().map(is_github_remote).unwrap_or(false);
+
+        Ok(ProjectPresence {
+            has_git,
+            has_github,
             remote_url,
         })
     }
@@ -555,5 +594,90 @@ mod tests {
             path.exists(),
             "should fall back to temp_dir when path does not exist"
         );
+    }
+
+    // --- is_github_remote -----------------------------------------------
+
+    #[test]
+    fn is_github_remote_detects_https_url() {
+        assert!(is_github_remote(
+            "https://github.com/hossoOG/agentic-dashboard.git"
+        ));
+    }
+
+    #[test]
+    fn is_github_remote_detects_ssh_url() {
+        assert!(is_github_remote(
+            "git@github.com:hossoOG/agentic-dashboard.git"
+        ));
+    }
+
+    #[test]
+    fn is_github_remote_rejects_other_hosts() {
+        assert!(!is_github_remote("https://gitlab.com/foo/bar.git"));
+        assert!(!is_github_remote("git@bitbucket.org:foo/bar.git"));
+        assert!(!is_github_remote(""));
+    }
+
+    // --- check_project_presence -----------------------------------------
+
+    /// Async Tauri-Commands ohne `#[tokio::test]`-Feature via ad-hoc Runtime.
+    fn block_on<F: std::future::Future>(fut: F) -> F::Output {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("failed to build tokio runtime")
+            .block_on(fut)
+    }
+
+    #[test]
+    fn check_project_presence_no_git() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let folder = tmp.path().to_string_lossy().to_string();
+
+        let result = block_on(commands::check_project_presence(folder))
+            .expect("check_project_presence should succeed on empty dir");
+
+        assert!(!result.has_git, "empty dir must not be detected as git");
+        assert!(!result.has_github);
+        assert!(result.remote_url.is_none());
+    }
+
+    #[test]
+    fn check_project_presence_git_no_remote() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        // Fake .git-Ordner ohne echtes git init — Portabilität, kein git CLI nötig
+        // für den Pfad-Check. `git remote get-url origin` schlägt dann fehl und
+        // wird durch `.ok()` zu None.
+        std::fs::create_dir_all(tmp.path().join(".git")).expect("create .git");
+        let folder = tmp.path().to_string_lossy().to_string();
+
+        let result = block_on(commands::check_project_presence(folder))
+            .expect("check_project_presence should succeed with bare .git dir");
+
+        assert!(result.has_git, ".git dir must be detected");
+        assert!(
+            !result.has_github,
+            "no remote configured => has_github must be false"
+        );
+        assert!(
+            result.remote_url.is_none(),
+            "no remote configured => remote_url must be None, got {:?}",
+            result.remote_url
+        );
+    }
+
+    #[test]
+    fn check_project_presence_github_remote_detection() {
+        // Reine Logik-Prüfung: die github.com-Erkennung hängt nur am
+        // is_github_remote-Helper. Ein echter git-Remote lässt sich im Test
+        // nicht portabel aufsetzen (kein git init), daher wird der Helper
+        // hier direkt getestet — er ist die single source of truth innerhalb
+        // von check_project_presence.
+        assert!(is_github_remote(
+            "https://github.com/hossoOG/agentic-dashboard.git"
+        ));
+        assert!(is_github_remote("git@github.com:owner/repo.git"));
+        assert!(!is_github_remote("https://gitlab.com/owner/repo.git"));
     }
 }

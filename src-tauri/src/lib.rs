@@ -206,6 +206,7 @@ pub fn run() {
             session::commands::commands::scan_worktrees,
             // GitHub integration
             github::commands::commands::get_git_info,
+            github::commands::commands::check_project_presence,
             github::commands::commands::get_github_prs,
             github::commands::commands::get_github_issues,
             github::commands::commands::get_issue_detail,

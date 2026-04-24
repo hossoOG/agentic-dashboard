@@ -16,7 +16,14 @@ export const PinnedDocViewer = lazy(() => import("./PinnedDocViewer").then(m => 
 
 export type TabGroup = "context" | "project" | "history";
 
-export type PresenceKey = "claudeMd" | "skills" | "agents" | "hooks" | "settings";
+export type PresenceKey =
+  | "claudeMd"
+  | "skills"
+  | "agents"
+  | "hooks"
+  | "settings"
+  | "git"
+  | "github";
 
 export interface ConfigTab {
   id: ConfigSubTab;
@@ -34,9 +41,9 @@ export const CONFIG_TABS: ConfigTab[] = [
   { id: "hooks",     label: "Hooks",     icon: Webhook,  group: "context", requiresPresence: "hooks" },
   { id: "settings",  label: "Settings",  icon: Settings, group: "context", requiresPresence: "settings" },
   { id: "agents",    label: "Agents",    icon: Bot,      group: "context", requiresPresence: "agents" },
-  { id: "github",    label: "GitHub",    icon: Github,   group: "project" },
-  { id: "worktrees", label: "Worktrees", icon: GitBranch, group: "project" },
-  { id: "kanban",    label: "Kanban",    icon: Columns3, group: "project" },
+  { id: "github",    label: "GitHub",    icon: Github,   group: "project", requiresPresence: "github" },
+  { id: "worktrees", label: "Worktrees", icon: GitBranch, group: "project", requiresPresence: "git" },
+  { id: "kanban",    label: "Kanban",    icon: Columns3, group: "project", requiresPresence: "github" },
   { id: "history",   label: "History",   icon: Clock,    group: "history" },
 ];
 

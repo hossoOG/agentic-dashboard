@@ -13,6 +13,8 @@ interface Presence {
   agents: boolean;
   hooks: boolean;
   settings: boolean;
+  git: boolean;
+  github: boolean;
 }
 
 interface ConfigPanelTabListProps {
@@ -96,13 +98,16 @@ export function ConfigPanelTabList({ folder, size = "md" }: ConfigPanelTabListPr
     if (!folder) { setPresence(null); return; }
 
     (async () => {
-      const [claudeMdText, skillDirs, agentFiles, settingsText] = await Promise.all([
+      const [claudeMdText, skillDirs, agentFiles, settingsText, projectPresence] = await Promise.all([
         invoke<string>("read_project_file", { folder, relativePath: "CLAUDE.md" }).catch(() => ""),
         invoke<unknown[]>("list_skill_dirs", { folder }).catch(() => [] as unknown[]),
         invoke<string[]>("list_project_dir", { folder, relativePath: ".claude/agents" })
           .then((files) => files.filter((f) => f.endsWith(".md")))
           .catch(() => [] as string[]),
         invoke<string>("read_project_file", { folder, relativePath: ".claude/settings.json" }).catch(() => ""),
+        invoke<{ has_git: boolean; has_github: boolean; remote_url: string | null }>(
+          "check_project_presence", { folder }
+        ).catch(() => ({ has_git: false, has_github: false, remote_url: null })),
       ]);
 
       if (cancelled) return;
@@ -120,6 +125,8 @@ export function ConfigPanelTabList({ folder, size = "md" }: ConfigPanelTabListPr
         agents: agentFiles.length > 0,
         hooks: hasHooks,
         settings: !!settingsText,
+        git: projectPresence.has_git,
+        github: projectPresence.has_github,
       });
     })();
 
@@ -140,7 +147,7 @@ export function ConfigPanelTabList({ folder, size = "md" }: ConfigPanelTabListPr
     if (!isActiveVisible && !isPinned) {
       setConfigSubTabRaw(visibleTabs[0]?.id ?? "github");
     }
-  }, [visibleTabs, configSubTab, setConfigSubTabRaw]);
+  }, [visibleTabs, configSubTab, setConfigSubTabRaw, presence]);
 
   const buttonPadding = size === "sm" ? "px-2.5 py-1" : "px-2 py-1";
   const iconSize = "w-3 h-3";
