@@ -243,6 +243,97 @@ describe("SessionTerminal", () => {
   // native paste); there is no longer a code path that calls
   // logError("SessionTerminal.clipboardPaste", ...).
 
+  // ── Regression guards for b92cc60 / ea3a6df (Option A scroll/config fixes) ──
+  //
+  // These tests pin the xterm.js constructor options and the onData auto-scroll
+  // decoupling introduced in ea3a6df. They are designed to turn red if any of
+  // these knobs is silently removed or flipped in a future refactor.
+
+  it("instantiates Terminal with convertEol: true (regression guard for ea3a6df)", () => {
+    render(<SessionTerminal sessionId="sess-1" />);
+
+    // terminalOptions is captured by the vi.mock factory on the Terminal constructor.
+    expect(terminalOptions).toMatchObject({ convertEol: true });
+  });
+
+  it("instantiates Terminal with scrollOnUserInput: false (regression guard for ea3a6df)", () => {
+    render(<SessionTerminal sessionId="sess-1" />);
+
+    expect(terminalOptions).toMatchObject({ scrollOnUserInput: false });
+  });
+
+  it("instantiates Terminal with windowsPty backend 'conpty' (regression guard for ea3a6df)", () => {
+    render(<SessionTerminal sessionId="sess-1" />);
+
+    expect(terminalOptions).toMatchObject({
+      windowsPty: { backend: "conpty" },
+    });
+    // buildNumber must be present and numeric (value not constrained — different
+    // Windows baselines are acceptable, but the property itself is load-bearing
+    // for xterm's ConPTY reflow heuristics).
+    expect(
+      (terminalOptions.windowsPty as { buildNumber: unknown }).buildNumber,
+    ).toEqual(expect.any(Number));
+  });
+
+  it("onData handler scrolls to bottom when viewport is at bottom (regression guard for ea3a6df)", async () => {
+    render(<SessionTerminal sessionId="sess-1" />);
+
+    // Default mock state: baseY=0, viewportY=0 → isAtBottom=true → userScrolledUpRef=false.
+    // The onData callback should therefore invoke scrollToBottom after forwarding
+    // the keystroke to the backend.
+    expect(mockOnData).toHaveBeenCalled();
+    const onDataCb = mockOnData.mock.calls[0]![0] as (data: string) => void;
+    expect(onDataCb).toBeTruthy();
+
+    mockScrollToBottom.mockClear();
+
+    await act(async () => {
+      onDataCb("x");
+      // Allow the wrapInvoke → invoke promise chain to settle.
+      await Promise.resolve();
+    });
+
+    expect(mockScrollToBottom).toHaveBeenCalled();
+  });
+
+  it("onData handler does NOT scroll to bottom when user is reading scrollback (regression guard for ea3a6df)", async () => {
+    vi.useFakeTimers();
+    render(<SessionTerminal sessionId="sess-1" />);
+
+    // Advance past the 150ms scroll-track activation delay so onScroll is wired up.
+    await act(async () => {
+      vi.advanceTimersByTime(200);
+    });
+    vi.useRealTimers();
+
+    // Simulate: terminal has scrollback and user has scrolled away from the bottom.
+    mockBuffer.active.baseY = 100;
+    mockBuffer.active.viewportY = 50;
+
+    // Fire the scroll event so userScrolledUpRef flips to true.
+    expect(mockOnScroll).toHaveBeenCalled();
+    const scrollHandler = mockOnScroll.mock.calls[0]![0] as () => void;
+    act(() => {
+      scrollHandler();
+    });
+
+    // Now trigger an onData callback. Before the fix, xterm would auto-scroll via
+    // scrollOnUserInput=true (its default) — our decoupled logic must NOT call
+    // scrollToBottom because the user is actively reading scrollback.
+    expect(mockOnData).toHaveBeenCalled();
+    const onDataCb = mockOnData.mock.calls[0]![0] as (data: string) => void;
+
+    mockScrollToBottom.mockClear();
+
+    await act(async () => {
+      onDataCb("y");
+      await Promise.resolve();
+    });
+
+    expect(mockScrollToBottom).not.toHaveBeenCalled();
+  });
+
   it("resize invoke failure is logged via logError", async () => {
     const { invoke } = await import("@tauri-apps/api/core");
     const resizeError = new Error("resize failed");
