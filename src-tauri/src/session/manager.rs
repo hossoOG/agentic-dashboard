@@ -110,6 +110,13 @@ impl SessionManager {
         }
         cmd.cwd(&folder);
 
+        // Disable Claude-Code's flicker-free rendering mode (v2.1.89+).
+        // In embedded xterm.js/Tauri terminals, the virtualized scrollback of that
+        // mode destroys the user-visible history. Falls back to v2.1.87 behaviour
+        // (linear LF-based output), which xterm.js handles correctly.
+        // Reference: https://github.com/anthropics/claude-code/issues/41965
+        cmd.env("CLAUDE_CODE_NO_FLICKER", "0");
+
         let child = pty_pair.slave.spawn_command(cmd).map_err(|e| {
             log::error!(
                 "Failed to spawn shell '{}' for session {}: {}",
