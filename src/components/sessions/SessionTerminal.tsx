@@ -183,7 +183,12 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
       clearTimeout(initialTimer);
       clearTimeout(scrollTrackTimer);
       debouncedFit.cancel();
-      unlistenPromise.then((unlisten) => unlisten()).catch(() => {});
+      unlistenPromise
+        .then((unlisten) => {
+          try { unlisten(); }
+          catch (e) { logError("SessionTerminal.cleanup.unlisten", e); }
+        })
+        .catch((e) => logError("SessionTerminal.cleanup.unlistenPromise", e));
       scrollDisposable.dispose();
       resizeObserver.disconnect();
       term.dispose();
