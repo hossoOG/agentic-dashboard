@@ -64,6 +64,19 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
       fontSize: 13,
       fontFamily: "'Cascadia Code', 'Fira Code', 'Consolas', monospace",
       scrollback: 5000,
+      // Normalize bare LF (often emitted by Node child processes under PowerShell)
+      // to CRLF so xterm renders lines correctly.
+      convertEol: true,
+      // Decouple xterm's built-in "scroll on keystroke" from our own logic:
+      // we track userScrolledUpRef manually and trigger scrollToBottom in onData
+      // only when the user is NOT actively reading scrollback. Leaving the default
+      // (true) causes xterm to scroll on every keystroke and fights our own tracking.
+      scrollOnUserInput: false,
+      // Tell xterm it's attached to a ConPTY backend on Windows. This enables the
+      // correct line-wrap / reflow heuristics for ConPTY output (xtermjs/xterm.js#2666).
+      // buildNumber 19041 = Windows 10 20H1 baseline; >= 21376 would unlock reflow,
+      // but Claude-Code's output does not rely on it and we stay conservative.
+      windowsPty: { backend: "conpty", buildNumber: 19041 },
       theme: {
         background: "#0d1117",
         foreground: "#e6edf3",
@@ -125,6 +138,13 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
       wrapInvoke("write_session", { id: sessionId, data }).catch((err) => {
         logError("SessionTerminal.writeSession", err);
       });
+      // Manual auto-scroll on user input: because we set scrollOnUserInput=false
+      // above, xterm no longer jumps to the bottom on keystrokes. We replicate that
+      // behaviour here, but gated on userScrolledUpRef so the user can read
+      // scrollback while typing without being yanked back to the prompt.
+      if (!userScrolledUpRef.current) {
+        term.scrollToBottom();
+      }
     });
 
     // Output: Backend PTY output -> xterm
