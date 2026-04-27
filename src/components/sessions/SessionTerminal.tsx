@@ -17,6 +17,17 @@ interface SessionTerminalProps {
 const SCROLL_BOTTOM_THRESHOLD = 1;
 
 /**
+ * Window in milliseconds during which a term.onData call is treated as a duplicate
+ * echo of the most recent custom Ctrl+V paste. WebView2 dispatches BOTH a keydown
+ * event AND a separate paste DOM event for Ctrl+V; the keydown is consumed by
+ * attachCustomKeyEventHandler, but the paste DOM event still reaches xterm's
+ * helper textarea and produces a term.onData call with the same text. Without
+ * this guard the user sees the paste inserted twice. 150 ms is conservative —
+ * normal human typing rate is well above that interval.
+ */
+const PASTE_DEDUP_WINDOW_MS = 150;
+
+/**
  * Debounce helper — returns a debounced version of `fn`.
  * The returned function also exposes `.cancel()` for cleanup.
  */
@@ -50,6 +61,12 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
   const terminalRef = useRef<Terminal | null>(null);
   /** Tracks whether the user has manually scrolled away from the bottom */
   const userScrolledUpRef = useRef(false);
+  /**
+   * Timestamp of the most recent custom Ctrl+V paste. Set synchronously in the
+   * keydown handler before the async readText, so the parallel DOM paste-event
+   * echo (which arrives in term.onData) can be recognised and suppressed.
+   */
+  const justCustomPastedRef = useRef<number>(0);
 
   /**
    * Check if the terminal viewport is at (or near) the bottom of the scrollback buffer.
@@ -142,6 +159,10 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
         return true;
       }
       if (event.ctrlKey && !event.shiftKey && key === "v") {
+        // Mark IMMEDIATELY (synchronously, before awaiting readText) so the
+        // parallel DOM paste-event echo arriving in term.onData below is
+        // recognised and suppressed within PASTE_DEDUP_WINDOW_MS.
+        justCustomPastedRef.current = Date.now();
         readText()
           .then((text) => {
             if (text != null && text.length > 0) {
@@ -179,6 +200,13 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
 
     // Input: User types -> send to backend
     term.onData((data: string) => {
+      // Suppress the DOM paste-event echo that arrives shortly after a custom
+      // Ctrl+V paste: xterm's helper textarea forwards the paste through onData,
+      // and our custom Ctrl+V handler also writes the clipboard text — without
+      // this guard the user sees the paste inserted twice.
+      if (Date.now() - justCustomPastedRef.current < PASTE_DEDUP_WINDOW_MS) {
+        return;
+      }
       wrapInvoke("write_session", { id: sessionId, data }).catch((err) => {
         logError("SessionTerminal.writeSession", err);
       });
