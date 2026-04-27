@@ -476,6 +476,132 @@ describe("SessionTerminal", () => {
     expect(consumed).toBe(false);
   });
 
+  // ── Paste de-duplication regression guard (c7b56ae) ──
+  //
+  // WebView2 fires BOTH a keydown event AND a separate paste DOM event for
+  // Ctrl+V. The custom keydown handler consumes the keydown, but the paste
+  // DOM event still reaches xterm's helper textarea, which forwards the text
+  // through term.onData. Without the dedup-window guard the user sees the
+  // paste inserted twice. These tests pin that guard against silent removal.
+
+  it("Ctrl+V suppresses the parallel term.onData echo within the dedup window", async () => {
+    vi.mocked(readText).mockResolvedValueOnce("hello world");
+    render(<SessionTerminal sessionId="sess-1" />);
+
+    const keyHandler = mockAttachCustomKeyEventHandler.mock.calls[0]![0] as (
+      e: KeyboardEvent,
+    ) => boolean;
+    expect(mockOnData).toHaveBeenCalled();
+    const onDataCb = mockOnData.mock.calls[0]![0] as (data: string) => void;
+
+    // Trigger custom Ctrl+V → marker stamped synchronously inside the handler
+    keyHandler(
+      new KeyboardEvent("keydown", { ctrlKey: true, shiftKey: false, key: "v" }),
+    );
+
+    // Simulate the parallel DOM paste-event echo arriving immediately (xterm
+    // would route it through term.onData with the same text).
+    await act(async () => {
+      onDataCb("hello world");
+      // Drain readText().then(...) → wrapInvoke(...) → invoke chain
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // write_session must have been invoked exactly once with the paste text —
+    // the echo via onData must be suppressed.
+    const writeSessionCalls = vi
+      .mocked(invoke)
+      .mock.calls.filter((call) => call[0] === "write_session");
+    expect(writeSessionCalls).toHaveLength(1);
+    expect(writeSessionCalls[0]).toEqual([
+      "write_session",
+      { id: "sess-1", data: "hello world" },
+    ]);
+  });
+
+  it("term.onData runs normally outside the paste dedup window", async () => {
+    // Deterministic time control via Date.now spy — fake timers + microtasks
+    // interact awkwardly here because readText is a resolved promise (no timer).
+    const dateNowSpy = vi.spyOn(Date, "now").mockReturnValue(1000);
+    vi.mocked(readText).mockResolvedValueOnce("foo");
+    render(<SessionTerminal sessionId="sess-1" />);
+
+    const keyHandler = mockAttachCustomKeyEventHandler.mock.calls[0]![0] as (
+      e: KeyboardEvent,
+    ) => boolean;
+    const onDataCb = mockOnData.mock.calls[0]![0] as (data: string) => void;
+
+    // t=1000: trigger Ctrl+V → marker stamped
+    keyHandler(
+      new KeyboardEvent("keydown", { ctrlKey: true, shiftKey: false, key: "v" }),
+    );
+
+    // Drain the readText → wrapInvoke → invoke promise chain (still at t=1000)
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const before = vi
+      .mocked(invoke)
+      .mock.calls.filter((c) => c[0] === "write_session").length;
+
+    // t=1500: 500 ms later — well past PASTE_DEDUP_WINDOW_MS (150)
+    dateNowSpy.mockReturnValue(1500);
+
+    // A normal keystroke must NOT be suppressed at this point
+    await act(async () => {
+      onDataCb("a");
+      await Promise.resolve();
+    });
+
+    const after = vi
+      .mocked(invoke)
+      .mock.calls.filter((c) => c[0] === "write_session");
+    expect(after).toHaveLength(before + 1);
+    expect(after[after.length - 1]).toEqual([
+      "write_session",
+      { id: "sess-1", data: "a" },
+    ]);
+
+    dateNowSpy.mockRestore();
+  });
+
+  it("Shift+Ctrl+V does not engage the paste dedup window — onData stays live", async () => {
+    render(<SessionTerminal sessionId="sess-1" />);
+
+    const keyHandler = mockAttachCustomKeyEventHandler.mock.calls[0]![0] as (
+      e: KeyboardEvent,
+    ) => boolean;
+    const onDataCb = mockOnData.mock.calls[0]![0] as (data: string) => void;
+
+    // Shift+Ctrl+V is intentionally NOT consumed — falls through to xterm's
+    // internal paste path. The custom handler does NOT stamp the marker.
+    const consumed = keyHandler(
+      new KeyboardEvent("keydown", { ctrlKey: true, shiftKey: true, key: "v" }),
+    );
+    expect(consumed).toBe(true);
+
+    // Immediately after, a regular onData call must be processed normally
+    // (it would be the legitimate output of xterm's internal paste flow, not
+    // a suppressed echo).
+    await act(async () => {
+      onDataCb("pasted");
+      await Promise.resolve();
+    });
+
+    const writeSessionCalls = vi
+      .mocked(invoke)
+      .mock.calls.filter((c) => c[0] === "write_session");
+    expect(writeSessionCalls).toContainEqual([
+      "write_session",
+      { id: "sess-1", data: "pasted" },
+    ]);
+  });
+
   // ── Regression guards for b92cc60 / ea3a6df (Option A scroll/config fixes) ──
   //
   // These tests pin the xterm.js constructor options and the onData auto-scroll
