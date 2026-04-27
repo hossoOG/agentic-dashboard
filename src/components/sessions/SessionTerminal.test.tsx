@@ -25,8 +25,10 @@ const mockOnScroll = vi.fn((_cb: any) => ({ dispose: vi.fn() }));
 const mockOnData = vi.fn((_cb: any) => ({ dispose: vi.fn() }));
 const mockLoadAddon = vi.fn();
 const mockAttachCustomKeyEventHandler = vi.fn();
+const mockGetSelection = vi.fn(() => "");
 
 let terminalOptions: Record<string, unknown> = {};
+let lastTerminalElement: HTMLElement = document.createElement("div");
 const mockBuffer = {
   active: {
     viewportY: 0,
@@ -37,6 +39,7 @@ const mockBuffer = {
 vi.mock("@xterm/xterm", () => ({
   Terminal: vi.fn().mockImplementation((opts: Record<string, unknown>) => {
     terminalOptions = opts;
+    lastTerminalElement = document.createElement("div");
     return {
       open: mockOpen,
       write: mockWrite,
@@ -46,9 +49,10 @@ vi.mock("@xterm/xterm", () => ({
       onData: mockOnData,
       loadAddon: mockLoadAddon,
       attachCustomKeyEventHandler: mockAttachCustomKeyEventHandler,
+      getSelection: mockGetSelection,
       cols: 80,
       rows: 24,
-      element: document.createElement("div"),
+      element: lastTerminalElement,
       buffer: mockBuffer,
     };
   }),
@@ -77,10 +81,30 @@ vi.mock("../../utils/errorLogger", () => ({
   logError: vi.fn(),
 }));
 
+// Tauri clipboard plugin (Option B) — production code calls writeText/readText
+// from this module instead of navigator.clipboard. The mocks default to safe
+// resolved promises so unrelated tests are unaffected; individual cases override
+// them with mockResolvedValueOnce / mockRejectedValueOnce.
+vi.mock("@tauri-apps/plugin-clipboard-manager", () => ({
+  writeText: vi.fn(() => Promise.resolve()),
+  readText: vi.fn(() => Promise.resolve("")),
+}));
+
+// uiStore mock — SessionTerminal subscribes via useUIStore((s) => s.addToast).
+// We expose a stable spy and route the selector call through a fake state object
+// so calling `useUIStore(selector)` yields the spy regardless of reference identity.
+const mockAddToast = vi.fn();
+vi.mock("../../store/uiStore", () => ({
+  useUIStore: (selector: (state: { addToast: typeof mockAddToast }) => unknown) =>
+    selector({ addToast: mockAddToast }),
+}));
+
 // ── Import after mocks ──────────────────────────────────────────────
 
 import { SessionTerminal } from "./SessionTerminal";
 import { logError } from "../../utils/errorLogger";
+import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
+import { invoke } from "@tauri-apps/api/core";
 
 // ── Tests ────────────────────────────────────────────────────────────
 
@@ -92,8 +116,19 @@ describe("SessionTerminal", () => {
     listenCallback = null;
     terminalOptions = {};
     mockAttachCustomKeyEventHandler.mockReset();
+    mockGetSelection.mockReset();
+    mockGetSelection.mockReturnValue("");
     mockBuffer.active.viewportY = 0;
     mockBuffer.active.baseY = 0;
+
+    // Reset clipboard-plugin mocks to safe defaults
+    vi.mocked(writeText).mockReset();
+    vi.mocked(writeText).mockResolvedValue(undefined);
+    vi.mocked(readText).mockReset();
+    vi.mocked(readText).mockResolvedValue("");
+
+    // Reset uiStore.addToast spy
+    mockAddToast.mockReset();
 
     // Mock document.fonts.ready (not available in jsdom). SessionTerminal
     // awaits this before initial fit/resize.
@@ -198,38 +233,39 @@ describe("SessionTerminal", () => {
     expect(mockDispose).toHaveBeenCalled();
   });
 
-  it("clipboard copy failure is logged via logError", async () => {
-    // Stub clipboard.writeText to reject
+  // ── Clipboard / context-menu regression guards (Option B: 8d81a9d + a122dbb) ──
+  //
+  // These tests pin the Tauri-clipboard-plugin migration and the contextmenu
+  // suppression introduced in a122dbb. They fail if the plugin import is
+  // reverted to navigator.clipboard, the Ctrl+V handler is removed, the
+  // Shift+Ctrl+V passthrough is broken, or the contextmenu listener is dropped.
+
+  it("clipboard copy failure surfaces toast and logs", async () => {
     const clipboardError = new Error("clipboard write denied");
-    const writeTextMock = vi.fn(() => Promise.reject(clipboardError));
-    Object.defineProperty(navigator, "clipboard", {
-      value: { writeText: writeTextMock, readText: vi.fn(() => Promise.resolve("")) },
-      writable: true,
-      configurable: true,
-    });
+    vi.mocked(writeText).mockRejectedValueOnce(clipboardError);
 
     render(<SessionTerminal sessionId="sess-1" />);
 
-    // Extract the key event handler registered with xterm
     expect(mockAttachCustomKeyEventHandler).toHaveBeenCalled();
     const keyHandler = mockAttachCustomKeyEventHandler.mock.calls[0]![0] as (
       e: KeyboardEvent,
     ) => boolean;
 
-    // Simulate Ctrl+C with a selection present
-    const mockGetSelection = vi.fn(() => "selected text");
-    // Patch getSelection on the terminal mock
-    const termInstance = (
-      vi.mocked(await import("@xterm/xterm")).Terminal as unknown as {
-        mock: { results: { value: { getSelection: () => string } }[] };
-      }
-    ).mock.results[0]!.value;
-    termInstance.getSelection = mockGetSelection;
+    // Selection present → Ctrl+C must call plugin.writeText
+    mockGetSelection.mockReturnValue("selected text");
 
-    keyHandler(new KeyboardEvent("keydown", { ctrlKey: true, key: "c" }));
+    const consumed = keyHandler(
+      new KeyboardEvent("keydown", { ctrlKey: true, key: "c" }),
+    );
 
-    // Allow the microtask queue to flush so the .catch runs
+    // Plugin (not navigator.clipboard) was called
+    expect(vi.mocked(writeText)).toHaveBeenCalledWith("selected text");
+    // Custom handler consumed the event (selection present → false)
+    expect(consumed).toBe(false);
+
+    // Allow the rejected promise's .catch to run
     await act(async () => {
+      await Promise.resolve();
       await Promise.resolve();
     });
 
@@ -237,11 +273,208 @@ describe("SessionTerminal", () => {
       "SessionTerminal.clipboardCopy",
       clipboardError,
     );
+    expect(mockAddToast).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "error" }),
+    );
   });
 
-  // Note: Ctrl+V paste handler was removed in 9cee12b (collided with xterm
-  // native paste); there is no longer a code path that calls
-  // logError("SessionTerminal.clipboardPaste", ...).
+  it("Ctrl+V with clipboard text invokes write_session via wrapInvoke", async () => {
+    vi.mocked(readText).mockResolvedValueOnce("hello world");
+
+    render(<SessionTerminal sessionId="sess-1" />);
+
+    expect(mockAttachCustomKeyEventHandler).toHaveBeenCalled();
+    const keyHandler = mockAttachCustomKeyEventHandler.mock.calls[0]![0] as (
+      e: KeyboardEvent,
+    ) => boolean;
+
+    const consumed = keyHandler(
+      new KeyboardEvent("keydown", { ctrlKey: true, shiftKey: false, key: "v" }),
+    );
+
+    // Custom handler consumes Ctrl+V so xterm doesn't also forward \x16
+    expect(consumed).toBe(false);
+
+    // Plugin readText was called
+    expect(vi.mocked(readText)).toHaveBeenCalled();
+
+    // Drain the readText() → wrapInvoke() → invoke() promise chain
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // wrapInvoke routes through the mocked @tauri-apps/api/core invoke
+    expect(vi.mocked(invoke)).toHaveBeenCalledWith("write_session", {
+      id: "sess-1",
+      data: "hello world",
+    });
+  });
+
+  it("Ctrl+V with rejected readText surfaces error toast and logs", async () => {
+    const pasteError = new Error("clipboard read denied");
+    vi.mocked(readText).mockRejectedValueOnce(pasteError);
+
+    render(<SessionTerminal sessionId="sess-1" />);
+
+    const keyHandler = mockAttachCustomKeyEventHandler.mock.calls[0]![0] as (
+      e: KeyboardEvent,
+    ) => boolean;
+
+    keyHandler(
+      new KeyboardEvent("keydown", { ctrlKey: true, shiftKey: false, key: "v" }),
+    );
+
+    // Drain async chain (readText rejects → .catch runs)
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(vi.mocked(logError)).toHaveBeenCalledWith(
+      "SessionTerminal.clipboardPaste",
+      pasteError,
+    );
+    expect(mockAddToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "error",
+        title: expect.stringMatching(/Einf|paste|clipboard/i),
+      }),
+    );
+  });
+
+  it("Ctrl+V with empty readText is a defensive no-op", async () => {
+    vi.mocked(readText).mockResolvedValueOnce("");
+
+    render(<SessionTerminal sessionId="sess-1" />);
+
+    // Snapshot how often invoke was called *before* the paste
+    const invokeCallsBefore = vi.mocked(invoke).mock.calls.length;
+
+    const keyHandler = mockAttachCustomKeyEventHandler.mock.calls[0]![0] as (
+      e: KeyboardEvent,
+    ) => boolean;
+
+    keyHandler(
+      new KeyboardEvent("keydown", { ctrlKey: true, shiftKey: false, key: "v" }),
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // No write_session invocation triggered by the paste (other invokes like
+    // resize_session may still fire from the effect, but none with the paste data).
+    const writeSessionCalls = vi
+      .mocked(invoke)
+      .mock.calls.slice(invokeCallsBefore)
+      .filter((call) => call[0] === "write_session");
+    expect(writeSessionCalls).toEqual([]);
+
+    // No error toast
+    const errorToasts = mockAddToast.mock.calls.filter(
+      (call) => (call[0] as { type?: string }).type === "error",
+    );
+    expect(errorToasts).toEqual([]);
+  });
+
+  it("Shift+Ctrl+V is NOT consumed by the custom handler (Linux compat)", async () => {
+    render(<SessionTerminal sessionId="sess-1" />);
+
+    const keyHandler = mockAttachCustomKeyEventHandler.mock.calls[0]![0] as (
+      e: KeyboardEvent,
+    ) => boolean;
+
+    const consumed = keyHandler(
+      new KeyboardEvent("keydown", { ctrlKey: true, shiftKey: true, key: "v" }),
+    );
+
+    // Falls through to xterm's internal paste handler
+    expect(consumed).toBe(true);
+    // Plugin readText must NOT be called for Shift+Ctrl+V
+    expect(vi.mocked(readText)).not.toHaveBeenCalled();
+
+    // Drain microtasks just to be safe — still no paste-driven invoke
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const pasteInvokes = vi
+      .mocked(invoke)
+      .mock.calls.filter(
+        (call) =>
+          call[0] === "write_session" &&
+          (call[1] as { data?: string } | undefined)?.data !== undefined,
+      );
+    // Filter out any that aren't from a real paste path is implicitly satisfied —
+    // there's no other code path that pushes data into write_session in this test.
+    expect(pasteInvokes).toEqual([]);
+  });
+
+  it("Ctrl+C with selection uses writeText from plugin (not navigator.clipboard)", () => {
+    // Spy on navigator.clipboard.writeText — must NOT be called after migration
+    const navWriteText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: navWriteText, readText: vi.fn(() => Promise.resolve("")) },
+      writable: true,
+      configurable: true,
+    });
+
+    render(<SessionTerminal sessionId="sess-1" />);
+
+    const keyHandler = mockAttachCustomKeyEventHandler.mock.calls[0]![0] as (
+      e: KeyboardEvent,
+    ) => boolean;
+
+    mockGetSelection.mockReturnValue("copied text");
+
+    const consumed = keyHandler(
+      new KeyboardEvent("keydown", { ctrlKey: true, key: "c" }),
+    );
+
+    // Plugin path used
+    expect(vi.mocked(writeText)).toHaveBeenCalledWith("copied text");
+    // Old API NOT used
+    expect(navWriteText).not.toHaveBeenCalled();
+    // Selection-present Ctrl+C must consume so SIGINT does not also fire
+    expect(consumed).toBe(false);
+  });
+
+  it("contextmenu event on the terminal container calls preventDefault", () => {
+    const { container } = render(<SessionTerminal sessionId="sess-1" />);
+    const terminalDiv = container.firstElementChild as HTMLDivElement;
+    expect(terminalDiv).toBeTruthy();
+
+    // The listener is attached unconditionally at effect-time after term.open();
+    // dispatch a cancelable contextmenu event and verify it's prevented.
+    const event = new MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+    });
+    terminalDiv.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("case-insensitive: Ctrl+C with key='C' uses plugin writeText", () => {
+    render(<SessionTerminal sessionId="sess-1" />);
+
+    const keyHandler = mockAttachCustomKeyEventHandler.mock.calls[0]![0] as (
+      e: KeyboardEvent,
+    ) => boolean;
+
+    mockGetSelection.mockReturnValue("x");
+
+    const consumed = keyHandler(
+      new KeyboardEvent("keydown", { ctrlKey: true, key: "C" }),
+    );
+
+    expect(vi.mocked(writeText)).toHaveBeenCalledWith("x");
+    expect(consumed).toBe(false);
+  });
 
   // ── Regression guards for b92cc60 / ea3a6df (Option A scroll/config fixes) ──
   //
@@ -335,7 +568,6 @@ describe("SessionTerminal", () => {
   });
 
   it("resize invoke failure is logged via logError", async () => {
-    const { invoke } = await import("@tauri-apps/api/core");
     const resizeError = new Error("resize failed");
     vi.mocked(invoke).mockRejectedValueOnce(resizeError);
 
