@@ -4,7 +4,9 @@ import { Terminal } from "@xterm/xterm";
 import { wrapInvoke, markRender } from "../../utils/perfLogger";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
+import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
 import { logError } from "../../utils/errorLogger";
+import { useUIStore } from "../../store/uiStore";
 import "@xterm/xterm/css/xterm.css";
 
 interface SessionTerminalProps {
@@ -41,6 +43,8 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
   useEffect(() => {
     renderDone.done();
   });
+
+  const addToast = useUIStore((s) => s.addToast);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
@@ -90,6 +94,17 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
     term.loadAddon(fitAddon);
     term.loadAddon(new WebLinksAddon());
     term.open(containerRef.current);
+
+    // Suppress the WebView2 default page context menu (Zurück / Aktualisieren / …)
+    // on the Terminal container only. xterm renders selection on a Canvas overlay,
+    // so without this listener the WebView2 page menu wins on right-click. Scoping
+    // to containerRef keeps the menu intact in the sidebar / app chrome.
+    const terminalContainer = containerRef.current;
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+    terminalContainer.addEventListener("contextmenu", handleContextMenu);
+
     // Initial fit nur wenn Container sichtbar ist (offsetWidth/Height > 0).
     // Bei Always-Mounted-Strategie startet ein inaktives Terminal mit display:none,
     // dann liefert fit() NaN-Dimensions. ResizeObserver triggert fit() beim Unhide.
@@ -98,23 +113,52 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
     }
     terminalRef.current = term;
 
-    // Clipboard: Ctrl+C copies selection (if any), otherwise sends SIGINT.
-    // Ctrl+V is intentionally NOT handled here — xterm's native paste handler
-    // fires on DOM `paste` events independently of this keydown handler.
-    // Adding a custom Ctrl+V handler would cause double-paste (both paths call
-    // write_session). The native handler is sufficient for paste.
+    // Clipboard handling (xterm v6 has no built-in keydown path for either shortcut):
+    //   Ctrl+C        → copy current selection via Tauri-Plugin; otherwise pass through
+    //                   so the PTY receives SIGINT.
+    //   Ctrl+V        → read clipboard via Tauri-Plugin and forward the text to the PTY.
+    //                   Consumed here so the raw \x16 keystroke does not also reach the PTY.
+    //   Shift+Ctrl+V  → intentionally NOT consumed → falls through to xterm's internal
+    //                   paste-event path, preserving the Linux-style paste shortcut.
+    // Failures of either operation surface as user-visible toasts via uiStore.addToast.
+    // event.key is normalized to lower-case so Capslock does not break the shortcuts.
     term.attachCustomKeyEventHandler((event: KeyboardEvent): boolean => {
       if (event.type !== "keydown") return true;
-      if (event.ctrlKey && event.key === "c") {
+      const key = event.key.toLowerCase();
+      if (event.ctrlKey && key === "c") {
         const selection = term.getSelection();
         if (selection) {
-          navigator.clipboard.writeText(selection).catch((err) =>
-            logError("SessionTerminal.clipboardCopy", err),
-          );
+          writeText(selection).catch((err) => {
+            logError("SessionTerminal.clipboardCopy", err);
+            addToast({
+              type: "error",
+              title: "Kopieren fehlgeschlagen",
+              duration: 3000,
+            });
+          });
           return false; // Consumed — do NOT forward to PTY
         }
         // No selection → allow normal Ctrl+C (SIGINT) to pass through
         return true;
+      }
+      if (event.ctrlKey && !event.shiftKey && key === "v") {
+        readText()
+          .then((text) => {
+            if (text != null && text.length > 0) {
+              wrapInvoke("write_session", { id: sessionId, data: text }).catch(
+                (err) => logError("SessionTerminal.writeSession", err),
+              );
+            }
+          })
+          .catch((err) => {
+            logError("SessionTerminal.clipboardPaste", err);
+            addToast({
+              type: "error",
+              title: "Einfügen fehlgeschlagen",
+              duration: 3000,
+            });
+          });
+        return false; // Consumed — paste path goes through Tauri plugin only
       }
       return true;
     });
@@ -203,6 +247,7 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
       clearTimeout(initialTimer);
       clearTimeout(scrollTrackTimer);
       debouncedFit.cancel();
+      terminalContainer.removeEventListener("contextmenu", handleContextMenu);
       unlistenPromise
         .then((unlisten) => {
           try { unlisten(); }
@@ -214,7 +259,7 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
       term.dispose();
       terminalRef.current = null;
     };
-  }, [sessionId, isAtBottom]);
+  }, [sessionId, isAtBottom, addToast]);
 
   return (
     <div
