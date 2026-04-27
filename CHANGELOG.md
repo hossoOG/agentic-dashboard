@@ -4,6 +4,80 @@ Alle relevanten Änderungen an AgenticExplorer werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.6.27] — 2026-04-27 — "Clipboard Plugin + Scroll-History Hardening"
+
+> Quick-Patch nach v1.6.26: zwei Multi-Agent-Analysen haben weitere
+> Layer-Probleme jenseits des in v1.6.26 gelösten Remount-Bugs identifiziert.
+> Diese Release adressiert (a) Scrollback-Zerstörung durch Claude-Codes
+> v2.1.89+ Flicker-Free-Modus, (b) das WebView2-Default-Kontextmenü beim
+> Rechtsklick im Terminal, und (c) das Fehlen eines funktionierenden
+> Ctrl+V-Pfades in xterm.js v6 unter Tauri.
+
+### Added
+- **Tauri-Plugin `tauri-plugin-clipboard-manager` v2.3.2** für nativen
+  Clipboard-Zugriff. Ersetzt die in WebView2 unzuverlässige
+  `navigator.clipboard.*`-API. Granulare Permissions
+  `clipboard-manager:allow-read-text` + `-write-text`
+  (statt der breiteren `default`-Variante).
+
+### Fixed
+- **Sessions: Claude-Code-Scrollback bleibt während langer Antworten erhalten.**
+  `CLAUDE_CODE_NO_FLICKER=0` Env-Var beim PTY-Spawn deaktiviert das
+  v2.1.89+ Flicker-Free-Rendering, das in xterm.js+Tauri-WebView2 den
+  Scrollback zerstörte (Banner erschien mehrfach, Zeilen wurden
+  überschrieben statt gescrollt). Ref: anthropics/claude-code#41965.
+- **UI: xterm.js für ConPTY und entkoppelten Auto-Scroll konfiguriert.**
+  `convertEol: true` (Stair-Step-Output von Node-Kindern weg),
+  `scrollOnUserInput: false` mit manueller `scrollToBottom`-Steuerung in
+  `onData` (Auto-Scroll respektiert jetzt aktives Scrollback-Lesen),
+  `windowsPty: { backend: 'conpty', buildNumber: 19041 }` für korrekte
+  ConPTY-Wrap-Heuristik. Ref: xtermjs/xterm.js#2666.
+- **UI: Rechtsklick im Terminal zeigt nicht mehr das WebView2-Page-Menü.**
+  Globaler `contextmenu`-Listener auf den Terminal-Container mit
+  `preventDefault` — scoped, sodass Sidebar / App-Chrome ihr normales
+  Editor-Kontextmenü behalten.
+- **UI: Ctrl+V funktioniert wie in der nativen Windows-Konsole.**
+  xterm v6 hat keinen Built-in-Ctrl+V-Keydown-Pfad — der Custom-Handler
+  liest jetzt das System-Clipboard via Plugin und schreibt direkt an
+  die PTY. Shift+Ctrl+V bleibt unangetastet als Linux-Compat-Pfad.
+  Case-insensitive `event.key` schützt vor Capslock-Bugs.
+- **UI: Ctrl+C kopiert über das Tauri-Plugin** statt
+  `navigator.clipboard.writeText`, das in WebView2 still scheitern konnte.
+  Failures erscheinen jetzt als sichtbarer Toast (`uiStore.addToast`)
+  statt nur im Logfile.
+- **UI: Ctrl+V wird nicht mehr doppelt eingefügt.**
+  WebView2 dispatched für Ctrl+V *sowohl* ein keydown- *als auch* ein
+  separates paste-DOM-Event; xterm's Helper-Textarea routete das
+  paste-Event durch `term.onData`, parallel zum Custom-Handler.
+  Ein synchroner Marker (gesetzt vor dem async `readText`) plus ein
+  150 ms-Skip-Window in `term.onData` filtert den DOM-paste-Echo.
+
+### Tests
+- 16 neue Vitest-Tests in `SessionTerminal.test.tsx` für
+  Clipboard-Plugin-Pfade, Right-Click-Suppression, Paste-Dedup,
+  case-insensitive Key-Handling, Shift+Ctrl+V-Compat, sowie die
+  Option-A-Config-Optionen (xterm-Konstruktor-Args, onData-Auto-Scroll).
+  1 neuer Cargo-Test als `include_str!`-Source-Pin für die
+  `CLAUDE_CODE_NO_FLICKER`-Spawn-Zeile.
+- Regression-Eigenschaft jeder Fix-Phase (A + B + Hot-Fix) durch
+  temporären Revert verifiziert: jeweils nur der gezielte Test wird rot,
+  alle anderen bleiben grün.
+
+### Dokumentation
+- `reports/session-scroll-multi-agent-analyse-v1.6.26.md` — 4-Agent-Analyse
+  + ranked Hypothesen + Test-Matrix (Marp, MD/HTML/PDF/PPTX).
+- `reports/clipboard-rightclick-multi-agent-analyse-v1.6.26.md` —
+  4-Agent-Analyse für Right-Click + Ctrl+V (Marp, MD/HTML/PDF/PPTX).
+
+### Bekannte Tech-Debt-Items für v1.7+
+- `SessionTerminal.tsx`-useEffect ist mit ~210 LoC und mehreren Concerns
+  am Limit der Wartbarkeit — Custom-Hook-Extraktion vorgesehen.
+- `PASTE_DEDUP_WINDOW_MS = 150` ist ein empirischer Wert; die saubere
+  strukturelle Lösung wäre, das DOM-paste-Event an der Helper-Textarea
+  zu blockieren statt eines Time-Windows.
+- AltGr-Modifier-Härtung in den Custom-Key-Handlern (deutsche Tastatur:
+  AltGr = Ctrl+Alt) — niedriges Real-World-Risiko, kann in v1.6.28.
+
 ## [1.6.26] — 2026-04-23 — "Kanban v2 + Bugfix-Sprint + Session Scroll History Fix"
 
 > Reconcile-Release: Kanban-Migration auf GitHub Projects v2, v1.6.25-Bugfix-Sprint

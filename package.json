@@ -1,7 +1,7 @@
 {
   "name": "agenticexplorer",
   "private": false,
-  "version": "1.6.26",
+  "version": "1.6.27",
   "type": "module",
   "description": "Desktop app for managing and monitoring multiple Claude CLI sessions",
   "author": "hossoOG",
