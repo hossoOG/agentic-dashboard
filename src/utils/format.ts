@@ -19,24 +19,32 @@ export function formatMs(ms: number): string {
 }
 
 /**
- * Format an elapsed duration as `mm:ss`.
+ * Format an elapsed duration as `mm:ss` (or `h:mm:ss` once it crosses 1h).
  *
  * Accepts milliseconds (not seconds) for symmetry with `Date.now()` deltas
  * and our Tauri payloads. Examples:
- *   formatElapsed(0)       → "0:00"
- *   formatElapsed(134_000) → "2:14"
- *   formatElapsed(65_000)  → "1:05"
+ *   formatElapsed(0)            → "0:00"
+ *   formatElapsed(65_000)       → "1:05"
+ *   formatElapsed(134_000)      → "2:14"
+ *   formatElapsed(3_600_000)    → "1:00:00"
+ *   formatElapsed(10_800_000)   → "3:00:00"
  *
- * For durations ≥ 1h the minute-field simply grows (`73:05`) — we do not
- * switch to `h:mm:ss`, since all current call-sites cap out well below 1h
- * and switching formats mid-flight would break alignment in status bars.
+ * Multi-hour Claude sessions and long-running pipeline runs are real, so
+ * `mm:ss` overflows like `180:00` are not acceptable in history/metrics
+ * views. Live status bars naturally stay below 1h and are unaffected.
  */
 export function formatElapsed(ms: number): string {
   if (!Number.isFinite(ms) || ms < 0) return "0:00";
   const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  const ss = seconds.toString().padStart(2, "0");
+  if (hours > 0) {
+    const mm = minutes.toString().padStart(2, "0");
+    return `${hours}:${mm}:${ss}`;
+  }
+  return `${minutes}:${ss}`;
 }
 
 /**
