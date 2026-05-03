@@ -36,8 +36,8 @@ export function SessionStatusDot({
   switch (status) {
     case "starting":
       if (activityLevel === "idle") {
-        // Sky-blue: process started but no output yet — "passiv"
-        return <span className={`${dot} rounded-full bg-sky-500 shrink-0`} />;
+        // Info-blue: process started but no output yet — "passiv"
+        return <span className={`${dot} rounded-full bg-info shrink-0`} />;
       }
       return (
         <span className={`${dot} rounded-full bg-success status-breathe-animation shrink-0`} />
@@ -45,8 +45,8 @@ export function SessionStatusDot({
 
     case "running":
       if (activityLevel === "idle") {
-        // Sky-blue: Claude has been silent for >30s — "passiv"
-        return <span className={`${dot} rounded-full bg-sky-500 shrink-0`} />;
+        // Info-blue: Claude has been silent for >30s — "passiv"
+        return <span className={`${dot} rounded-full bg-info shrink-0`} />;
       }
       // active — green pulse
       return (

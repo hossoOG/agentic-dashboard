@@ -16,8 +16,6 @@ export function SessionStatusBar() {
   let activeCount = 0;
   let passiveCount = 0;
   let waitingCount = 0;
-  let doneCount = 0;
-  let errorCount = 0;
 
   for (const s of sessions) {
     if (s.status === "starting" || s.status === "running") {
@@ -28,10 +26,6 @@ export function SessionStatusBar() {
       }
     } else if (s.status === "waiting") {
       waitingCount++;
-    } else if (s.status === "done") {
-      doneCount++;
-    } else if (s.status === "error") {
-      errorCount++;
     }
   }
 
@@ -44,7 +38,7 @@ export function SessionStatusBar() {
         </span>
         <span className="text-neutral-600" aria-hidden="true">·</span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-sky-500" aria-hidden="true" />
+          <span className="w-2 h-2 rounded-full bg-info" aria-hidden="true" />
           <span className="text-neutral-400">{passiveCount} passiv</span>
         </span>
         <span className="text-neutral-600" aria-hidden="true">·</span>
