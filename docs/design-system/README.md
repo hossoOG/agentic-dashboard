@@ -31,7 +31,7 @@ Design system for **AgenticExplorer** — a Tauri v2 + React desktop application
 | [`colors_and_type.css`](colors_and_type.css) | All CSS variables — colors (light + dark), fonts, spacing, motion, semantic classes |
 | [`SKILL.md`](SKILL.md) | Skill front-matter for portable agent use |
 | [`preview/`](preview/) | Small HTML cards that populate the Design System tab |
-| [`ui_kits/agentic-explorer/`](ui_kits/agentic-explorer/) | High-fidelity React recreations of the desktop shell + 3 core views |
+| [`ui-kit/`](ui-kit/) | High-fidelity React recreations of the desktop shell + 3 core views |
 | [`assets/`](assets/) | Logo placeholder, icon references |
 
 ---
@@ -200,7 +200,7 @@ Design system for **AgenticExplorer** — a Tauri v2 + React desktop application
 
 | Product | Path | What it covers |
 |---------|------|----------------|
-| AgenticExplorer Desktop | [`ui_kits/agentic-explorer/`](ui_kits/agentic-explorer/) | Full desktop shell with SideNav, interactive Sessions view (click to activate, hover actions), Pipeline live tab with task tree, Kanban board |
+| AgenticExplorer Desktop | [`ui-kit/`](ui-kit/) | Full desktop shell with SideNav, interactive Sessions view (click to activate, hover actions), Pipeline live tab with task tree, Kanban board |
 
 ---
 

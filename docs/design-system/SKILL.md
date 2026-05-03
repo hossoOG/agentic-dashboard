@@ -13,7 +13,7 @@ If the user invokes this skill without any other guidance, ask them what they wa
 Key files:
 - `README.md` — brand context, CONTENT FUNDAMENTALS, VISUAL FOUNDATIONS, ICONOGRAPHY
 - `colors_and_type.css` — all CSS variables (light + dark), semantic type classes, glow utilities
-- `ui_kits/agentic-explorer/` — React components for SideNav, SessionCard, KanbanCard, Panel, Button, Toast, etc.
+- `ui-kit/` — React components for SideNav, SessionCard, KanbanCard, Panel, Button, Toast, etc.
 - `preview/` — small HTML cards showing every visual primitive in isolation
 
 Non-negotiable rules:
