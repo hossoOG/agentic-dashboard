@@ -1,15 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { GridCell } from "./GridCell";
+import { GridCellChrome, GridCell } from "./GridCell";
 import { useSessionStore } from "../../store/sessionStore";
 import type { ClaudeSession } from "../../store/sessionStore";
-
-// Mock SessionTerminal to avoid xterm.js in jsdom
-vi.mock("./SessionTerminal", () => ({
-  SessionTerminal: ({ sessionId }: { sessionId: string }) => (
-    <div data-testid={`terminal-${sessionId}`}>Terminal</div>
-  ),
-}));
 
 // Mock useNowTick to return a stable timestamp
 vi.mock("../../hooks/useNowTick", () => ({
@@ -32,7 +25,7 @@ function makeSession(overrides: Partial<ClaudeSession> = {}): ClaudeSession {
   };
 }
 
-describe("GridCell", () => {
+describe("GridCellChrome", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useSessionStore.setState({
@@ -41,9 +34,9 @@ describe("GridCell", () => {
     });
   });
 
-  it("renders session title and terminal", () => {
+  it("renders session title (Terminal lives outside the chrome now)", () => {
     render(
-      <GridCell
+      <GridCellChrome
         sessionId="cell-1"
         isFocused={false}
         onFocus={vi.fn()}
@@ -53,14 +46,15 @@ describe("GridCell", () => {
     );
 
     expect(screen.getByText("Grid Session")).toBeTruthy();
-    expect(screen.getByTestId("terminal-cell-1")).toBeTruthy();
+    // Scroll-Bug-Fix: Terminal darf NICHT innerhalb des Chrome-Elements leben.
+    expect(screen.queryByTestId("terminal-cell-1")).toBeNull();
   });
 
   it("uses fallback title when session not found", () => {
     useSessionStore.setState({ sessions: [] });
 
     render(
-      <GridCell
+      <GridCellChrome
         sessionId="missing"
         isFocused={false}
         onFocus={vi.fn()}
@@ -72,10 +66,10 @@ describe("GridCell", () => {
     expect(screen.getByText("Session")).toBeTruthy();
   });
 
-  it("calls onFocus when cell is clicked", () => {
+  it("calls onFocus when chrome is clicked", () => {
     const onFocus = vi.fn();
     render(
-      <GridCell
+      <GridCellChrome
         sessionId="cell-1"
         isFocused={false}
         onFocus={onFocus}
@@ -92,7 +86,7 @@ describe("GridCell", () => {
     const onFocus = vi.fn();
     const onMaximize = vi.fn();
     render(
-      <GridCell
+      <GridCellChrome
         sessionId="cell-1"
         isFocused={false}
         onFocus={onFocus}
@@ -103,12 +97,13 @@ describe("GridCell", () => {
 
     fireEvent.click(screen.getByLabelText("Maximieren"));
     expect(onMaximize).toHaveBeenCalledTimes(1);
+    expect(onFocus).not.toHaveBeenCalled();
   });
 
   it("calls onRemove when remove button is clicked", () => {
     const onRemove = vi.fn();
     render(
-      <GridCell
+      <GridCellChrome
         sessionId="cell-1"
         isFocused={false}
         onFocus={vi.fn()}
@@ -123,7 +118,7 @@ describe("GridCell", () => {
 
   it("applies focused border styling when isFocused is true", () => {
     const { container } = render(
-      <GridCell
+      <GridCellChrome
         sessionId="cell-1"
         isFocused={true}
         onFocus={vi.fn()}
@@ -132,13 +127,13 @@ describe("GridCell", () => {
       />,
     );
 
-    const cell = container.firstChild as HTMLElement;
-    expect(cell.className).toContain("border-accent");
+    const chrome = container.firstChild as HTMLElement;
+    expect(chrome.className).toContain("border-accent");
   });
 
   it("applies neutral border styling when isFocused is false", () => {
     const { container } = render(
-      <GridCell
+      <GridCellChrome
         sessionId="cell-1"
         isFocused={false}
         onFocus={vi.fn()}
@@ -147,7 +142,11 @@ describe("GridCell", () => {
       />,
     );
 
-    const cell = container.firstChild as HTMLElement;
-    expect(cell.className).toContain("border-neutral-700");
+    const chrome = container.firstChild as HTMLElement;
+    expect(chrome.className).toContain("border-neutral-700");
+  });
+
+  it("GridCell-Alias verweist auf GridCellChrome (Backwards-Compat)", () => {
+    expect(GridCell).toBe(GridCellChrome);
   });
 });

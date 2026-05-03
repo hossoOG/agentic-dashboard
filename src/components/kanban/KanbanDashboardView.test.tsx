@@ -25,7 +25,6 @@ vi.mock("./KanbanBoard", () => ({
 const mockInvoke = vi.mocked(invoke);
 const GIT_INFO_OK = { branch: "main", remote_url: "", last_commit: null };
 
-
 // ── Helpers ───────────────────────────────────────────────────────────
 
 /** Click the "Projekt" toggle button to switch from global to folder mode. */
@@ -59,7 +58,6 @@ function makeFavorite(id: string, path: string, label: string) {
   };
 }
 
-
 // ── Tests ─────────────────────────────────────────────────────────────
 
 describe("KanbanDashboardView", () => {
@@ -82,7 +80,6 @@ describe("KanbanDashboardView", () => {
 
     expect(screen.getByText("Global")).toBeTruthy();
     expect(screen.getByText("Projekt")).toBeTruthy();
-
 
     const board = screen.getByTestId("kanban-board");
     expect(board.textContent).toBe("__global__");

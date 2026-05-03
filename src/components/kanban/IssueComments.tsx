@@ -2,6 +2,7 @@ import { MessageSquare } from "lucide-react";
 import { MarkdownBody } from "../editor/MarkdownPreview";
 
 export interface IssueComment {
+  id: string;
   author: string;
   body: string;
   created_at: string;
@@ -23,7 +24,7 @@ export function IssueComments({ comments, formatDate }: IssueCommentsProps) {
       </div>
       {comments.map((comment) => (
         <div
-          key={`${comment.author}-${comment.created_at}`}
+          key={comment.id}
           className="bg-surface-raised border border-neutral-700/50 rounded-sm p-3"
         >
           <div className="flex items-center justify-between mb-2">

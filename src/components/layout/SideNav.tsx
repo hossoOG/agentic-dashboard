@@ -1,28 +1,25 @@
 import { useState } from "react";
-import type { LucideIcon } from "lucide-react";
+import {
+  Monitor, Columns3, ScrollText, BookOpen, FileEdit,
+  Sun, Moon, Check, RefreshCw, ArrowDownCircle, AlertCircle, ExternalLink,
+} from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useUIStore, type ActiveTab } from "../../store/uiStore";
 import { useSettingsStore } from "../../store/settingsStore";
 import { NotesPanel } from "../shared/NotesPanel";
 import { ChangelogDialog } from "../shared/ChangelogDialog";
-import { UpdateNotification } from "../shared/UpdateNotification";
 import { useAutoUpdate } from "../../hooks/useAutoUpdate";
 import { version } from "../../../package.json";
 import { logError } from "../../utils/errorLogger";
-import { ICONS, ICON_SIZE } from "../../utils/icons";
 
 function StatusIcon({ status }: { status: string }) {
   switch (status) {
-    case "available":
-    case "downloading":
-    case "ready": {
-      const Available = ICONS.update.available;
-      return <Available className={`${ICON_SIZE.inline} text-accent status-pulse-animation`} />;
-    }
-    case "error": {
-      const Err = ICONS.update.error;
-      return <Err className={`${ICON_SIZE.inline} text-red-400`} />;
-    }
+    case "checking":
+      return <RefreshCw className="w-3.5 h-3.5 text-neutral-400 animate-spin" />;
+    case "upToDate":
+      return <Check className="w-3.5 h-3.5 text-emerald-400" />;
+    case "error":
+      return <AlertCircle className="w-3.5 h-3.5 text-red-400" />;
     default:
       return null;
   }
@@ -31,7 +28,7 @@ function StatusIcon({ status }: { status: string }) {
 interface NavItem {
   id: ActiveTab;
   label: string;
-  icon: LucideIcon;
+  icon: typeof Monitor;
   badge?: number;
 }
 
@@ -44,27 +41,24 @@ export function SideNav({ badges = {} }: SideNavProps) {
   const mode = useSettingsStore((s) => s.theme.mode);
   const setTheme = useSettingsStore((s) => s.setTheme);
   const [showChangelog, setShowChangelog] = useState(false);
-  const { status, progress, error, newVersion, lastChecked, checkForUpdate, downloadAndInstall, confirmRelaunch, dismiss } = useAutoUpdate();
+  const { status, progress, newVersion, lastChecked, checkForUpdate, downloadAndInstall, confirmRelaunch } = useAutoUpdate();
 
   const statusTitle = lastChecked
     ? `Version ${version} — Zuletzt geprüft: ${lastChecked.toLocaleTimeString("de-DE")}`
     : `Version ${version}`;
 
   const topItems: NavItem[] = [
-    { id: "sessions", label: "Sitzungen", icon: ICONS.nav.sessions, badge: badges.sessions },
-    { id: "kanban", label: "Kanban", icon: ICONS.nav.kanban, badge: badges.kanban },
-    { id: "library", label: "Bibliothek", icon: ICONS.nav.library, badge: badges.library },
-    { id: "editor", label: "Editor", icon: ICONS.nav.editor, badge: badges.editor },
+    { id: "sessions", label: "Sitzungen", icon: Monitor, badge: badges.sessions },
+    { id: "kanban", label: "Kanban", icon: Columns3, badge: badges.kanban },
+    { id: "library", label: "Bibliothek", icon: BookOpen, badge: badges.library },
+    { id: "editor", label: "Editor", icon: FileEdit, badge: badges.editor },
   ];
 
   const bottomItems: NavItem[] = [
-    { id: "logs", label: "Protokolle", icon: ICONS.nav.logs, badge: badges.logs },
+    { id: "logs", label: "Protokolle", icon: ScrollText, badge: badges.logs },
   ];
 
   const detachableViews = new Set<ActiveTab>(["kanban", "library", "editor"]);
-  const ExternalLinkIcon = ICONS.action.externalLink;
-  const LightIcon = ICONS.theme.light;
-  const DarkIcon = ICONS.theme.dark;
 
   function renderItem(item: NavItem) {
     const isActive = activeTab === item.id;
@@ -85,12 +79,12 @@ export function SideNav({ badges = {} }: SideNavProps) {
           `}
           aria-label={item.label}
         >
-          <Icon className={`${ICON_SIZE.nav} shrink-0`} />
+          <Icon className="w-4 h-4 shrink-0" />
           <span className="text-xs truncate">{item.label}</span>
 
           {/* Badge */}
           {item.badge != null && item.badge > 0 && (
-            <span className="ml-auto min-w-[16px] h-4 flex items-center justify-center rounded-sm bg-error text-white text-[9px] font-bold px-1">
+            <span className="ml-auto min-w-[16px] h-4 flex items-center justify-center rounded-full bg-error text-white text-[9px] font-bold px-1">
               {item.badge > 99 ? "99+" : item.badge}
             </span>
           )}
@@ -109,7 +103,7 @@ export function SideNav({ badges = {} }: SideNavProps) {
             title={`${item.label} in eigenem Fenster öffnen`}
             aria-label={`${item.label} in eigenem Fenster öffnen`}
           >
-            <ExternalLinkIcon className={ICON_SIZE.inline} />
+            <ExternalLink className="w-3 h-3" />
           </button>
         )}
       </div>
@@ -119,16 +113,46 @@ export function SideNav({ badges = {} }: SideNavProps) {
   return (
     <>
       <nav className="flex flex-col w-32 min-w-[128px] bg-surface-base border-r border-neutral-700 py-2 gap-0.5">
-        {/* Logo + Version */}
-        <div className="flex flex-col items-center px-3 pb-2 mb-1 border-b border-neutral-700">
-          <button
-            onClick={() => { checkForUpdate(); setShowChangelog(true); }}
-            className="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-accent transition-colors cursor-pointer font-bold"
-            title={statusTitle}
-          >
-            v{version}
-            <StatusIcon status={status} />
-          </button>
+        {/* Logo + Version Box */}
+        <div className="flex flex-col px-2 pb-2 mb-1 border-b border-neutral-700 min-h-[40px] justify-center">
+          {status === "available" ? (
+            <button
+              onClick={() => { downloadAndInstall(); setShowChangelog(true); }}
+              className="flex items-center justify-center gap-1.5 w-full py-1.5 px-2 bg-accent/10 border border-accent/30 rounded text-accent hover:bg-accent/20 text-[11px] font-bold transition-all shadow-[0_0_8px_rgba(var(--color-accent),0.2)]"
+              title="Klicken, um das Update zu starten"
+            >
+              <ArrowDownCircle className="w-3.5 h-3.5" />
+              Update v{newVersion}
+            </button>
+          ) : status === "downloading" ? (
+            <div className="flex flex-col w-full py-1 px-1.5 gap-1.5 bg-surface-raised rounded border border-neutral-700">
+              <div className="flex items-center justify-between text-[10px] text-neutral-400 font-medium">
+                <span>Laden...</span>
+                <span>{progress}%</span>
+              </div>
+              <div className="w-full h-1 bg-neutral-800 rounded-full overflow-hidden">
+                <div className="h-full bg-accent transition-all duration-300" style={{ width: `${progress}%` }} />
+              </div>
+            </div>
+          ) : status === "ready" ? (
+            <button
+              onClick={confirmRelaunch}
+              className="flex items-center justify-center gap-1.5 w-full py-1.5 px-2 bg-emerald-400/10 border border-emerald-400/30 rounded text-emerald-400 hover:bg-emerald-400/20 text-[11px] font-bold transition-all shadow-[0_0_8px_rgba(52,211,153,0.2)]"
+              title="Klicken, um die App neu zu starten"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Neu starten
+            </button>
+          ) : (
+            <button
+              onClick={() => { checkForUpdate(); setShowChangelog(true); }}
+              className="flex items-center justify-between w-full py-1.5 px-2 rounded-sm hover:bg-hover-overlay text-neutral-400 hover:text-accent transition-colors group"
+              title={statusTitle}
+            >
+              <span className="text-[11px] font-bold tracking-wide">v{version}</span>
+              <StatusIcon status={status} />
+            </button>
+          )}
         </div>
 
         {topItems.map(renderItem)}
@@ -146,9 +170,7 @@ export function SideNav({ badges = {} }: SideNavProps) {
             aria-label={mode === "dark" ? "Light Mode aktivieren" : "Dark Mode aktivieren"}
             title={mode === "dark" ? "Light Mode" : "Dark Mode"}
           >
-            {mode === "dark"
-              ? <LightIcon className={`${ICON_SIZE.nav} shrink-0`} />
-              : <DarkIcon className={`${ICON_SIZE.nav} shrink-0`} />}
+            {mode === "dark" ? <Sun className="w-4 h-4 shrink-0" /> : <Moon className="w-4 h-4 shrink-0" />}
             <span className="text-xs truncate">{mode === "dark" ? "Light" : "Dark"}</span>
           </button>
 
@@ -159,17 +181,6 @@ export function SideNav({ badges = {} }: SideNavProps) {
 
       {/* Dialogs — outside nav to avoid layout interference */}
       <ChangelogDialog open={showChangelog} onClose={() => setShowChangelog(false)} />
-      <UpdateNotification
-        status={status}
-        progress={progress}
-        error={error}
-        newVersion={newVersion}
-        lastChecked={lastChecked}
-        onUpdate={downloadAndInstall}
-        onRelaunch={confirmRelaunch}
-        onRetry={checkForUpdate}
-        onDismiss={dismiss}
-      />
     </>
   );
 }

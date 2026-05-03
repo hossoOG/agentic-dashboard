@@ -31,10 +31,12 @@ export function useSessionEvents(): void {
   const lastOutputTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map(),
   );
+  const outputBuffers = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
     const unlisteners: Array<Promise<() => void>> = [];
     const timers = lastOutputTimers.current;
+    const buffers = outputBuffers.current;
 
     // session-output -> update lastOutput in store
     unlisteners.push(
@@ -44,16 +46,22 @@ export function useSessionEvents(): void {
           const id = event?.payload?.id;
           const data = event?.payload?.data;
           if (typeof id !== "string" || typeof data !== "string") return;
-          const snippet = data.slice(-200);
-          const existing = timers.get(id);
-          if (existing) clearTimeout(existing);
-          timers.set(
-            id,
-            setTimeout(() => {
-              useSessionStore.getState().updateLastOutput(id, snippet);
-              timers.delete(id);
-            }, 300),
-          );
+
+          let currentBuf = buffers.get(id) || "";
+          currentBuf += data;
+          if (currentBuf.length > 500) currentBuf = currentBuf.slice(-500);
+          buffers.set(id, currentBuf);
+
+          if (!timers.has(id)) {
+            timers.set(
+              id,
+              setTimeout(() => {
+                const snippet = buffers.get(id)?.slice(-200) ?? "";
+                useSessionStore.getState().updateLastOutput(id, snippet);
+                timers.delete(id);
+              }, 300),
+            );
+          }
         } catch (err) {
           logError("useSessionEvents.sessionOutput", err);
         }
@@ -187,6 +195,7 @@ export function useSessionEvents(): void {
       );
       timers.forEach((t) => clearTimeout(t));
       timers.clear();
+      buffers.clear();
       // Cancel any pending discovery retries to prevent stale callbacks after unmount
       retryMap.forEach(({ timerId }) => clearTimeout(timerId));
       retryMap.clear();

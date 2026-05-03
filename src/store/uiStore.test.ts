@@ -18,6 +18,8 @@ beforeEach(() => {
     activeTab: "sessions",
     detailPanel: { isOpen: false, type: null, targetId: null },
     toasts: [],
+    libraryScopeOpen: {},
+    librarySectionOpen: {},
   });
 });
 
@@ -178,5 +180,73 @@ describe("toasts", () => {
     const idA = parseInt(a.id.replace("toast-", ""), 10);
     const idB = parseInt(b.id.replace("toast-", ""), 10);
     expect(idB).toBeGreaterThan(idA);
+  });
+});
+
+// ============================================================================
+// libraryScopeOpen — persists per scope
+// ============================================================================
+
+describe("libraryScopeOpen_setScopeOpen_persists_per_scope", () => {
+  it("defaults to empty record", () => {
+    expect(getState().libraryScopeOpen).toEqual({});
+  });
+
+  it("sets a scope open state", () => {
+    getState().setLibraryScopeOpen("global", true);
+    expect(getState().libraryScopeOpen["global"]).toBe(true);
+  });
+
+  it("sets a scope closed state", () => {
+    getState().setLibraryScopeOpen("global", true);
+    getState().setLibraryScopeOpen("global", false);
+    expect(getState().libraryScopeOpen["global"]).toBe(false);
+  });
+
+  it("tracks multiple scopes independently", () => {
+    getState().setLibraryScopeOpen("global", true);
+    getState().setLibraryScopeOpen("project:/foo/bar", false);
+    getState().setLibraryScopeOpen("fav:fav-123", true);
+    expect(getState().libraryScopeOpen["global"]).toBe(true);
+    expect(getState().libraryScopeOpen["project:/foo/bar"]).toBe(false);
+    expect(getState().libraryScopeOpen["fav:fav-123"]).toBe(true);
+  });
+
+  it("unknown scope returns undefined (component falls back to defaultOpen)", () => {
+    expect(getState().libraryScopeOpen["unknown-scope"]).toBeUndefined();
+  });
+});
+
+// ============================================================================
+// librarySectionOpen — persists per key
+// ============================================================================
+
+describe("librarySectionOpen_setSectionOpen_persists_per_key", () => {
+  it("defaults to empty record", () => {
+    expect(getState().librarySectionOpen).toEqual({});
+  });
+
+  it("sets a section open state", () => {
+    getState().setLibrarySectionOpen("global:skills", true);
+    expect(getState().librarySectionOpen["global:skills"]).toBe(true);
+  });
+
+  it("sets a section closed state", () => {
+    getState().setLibrarySectionOpen("global:skills", true);
+    getState().setLibrarySectionOpen("global:skills", false);
+    expect(getState().librarySectionOpen["global:skills"]).toBe(false);
+  });
+
+  it("tracks multiple sections independently", () => {
+    getState().setLibrarySectionOpen("global:skills", true);
+    getState().setLibrarySectionOpen("global:agents", false);
+    getState().setLibrarySectionOpen("project:hooks", true);
+    expect(getState().librarySectionOpen["global:skills"]).toBe(true);
+    expect(getState().librarySectionOpen["global:agents"]).toBe(false);
+    expect(getState().librarySectionOpen["project:hooks"]).toBe(true);
+  });
+
+  it("unknown key returns undefined (component falls back to defaultOpen)", () => {
+    expect(getState().librarySectionOpen["nonexistent:key"]).toBeUndefined();
   });
 });

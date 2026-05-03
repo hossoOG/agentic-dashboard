@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useUIStore } from "../../store/uiStore";
 import {
   BookOpen,
   RefreshCw,
@@ -94,22 +95,25 @@ function Section({
   title,
   count,
   defaultOpen = false,
+  sectionKey,
   children,
 }: {
   icon: typeof Zap;
   title: string;
   count: number;
   defaultOpen?: boolean;
+  sectionKey: string;
   children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const open = useUIStore((s) => s.librarySectionOpen[sectionKey] ?? defaultOpen);
+  const setLibrarySectionOpen = useUIStore((s) => s.setLibrarySectionOpen);
 
   if (count === 0) return null;
 
   return (
     <div className="border-b border-neutral-800 last:border-b-0">
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => setLibrarySectionOpen(sectionKey, !open)}
         className="w-full flex items-center gap-2 px-3 py-2 hover:bg-hover-overlay transition-colors"
       >
         {open ? (
@@ -185,7 +189,7 @@ function AgentCard({ agent }: { agent: DiscoveredAgent }) {
           <span className="text-xs font-semibold text-neutral-200">
             {agent.name}
           </span>
-          <span className="text-[10px] px-1.5 rounded-sm bg-purple-500/15 text-purple-400 ml-auto shrink-0">
+          <span className="text-[10px] px-1.5 rounded-full bg-purple-500/15 text-purple-400 ml-auto shrink-0">
             {agent.model}
           </span>
         </div>
@@ -269,16 +273,19 @@ function ScopePanel({
   config,
   label,
   icon: Icon,
+  scopeId,
   folder,
 }: {
   scope: ConfigScope;
   config: ScopeConfig;
   label: string;
   icon: typeof Globe;
+  scopeId: string;
   /** Unique key used to namespace the content cache — must be unique per panel */
   folder: string;
 }) {
-  const [open, setOpen] = useState(false);
+  const open = useUIStore((s) => s.libraryScopeOpen[scopeId] ?? false);
+  const setLibraryScopeOpen = useUIStore((s) => s.setLibraryScopeOpen);
 
   const hasContent =
     config.skills.length > 0 ||
@@ -296,9 +303,9 @@ function ScopePanel({
   const claudeMdLoader = useCallback(async () => config.claudeMd, [config.claudeMd]);
 
   return (
-    <div className="border border-neutral-700 rounded-none overflow-hidden bg-surface-raised">
+    <div className="border border-neutral-700 rounded-lg overflow-hidden bg-surface-raised">
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => setLibraryScopeOpen(scopeId, !open)}
         className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-hover-overlay transition-colors"
       >
         {open ? (
@@ -321,6 +328,7 @@ function ScopePanel({
             icon={Zap}
             title="Skills"
             count={config.skills.length}
+            sectionKey={`${scopeId}:skills`}
           >
             {config.skills.map((s) => (
               <SkillCard key={`${s.scope}-${s.dirName}`} skill={s} />
@@ -331,6 +339,7 @@ function ScopePanel({
             icon={Bot}
             title="Agents"
             count={config.agents.length}
+            sectionKey={`${scopeId}:agents`}
           >
             {config.agents.map((a) => (
               <AgentCard key={`${a.scope}-${a.name}`} agent={a} />
@@ -341,6 +350,7 @@ function ScopePanel({
             icon={Webhook}
             title="Hooks"
             count={config.hooks.length}
+            sectionKey={`${scopeId}:hooks`}
           >
             {config.hooks.map((h, i) => (
               <HookCard key={`${h.scope}-${h.event}-${i}`} hook={h} />
@@ -348,7 +358,7 @@ function ScopePanel({
           </Section>
 
           {config.settingsRaw && (
-            <Section icon={Settings} title="Settings" count={1}>
+            <Section icon={Settings} title="Settings" count={1} sectionKey={`${scopeId}:settings`}>
               <ContentPreview
                 title="settings.json"
                 contentKey={settingsContentKey}
@@ -358,7 +368,7 @@ function ScopePanel({
           )}
 
           {config.claudeMd && (
-            <Section icon={FileText} title="CLAUDE.md" count={1}>
+            <Section icon={FileText} title="CLAUDE.md" count={1} sectionKey={`${scopeId}:claude-md`}>
               <ContentPreview
                 title="CLAUDE.md"
                 contentKey={claudeMdContentKey}
@@ -372,6 +382,7 @@ function ScopePanel({
               icon={Brain}
               title="Memory"
               count={config.memoryFiles.length}
+              sectionKey={`${scopeId}:memory`}
             >
               {config.memoryFiles.map((f) => (
                 <MemoryFileCard key={f.relativePath} file={f} />
@@ -436,10 +447,10 @@ export function LibraryView() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-700 bg-surface-raised shrink-0">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-700 bg-surface-raised shrink-0">
         <div className="flex items-center gap-2">
           <BookOpen className="w-4 h-4 text-accent" />
-          <h1 className="text-sm font-semibold text-neutral-200 uppercase tracking-widest">
+          <h1 className="text-sm font-semibold text-neutral-200">
             Library
           </h1>
         </div>
@@ -479,6 +490,7 @@ export function LibraryView() {
                 config={globalConfig}
                 label="Global (~/.claude/)"
                 icon={Globe}
+                scopeId="global"
                 folder="global"
               />
             )}
@@ -490,6 +502,7 @@ export function LibraryView() {
                 config={projectConfig}
                 label={`Projekt (${folder.split(/[\\/]/).pop() ?? folder})`}
                 icon={FolderOpen}
+                scopeId={`project:${folder}`}
                 folder={folder}
               />
             )}
@@ -507,6 +520,7 @@ export function LibraryView() {
                     config={config}
                     label={`${fav.label} (${fav.path.split(/[\\/]/).pop() ?? fav.path})`}
                     icon={FolderOpen}
+                    scopeId={`fav:${fav.id}`}
                     folder={fav.path}
                   />
                 );

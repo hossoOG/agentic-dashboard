@@ -4,15 +4,143 @@ Alle relevanten Änderungen an AgenticExplorer werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
-## [1.6.25] — 2026-04-17 — "Update-Indicator-Cleanup"
+## [1.6.27] — 2026-04-27 — "Clipboard Plugin + Scroll-History Hardening"
 
-### Fixes
-- **UpdateNotification**: "Aktuell"-Toast entfernt — Komponente rendert nur noch bei tatsächlich verfügbarem Update, laufendem Download, installierbarem Update oder Fehler
-- **useAutoUpdate**: Setzt Status nach `upToDate` automatisch nach 800 ms auf `idle` zurück (lastChecked bleibt erhalten)
-- **SideNav StatusIcon**: Zeigt Icon neben Versionsnummer nur noch wenn Update verfügbar oder Fehler — kein Spinner beim Prüfen, kein grüner Haken wenn aktuell
-- **Kanban**: Branch-Chip je Zelle, Sky-Blue Dot für passive Sessions, Library-Cache-Kollision behoben, Nicht-Git-Ordner aus Kanban-Folder-Picker gefiltert
-- **Config-Panel**: Leere Kontext-Tabs werden ausgeblendet (Skills/Hooks/Settings/Agents/claude-md)
-- **Terminal**: Eigener Ctrl+V-Handler entfernt — kollidierte mit xterm Native-Paste
+> Quick-Patch nach v1.6.26: zwei Multi-Agent-Analysen haben weitere
+> Layer-Probleme jenseits des in v1.6.26 gelösten Remount-Bugs identifiziert.
+> Diese Release adressiert (a) Scrollback-Zerstörung durch Claude-Codes
+> v2.1.89+ Flicker-Free-Modus, (b) das WebView2-Default-Kontextmenü beim
+> Rechtsklick im Terminal, und (c) das Fehlen eines funktionierenden
+> Ctrl+V-Pfades in xterm.js v6 unter Tauri.
+
+### Added
+- **Tauri-Plugin `tauri-plugin-clipboard-manager` v2.3.2** für nativen
+  Clipboard-Zugriff. Ersetzt die in WebView2 unzuverlässige
+  `navigator.clipboard.*`-API. Granulare Permissions
+  `clipboard-manager:allow-read-text` + `-write-text`
+  (statt der breiteren `default`-Variante).
+
+### Fixed
+- **Sessions: Claude-Code-Scrollback bleibt während langer Antworten erhalten.**
+  `CLAUDE_CODE_NO_FLICKER=0` Env-Var beim PTY-Spawn deaktiviert das
+  v2.1.89+ Flicker-Free-Rendering, das in xterm.js+Tauri-WebView2 den
+  Scrollback zerstörte (Banner erschien mehrfach, Zeilen wurden
+  überschrieben statt gescrollt). Ref: anthropics/claude-code#41965.
+- **UI: xterm.js für ConPTY und entkoppelten Auto-Scroll konfiguriert.**
+  `convertEol: true` (Stair-Step-Output von Node-Kindern weg),
+  `scrollOnUserInput: false` mit manueller `scrollToBottom`-Steuerung in
+  `onData` (Auto-Scroll respektiert jetzt aktives Scrollback-Lesen),
+  `windowsPty: { backend: 'conpty', buildNumber: 19041 }` für korrekte
+  ConPTY-Wrap-Heuristik. Ref: xtermjs/xterm.js#2666.
+- **UI: Rechtsklick im Terminal zeigt nicht mehr das WebView2-Page-Menü.**
+  Globaler `contextmenu`-Listener auf den Terminal-Container mit
+  `preventDefault` — scoped, sodass Sidebar / App-Chrome ihr normales
+  Editor-Kontextmenü behalten.
+- **UI: Ctrl+V funktioniert wie in der nativen Windows-Konsole.**
+  xterm v6 hat keinen Built-in-Ctrl+V-Keydown-Pfad — der Custom-Handler
+  liest jetzt das System-Clipboard via Plugin und schreibt direkt an
+  die PTY. Shift+Ctrl+V bleibt unangetastet als Linux-Compat-Pfad.
+  Case-insensitive `event.key` schützt vor Capslock-Bugs.
+- **UI: Ctrl+C kopiert über das Tauri-Plugin** statt
+  `navigator.clipboard.writeText`, das in WebView2 still scheitern konnte.
+  Failures erscheinen jetzt als sichtbarer Toast (`uiStore.addToast`)
+  statt nur im Logfile.
+- **UI: Ctrl+V wird nicht mehr doppelt eingefügt.**
+  WebView2 dispatched für Ctrl+V *sowohl* ein keydown- *als auch* ein
+  separates paste-DOM-Event; xterm's Helper-Textarea routete das
+  paste-Event durch `term.onData`, parallel zum Custom-Handler.
+  Ein synchroner Marker (gesetzt vor dem async `readText`) plus ein
+  150 ms-Skip-Window in `term.onData` filtert den DOM-paste-Echo.
+
+### Tests
+- 16 neue Vitest-Tests in `SessionTerminal.test.tsx` für
+  Clipboard-Plugin-Pfade, Right-Click-Suppression, Paste-Dedup,
+  case-insensitive Key-Handling, Shift+Ctrl+V-Compat, sowie die
+  Option-A-Config-Optionen (xterm-Konstruktor-Args, onData-Auto-Scroll).
+  1 neuer Cargo-Test als `include_str!`-Source-Pin für die
+  `CLAUDE_CODE_NO_FLICKER`-Spawn-Zeile.
+- Regression-Eigenschaft jeder Fix-Phase (A + B + Hot-Fix) durch
+  temporären Revert verifiziert: jeweils nur der gezielte Test wird rot,
+  alle anderen bleiben grün.
+
+### Dokumentation
+- `reports/session-scroll-multi-agent-analyse-v1.6.26.md` — 4-Agent-Analyse
+  + ranked Hypothesen + Test-Matrix (Marp, MD/HTML/PDF/PPTX).
+- `reports/clipboard-rightclick-multi-agent-analyse-v1.6.26.md` —
+  4-Agent-Analyse für Right-Click + Ctrl+V (Marp, MD/HTML/PDF/PPTX).
+
+### Bekannte Tech-Debt-Items für v1.7+
+- `SessionTerminal.tsx`-useEffect ist mit ~210 LoC und mehreren Concerns
+  am Limit der Wartbarkeit — Custom-Hook-Extraktion vorgesehen.
+- `PASTE_DEDUP_WINDOW_MS = 150` ist ein empirischer Wert; die saubere
+  strukturelle Lösung wäre, das DOM-paste-Event an der Helper-Textarea
+  zu blockieren statt eines Time-Windows.
+- AltGr-Modifier-Härtung in den Custom-Key-Handlern (deutsche Tastatur:
+  AltGr = Ctrl+Alt) — niedriges Real-World-Risiko, kann in v1.6.28.
+
+## [1.6.26] — 2026-04-23 — "Kanban v2 + Bugfix-Sprint + Session Scroll History Fix"
+
+> Reconcile-Release: Kanban-Migration auf GitHub Projects v2, v1.6.25-Bugfix-Sprint
+> vom Heim-Rechner, **plus** Session-Scroll-History-Fix (Multi-Agent-Analyse identifizierte
+> architektonischen Root-Cause: Ternary in SessionManagerView erzwang Remount aller
+> SessionTerminals beim Layout-Switch). Design-System-Intake weiterhin zurückgestellt
+> auf v1.6.27.
+
+### Added
+- Kanban: Migration auf GitHub Projects v2 (ersetzt Label-Pseudo-Kanban)
+- Kanban: Global Board Mode mit Cross-Repo-Issue-Details
+- Kanban: GraphQL Single-Call Enrichment (Assignees + Labels)
+- UI: Grid-Mode Branch-Chip pro Zelle (#230)
+- UI: Inline Update-Button in Sidebar mit Download-Progress + Relaunch
+- Status: active/idle-Split im StatusBar via getActivityLevel + useNowTick
+- Config: #192 leere Kontext-Tabs ausblenden + git-Repo-Detection
+- **Sessions: Neuer Utility-Modul `sessionGridLayout.ts` (GRID_AREAS, getGridStyle, SINGLE_LAYOUT_STYLE)** — entkoppelt Layout-Berechnung von Rendering
+- **Backend: Neuer Tauri-Command `check_project_presence(folder)`** — liefert `{ has_git, has_github, remote_url }` in <50ms ohne gh-CLI-Roundtrip
+
+### Fixed
+- Terminal: xterm Ctrl+V Paste kollidiert nicht mehr mit Custom-Handler
+- Terminal: initial fit erst nach document.fonts.ready
+- CLAUDE.md: Linked-Worktree Root-Resolution (resolve_project_root)
+- Library: ScopePanel/Section Persistenz, Cache-Collision-Fix, Collapse-by-default
+- Sessions: Idle-Dot sky-blue, konsistente Error-Surface (Clipboard/Resize)
+- Sessions: Rolling 500-Byte Output-Buffer gegen abgehackte Previews
+- Sessions: Scroll-Verlauf überlebt Tab-Switch (always-mounted Terminals, `8b820f5`)
+- **Sessions: Scroll-History überlebt jetzt auch Layout-Switch (Single ↔ Grid).** Ternary `layoutMode === "single" ? <single-tree> : <grid-tree>` in SessionManagerView durch **einen** CSS-Grid-Baum ersetzt — alle SessionTerminals leben jetzt in einer stabilen JSX-Position, React remountet sie nicht mehr bei Layout-Wechsel. xterm-Instanz + Scrollback-Puffer bleiben über beliebig viele Switches erhalten.
+- **Sessions: Config-Tabs GitHub/Worktrees/Kanban werden bei Projekten ohne `.git`-Repo bzw. ohne github.com-Remote ausgeblendet.** `requiresPresence`-Pattern aus context-Gruppe auf project-Gruppe erweitert. Keine toten Klicks mehr auf "Kein Git-Repository"-Fehlerseiten.
+- **Sessions: Async `unlistenPromise`-Cleanup in SessionTerminal loggt Fehler jetzt via `logError` statt stummem `.catch(() => {})`.** Zombie-Tauri-Listener werden jetzt sichtbar, falls sie auftreten.
+- Kanban: Non-Git-Folder-Filter (#196), PointerEvent-Cleanup bei Unmount, stabile React-Keys
+- GitHub: Pagination-Loop max_pages-Guard (Schutz gegen malformed API)
+- Store: agentStore räumt selectedAgentId + bottomPanelCollapsed beim Session-Close
+
+### Refactored
+- **Sessions: `SessionGrid.tsx` entfernt** — Grid-Layout-Verantwortung wandert vollständig in `SessionManagerView`. `GRID_AREAS` + `getGridStyle` nach neuem Utility-Modul extrahiert.
+- **Sessions: `GridCell` umgebaut zu `GridCellChrome`** — rendert nur noch die Title-Bar (Status-Dot, Git-Branch-Chip, Maximize/Remove). SessionTerminal wird nicht mehr aus GridCell heraus gemountet, sondern ausschließlich aus SessionManagerView. `GridCell`-Alias bleibt für Backwards-Compat.
+
+### Performance
+- useShallow in StatusBar + Session-Counts (verhindert 100/s Re-Renders)
+- ActivityDot als separate Komponente extrahiert
+
+### Tests
+- E2E-Playwright-Suite mit Tauri-IPC-Mock (6 Specs)
+- Cross-Store-Integrationstests (session + agent + ui)
+- localStorage-Polyfill für jsdom 25
+- **Regression-Test: Layout-Switch Single→Grid→Single unmountet SessionTerminal NICHT** (erweitert `c8d64d3` um Layout-Pfad)
+- **Regression-Test: `data-session-wrapper`-Divs sind dieselben DOM-Nodes vor und nach Layout-Switch**
+- **Regression-Test: Grid-Mode-Visibility — nicht-Grid-Member bleiben gemountet mit `display:none`**
+- **7 Unit-Tests in `sessionGridLayout.test.ts`** (GRID_AREAS-Order, getGridStyle 1..5, Fallback, SINGLE_LAYOUT_STYLE)
+- **3 Rust-Command-Tests** für `check_project_presence` + 3 Helper-Tests für `is_github_remote`
+- **4 Vitest-Tests** in `ConfigPanelTabList.test.tsx` für die neuen `git`/`github`-Presence-Keys
+- Gesamt-Suite: **1074 Tests grün**, plus 299 cargo-Tests grün (clippy clean, typecheck clean)
+
+### Analyse-Artefakte
+- `reports/terminal-scroll-layout-switch-analyse-v1.{md,pptx,pdf,html}` — 30-Slide Multi-Agent-Analyse des Layout-Switch-Bugs (Root-Cause, drei Fix-Optionen, ranked Hypothesen)
+- `praesentation/` — 30-Slide Bug-Analyse des Config-Tab-Bugs (GitHub-Optionen bei Nicht-Git-Projekten)
+
+### Removed / Deferred
+- Design-System-Intake (semantische `.ae-*`-Classes, icon-registry, UPPERCASE-Titles,
+  Panel-Header-Unify, number-format-Standards, 3D-Hover-Pattern): **nicht in v1.6.26
+  enthalten**, wird in v1.6.27 als eigener Zyklus nachgezogen. Quelle:
+  `backup/origin-master-snapshot` + `reports/origin-master-pre-reconcile.bundle`.
 
 ---
 

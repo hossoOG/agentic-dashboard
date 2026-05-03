@@ -1,3 +1,4 @@
+import { useShallow } from "zustand/react/shallow";
 import { useSessionStore, selectActiveSession } from "../../store/sessionStore";
 import { useNowTick } from "../../hooks/useNowTick";
 import { getActivityLevel } from "./activityLevel";
@@ -9,20 +10,27 @@ const SHELL_LABELS: Record<string, string> = {
 };
 
 export function SessionStatusBar() {
-  const sessions = useSessionStore((s) => s.sessions);
+  // useShallow stabilisiert die sessions-Array-Reference, damit der StatusBar
+  // nicht bei jedem Output-Event neu gerendert wird (nur wenn sich die Liste
+  // wirklich ändert). Die idle/active-Unterscheidung braucht die volle Liste,
+  // weshalb wir keinen count-Selector nutzen können.
+  const sessions = useSessionStore(useShallow((s) => s.sessions));
   const activeSession = useSessionStore(selectActiveSession);
   const now = useNowTick();
 
+  // Calculate live counts, differentiating between idle (passiv) and active.
+  // Nach Remote-Design (4a3c3dd) zeigen wir nur aktiv/passiv/wartend — done
+  // und error sind in den per-session-Indikatoren sichtbar.
   let activeCount = 0;
-  let passiveCount = 0;
+  let idleCount = 0;
   let waitingCount = 0;
 
   for (const s of sessions) {
-    if (s.status === "starting" || s.status === "running") {
-      if (getActivityLevel(s.lastOutputAt, now) === "idle") {
-        passiveCount++;
-      } else {
+    if (s.status === "running" || s.status === "starting") {
+      if (getActivityLevel(s.lastOutputAt, now) === "active") {
         activeCount++;
+      } else {
+        idleCount++;
       }
     } else if (s.status === "waiting") {
       waitingCount++;
@@ -39,7 +47,7 @@ export function SessionStatusBar() {
         <span className="text-neutral-600" aria-hidden="true">·</span>
         <span className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-info" aria-hidden="true" />
-          <span className="text-neutral-400">{passiveCount} passiv</span>
+          <span className="text-neutral-400">{idleCount} passiv</span>
         </span>
         <span className="text-neutral-600" aria-hidden="true">·</span>
         <span className="flex items-center gap-1.5">

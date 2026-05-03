@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { LibraryView } from "./LibraryView";
+import { useUIStore } from "../../store/uiStore";
 
 // Mock framer-motion to render synchronously (no exit-animation delays)
 vi.mock("framer-motion", () => ({
@@ -73,6 +74,10 @@ beforeEach(() => {
     contentCache: {},
     contentLoading: {},
     selectedDetail: null,
+  });
+  useUIStore.setState({
+    libraryScopeOpen: {},
+    librarySectionOpen: {},
   });
 });
 
@@ -298,5 +303,27 @@ describe("LibraryView", () => {
     fireEvent.keyDown(window, { key: "Escape" });
 
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("ScopePanel expand state persists across component remount", () => {
+    useConfigDiscoveryStore.setState({
+      globalConfig: makeConfig({ skills: [mockSkill] }),
+    });
+
+    // Pre-set the global scope AND the skills section as open in the store
+    // (sections default to collapsed after baecf4f)
+    useUIStore.getState().setLibraryScopeOpen("global", true);
+    useUIStore.getState().setLibrarySectionOpen("global:skills", true);
+
+    // First mount — panel + section should be open (state from store)
+    const { unmount } = render(<LibraryView />);
+    // Skills section should be visible without clicking because scope+section are expanded
+    expect(screen.getByText("implement")).toBeTruthy();
+    unmount();
+
+    // Second mount (simulates navigation/restart) — state is still in store
+    render(<LibraryView />);
+    // Panel should still be expanded — no click needed
+    expect(screen.getByText("implement")).toBeTruthy();
   });
 });

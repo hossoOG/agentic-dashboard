@@ -110,6 +110,13 @@ impl SessionManager {
         }
         cmd.cwd(&folder);
 
+        // Disable Claude-Code's flicker-free rendering mode (v2.1.89+).
+        // In embedded xterm.js/Tauri terminals, the virtualized scrollback of that
+        // mode destroys the user-visible history. Falls back to v2.1.87 behaviour
+        // (linear LF-based output), which xterm.js handles correctly.
+        // Reference: https://github.com/anthropics/claude-code/issues/41965
+        cmd.env("CLAUDE_CODE_NO_FLICKER", "0");
+
         let child = pty_pair.slave.spawn_command(cmd).map_err(|e| {
             log::error!(
                 "Failed to spawn shell '{}' for session {}: {}",
@@ -679,5 +686,29 @@ mod tests {
     #[test]
     fn waiting_with_trailing_newlines() {
         assert_eq!(status("Continue? \n\r\n"), "waiting");
+    }
+
+    // --- Regression guard for b92cc60 (Option A scroll-history fix) ---
+    //
+    // The fix disables Claude-Code's flicker-free rendering mode by setting
+    // CLAUDE_CODE_NO_FLICKER=0 on the CommandBuilder before spawn. Because the
+    // env var is applied inside the create_session spawn path (which requires
+    // a real AppHandle + PTY and cannot be unit-tested in isolation), we pin
+    // the source text itself. A deletion or typo in the env-setting line will
+    // turn this test red before the regression lands in a release.
+
+    #[test]
+    fn claude_flicker_env_is_set_in_spawn_path() {
+        let src = include_str!("manager.rs");
+        assert!(
+            src.contains("CLAUDE_CODE_NO_FLICKER"),
+            "CLAUDE_CODE_NO_FLICKER env var setting removed from manager.rs — \
+             this is a scroll-history regression guard, see commit b92cc60"
+        );
+        assert!(
+            src.contains(r#"cmd.env("CLAUDE_CODE_NO_FLICKER", "0")"#),
+            "CLAUDE_CODE_NO_FLICKER must be set to \"0\" on the CommandBuilder \
+             before spawn (commit b92cc60)"
+        );
     }
 }

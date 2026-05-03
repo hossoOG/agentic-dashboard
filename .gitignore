@@ -19,3 +19,8 @@ AI_ARCHITECT_SYNC.md
 Projekt.txt
 .playwright-mcp/
 graphify-out/
+
+# Playwright E2E artifacts
+e2e/test-results/
+e2e/playwright-report/
+e2e/screenshots/

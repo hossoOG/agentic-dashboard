@@ -163,6 +163,7 @@ pub fn run() {
 
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_shell::init())
         .plugin({
             let mut updater = tauri_plugin_updater::Builder::new();
@@ -206,6 +207,7 @@ pub fn run() {
             session::commands::commands::scan_worktrees,
             // GitHub integration
             github::commands::commands::get_git_info,
+            github::commands::commands::check_project_presence,
             github::commands::commands::get_github_prs,
             github::commands::commands::get_github_issues,
             github::commands::commands::get_issue_detail,

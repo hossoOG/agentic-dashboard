@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { markRender } from "../../utils/perfLogger";
 import { SessionList } from "./SessionList";
 import { SessionTerminal } from "./SessionTerminal";
-import { SessionGrid } from "./SessionGrid";
+import { GridCellChrome } from "./GridCell";
 import { TerminalToolbar } from "./TerminalToolbar";
 import { NewSessionDialog } from "./NewSessionDialog";
 import { SessionStatusBar } from "./SessionStatusBar";
@@ -14,6 +14,7 @@ import { useUIStore } from "../../store/uiStore";
 import { useResizeHandle } from "./hooks/useResizeHandle";
 import { useSessionEvents } from "./hooks/useSessionEvents";
 import { useSessionCreation } from "./hooks/useSessionCreation";
+import { GRID_AREAS, getGridStyle, SINGLE_LAYOUT_STYLE } from "./sessionGridLayout";
 
 export function SessionManagerView() {
   const renderDone = markRender("SessionManagerView");
@@ -24,6 +25,7 @@ export function SessionManagerView() {
 
   const configPanelOpen = useUIStore((s) => s.configPanelOpen);
   const toggleConfigPanel = useUIStore((s) => s.toggleConfigPanel);
+  const sessions = useSessionStore((s) => s.sessions);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const activeSession = useSessionStore(selectActiveSession);
   const layoutMode = useSessionStore((s) => s.layoutMode);
@@ -40,6 +42,51 @@ export function SessionManagerView() {
   const { containerRef, handleResizeStart } = useResizeHandle();
   useSessionEvents();
   const { handleResumeSession, handleQuickStart } = useSessionCreation();
+
+  // ─────────────────────────────────────────────────────────────────
+  // Einheitlicher Render-Baum (Scroll-Bug-Fix, Option B).
+  //
+  // Alle SessionTerminals leben in EINEM stabilen JSX-Baum, egal ob
+  // Single- oder Grid-Modus. Der Layout-Modus steuert nur noch
+  // `grid-template` und die Sichtbarkeit der Wrapper-Divs (display).
+  //
+  // Frühere Implementation hatte einen Ternary `layoutMode === "single"
+  // ? <single-tree> : <grid-tree>` — bei jedem Layout-Switch wurden die
+  // xterm-Instanzen remountet und der Scrollback-Puffer ging verloren.
+  // ─────────────────────────────────────────────────────────────────
+  const isGrid = layoutMode === "grid";
+  const hasAnySession = sessions.length > 0;
+  const showTerminals = isGrid ? gridSessionIds.length > 0 : hasAnySession && !!activeSessionId;
+  const showEmptyState = !showTerminals && !(previewFolder && !isGrid);
+
+  // FavoritePreview (nur im Single-Modus relevant) — bei aktivem Preview
+  // wird der Terminal-Baum ausgeblendet, bleibt aber gemountet, damit
+  // die xterm-Instanzen beim Schliessen des Previews erhalten bleiben.
+  const showPreview = !isGrid && !!previewFolder;
+
+  const gridTemplateStyle = isGrid
+    ? getGridStyle(Math.min(Math.max(gridSessionIds.length, 1), 4))
+    : SINGLE_LAYOUT_STYLE;
+
+  // Im Single-Modus bekommt die aktive Session immer "a" als grid-area.
+  // Im Grid-Modus folgt der Index der Session-Reihenfolge in gridSessionIds.
+  function resolveGridArea(sessionId: string): string | undefined {
+    if (isGrid) {
+      const idx = gridSessionIds.indexOf(sessionId);
+      return idx >= 0 ? GRID_AREAS[idx] : undefined;
+    }
+    return sessionId === activeSessionId ? "a" : undefined;
+  }
+
+  function isVisible(sessionId: string): boolean {
+    if (showPreview) return false;
+    if (isGrid) return gridSessionIds.includes(sessionId);
+    return sessionId === activeSessionId;
+  }
+
+  // ConfigPanel (nur Single-Modus mit aktiver Session) bzw. Preview-Panel (Grid+Single)
+  const showConfigPanelSingle = !isGrid && !showPreview && configPanelOpen && !!activeSession;
+  const showPreviewPanelGrid = isGrid && !!previewFolder;
 
   return (
     <div className="flex flex-col h-full">
@@ -67,7 +114,7 @@ export function SessionManagerView() {
               layoutMode={layoutMode}
               onLayoutChange={setLayoutMode}
               activeSessionTitle={activeSession?.title}
-              folder={layoutMode === "grid" ? undefined : activeSession?.folder}
+              folder={isGrid ? undefined : activeSession?.folder}
               gridCount={gridSessionIds.length}
               configPanelOpen={configPanelOpen}
               onToggleConfigPanel={activeSessionId ? toggleConfigPanel : undefined}
@@ -76,61 +123,115 @@ export function SessionManagerView() {
 
           {/* Content area */}
           <div className="flex-1 min-h-0">
-            {layoutMode === "single" ? (
-              previewFolder ? (
-                <FavoritePreview
-                  key={previewFolder}
-                  folder={previewFolder}
-                  onClose={closePreview}
-                  onResumeSession={handleResumeSession}
-                />
-              ) : activeSessionId ? (
-                <div className="flex flex-row h-full" ref={containerRef}>
-                  {/* Terminal — always rendered, flex-1 */}
-                  <div className="flex-1 min-w-0 flex flex-col">
-                    <div className="flex-1 min-h-0">
-                      <SessionTerminal sessionId={activeSessionId} />
-                    </div>
-                  </div>
+            {/* FavoritePreview overrides the terminal view (single-mode only).
+                Sessions remain mounted in a hidden sibling so xterm state is preserved. */}
+            {showPreview && (
+              <FavoritePreview
+                key={previewFolder}
+                folder={previewFolder!}
+                onClose={closePreview}
+                onResumeSession={handleResumeSession}
+              />
+            )}
 
-                  {/* Resize handle + Config panel — conditionally shown */}
-                  {configPanelOpen && (
-                    <>
+            {/* EmptyState — only when no sessions AND no preview to show */}
+            {!showPreview && showEmptyState && (
+              <EmptyState onNewSession={() => setShowNewDialog(true)} />
+            )}
+
+            {/* Unified terminal tree — ALL sessions stay mounted regardless of layout.
+                Visibility is controlled via `display: none` on the wrapper div.
+                Layout-switches (single ↔ grid) do NOT remount SessionTerminal,
+                so xterm's scrollback buffer survives. */}
+            <div
+              className="flex flex-row h-full"
+              ref={containerRef}
+              style={{ display: showPreview ? "none" : undefined }}
+            >
+              <div className="flex-1 min-w-0 flex flex-col">
+                <div
+                  className="flex-1 min-h-0 grid"
+                  style={{
+                    ...gridTemplateStyle,
+                    gap: isGrid ? "2px" : undefined,
+                    display: hasAnySession ? "grid" : "none",
+                  }}
+                  data-testid="session-terminal-root"
+                >
+                  {sessions.map((session) => {
+                    const visible = isVisible(session.id);
+                    const gridArea = resolveGridArea(session.id);
+                    const isGridMember = isGrid && gridSessionIds.includes(session.id);
+                    const isCellFocused = isGridMember && session.id === focusedGridSessionId;
+
+                    return (
                       <div
-                        onMouseDown={handleResizeStart}
-                        className="w-1 cursor-col-resize bg-neutral-700 hover:bg-accent transition-colors shrink-0"
-                        title="Breite anpassen"
-                      />
-                      <ConfigPanel folder={activeSession?.folder ?? ""} width={configPanelWidth} onResumeSession={handleResumeSession} />
-                    </>
-                  )}
+                        key={session.id}
+                        data-session-wrapper={session.id}
+                        style={{
+                          display: visible ? "flex" : "none",
+                          flexDirection: "column",
+                          minHeight: 0,
+                          minWidth: 0,
+                          gridArea,
+                        }}
+                        className={
+                          isGridMember
+                            ? `rounded-sm overflow-hidden ${isCellFocused ? "border-2 border-accent glow-accent" : "border border-neutral-700"}`
+                            : undefined
+                        }
+                      >
+                        {isGridMember && (
+                          <GridCellChrome
+                            sessionId={session.id}
+                            isFocused={isCellFocused}
+                            onFocus={() => setFocusedGridSession(session.id)}
+                            onMaximize={() => maximizeGridSession(session.id)}
+                            onRemove={() => removeFromGrid(session.id)}
+                          />
+                        )}
+                        <div className="flex-1 min-h-0">
+                          <SessionTerminal sessionId={session.id} />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              ) : (
-                <EmptyState onNewSession={() => setShowNewDialog(true)} />
-              )
-            ) : (
-              <div className="flex flex-row h-full" ref={containerRef}>
-              <div className="flex-1 min-w-0">
-                <SessionGrid
-                  sessionIds={gridSessionIds}
-                  focusedSessionId={focusedGridSessionId}
-                  onFocusSession={setFocusedGridSession}
-                  onMaximizeSession={maximizeGridSession}
-                  onRemoveFromGrid={removeFromGrid}
-                />
               </div>
-              {previewFolder && (
+
+              {/* Resize handle + ConfigPanel (single-mode, active session) */}
+              {showConfigPanelSingle && (
                 <>
                   <div
                     onMouseDown={handleResizeStart}
                     className="w-1 cursor-col-resize bg-neutral-700 hover:bg-accent transition-colors shrink-0"
                     title="Breite anpassen"
                   />
-                  <ConfigPanel folder={previewFolder} width={configPanelWidth} onResumeSession={handleResumeSession} onClose={closePreview} />
+                  <ConfigPanel
+                    folder={activeSession?.folder ?? ""}
+                    width={configPanelWidth}
+                    onResumeSession={handleResumeSession}
+                  />
+                </>
+              )}
+
+              {/* Preview panel (grid-mode) */}
+              {showPreviewPanelGrid && (
+                <>
+                  <div
+                    onMouseDown={handleResizeStart}
+                    className="w-1 cursor-col-resize bg-neutral-700 hover:bg-accent transition-colors shrink-0"
+                    title="Breite anpassen"
+                  />
+                  <ConfigPanel
+                    folder={previewFolder!}
+                    width={configPanelWidth}
+                    onResumeSession={handleResumeSession}
+                    onClose={closePreview}
+                  />
                 </>
               )}
             </div>
-            )}
           </div>
         </div>
       </div>

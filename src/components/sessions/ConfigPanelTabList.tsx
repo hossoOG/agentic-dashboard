@@ -13,6 +13,8 @@ interface Presence {
   agents: boolean;
   hooks: boolean;
   settings: boolean;
+  git: boolean;
+  github: boolean;
 }
 
 interface ConfigPanelTabListProps {
@@ -110,13 +112,16 @@ export function ConfigPanelTabList({ folder, size = "md", isPrimary = true }: Co
       const resolvedFolder = await invoke<string>("resolve_project_root", { folder }).catch(() => folder);
       if (cancelled) return;
 
-      const [claudeMdText, skillDirs, agentFiles, settingsText] = await Promise.all([
+      const [claudeMdText, skillDirs, agentFiles, settingsText, projectPresence] = await Promise.all([
         invoke<string>("read_project_file", { folder: resolvedFolder, relativePath: "CLAUDE.md" }).catch(() => ""),
         invoke<unknown[]>("list_skill_dirs", { folder: resolvedFolder }).catch(() => [] as unknown[]),
         invoke<string[]>("list_project_dir", { folder: resolvedFolder, relativePath: ".claude/agents" })
           .then((files) => files.filter((f) => f.endsWith(".md")))
           .catch(() => [] as string[]),
         invoke<string>("read_project_file", { folder: resolvedFolder, relativePath: ".claude/settings.json" }).catch(() => ""),
+        invoke<{ has_git: boolean; has_github: boolean; remote_url: string | null }>(
+          "check_project_presence", { folder: resolvedFolder }
+        ).catch(() => ({ has_git: false, has_github: false, remote_url: null })),
       ]);
 
       if (cancelled) return;
@@ -134,6 +139,8 @@ export function ConfigPanelTabList({ folder, size = "md", isPrimary = true }: Co
         agents: agentFiles.length > 0,
         hooks: hasHooks,
         settings: !!settingsText,
+        git: projectPresence.has_git,
+        github: projectPresence.has_github,
       });
     })();
 

@@ -1,6 +1,6 @@
 [package]
 name = "agenticexplorer"
-version = "1.6.25"
+version = "1.6.27"
 description = "AgenticExplorer - Manage and monitor Claude CLI sessions"
 authors = ["hossoOG"]
 license = "MIT"
@@ -33,6 +33,7 @@ regex = "1"
 dirs = "6"
 serde_yaml = "0.9"
 tokio = { version = "1", features = ["rt"] }
+tauri-plugin-clipboard-manager = "2"
 
 [dev-dependencies]
 tempfile = "3"

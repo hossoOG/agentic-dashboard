@@ -145,7 +145,21 @@ export const useAgentStore = create<AgentState>((set) => ({
       }
       const newDetectionQuality = { ...state.detectionQuality };
       delete newDetectionQuality[sessionId];
-      return { agents: newAgents, worktrees: newWorktrees, detectionQuality: newDetectionQuality };
+
+      // Bug #1 fix: stale selectedAgentId clearen + leeres Panel kollabieren
+      const selectedStillExists =
+        state.selectedAgentId !== null && newAgents[state.selectedAgentId] !== undefined;
+      const newSelectedAgentId = selectedStillExists ? state.selectedAgentId : null;
+      const newBottomPanelCollapsed =
+        Object.keys(newAgents).length === 0 ? true : state.bottomPanelCollapsed;
+
+      return {
+        agents: newAgents,
+        worktrees: newWorktrees,
+        detectionQuality: newDetectionQuality,
+        selectedAgentId: newSelectedAgentId,
+        bottomPanelCollapsed: newBottomPanelCollapsed,
+      };
     }),
 
   addWorktree: (worktree) =>

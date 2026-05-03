@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
+import { useEffect } from "react";
 import { SessionManagerView } from "./SessionManagerView";
 import { useSessionStore } from "../../store/sessionStore";
 import { useUIStore } from "../../store/uiStore";
@@ -14,15 +15,30 @@ vi.mock("@tauri-apps/plugin-shell", () => ({
   open: vi.fn(),
 }));
 
-// Mock heavy child components to keep tests fast and isolated
-vi.mock("./SessionTerminal", () => ({
-  SessionTerminal: ({ sessionId }: { sessionId: string }) => (
-    <div data-testid="session-terminal">{sessionId}</div>
-  ),
-}));
+// Shared mount- und unmount-Spy für den SessionTerminal-Mock.
+// Wird in Regression-Tests verwendet, um zu verifizieren dass
+// Tab-Switches UND Layout-Switches keine Remounts triggern.
+const sessionTerminalMountSpy = vi.fn<(sessionId: string) => void>();
+const sessionTerminalUnmountSpy = vi.fn<(sessionId: string) => void>();
 
-vi.mock("./SessionGrid", () => ({
-  SessionGrid: () => <div data-testid="session-grid" />,
+// Mock heavy child components to keep tests fast and isolated.
+// Zwei testids werden emittiert:
+//   - "session-terminal" → legacy-Selector (bestehende Tests).
+//   - `terminal-${sessionId}` → dynamischer Selector (Regression-Tests).
+vi.mock("./SessionTerminal", () => ({
+  SessionTerminal: ({ sessionId }: { sessionId: string }) => {
+    useEffect(() => {
+      sessionTerminalMountSpy(sessionId);
+      return () => {
+        sessionTerminalUnmountSpy(sessionId);
+      };
+    }, [sessionId]);
+    return (
+      <div data-testid="session-terminal">
+        <div data-testid={`terminal-${sessionId}`}>{sessionId}</div>
+      </div>
+    );
+  },
 }));
 
 vi.mock("./ConfigPanel", () => ({
@@ -54,6 +70,8 @@ vi.mock("./hooks/useSessionCreation", () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  sessionTerminalMountSpy.mockClear();
+  sessionTerminalUnmountSpy.mockClear();
   useSessionStore.setState({
     sessions: [],
     activeSessionId: null,
@@ -64,34 +82,35 @@ beforeEach(() => {
   useUIStore.setState({ previewFolder: null });
 });
 
+// Test-Helper: Session-Fabrik für Regression-Tests.
+function mockSession(id: string) {
+  return {
+    id,
+    title: `Session ${id}`,
+    folder: "/test",
+    shell: "powershell" as const,
+    status: "running" as const,
+    createdAt: Date.now(),
+    finishedAt: null,
+    exitCode: null,
+    lastOutputAt: Date.now(),
+    lastOutputSnippet: "",
+  };
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────
 
 describe("SessionManagerView", () => {
   it("renders empty state when no sessions exist", () => {
     render(<SessionManagerView />);
 
-    // EmptyState should be visible (it has a "Neue Session" text or similar)
-    // The sidebar toggle button should be present
     const toggleBtn = screen.getByTitle("Sidebar ausblenden");
     expect(toggleBtn).toBeTruthy();
   });
 
   it("renders terminal when an active session exists", () => {
     useSessionStore.setState({
-      sessions: [
-        {
-          id: "s-1",
-          title: "Test",
-          folder: "/test",
-          shell: "powershell",
-          status: "running",
-          createdAt: Date.now(),
-          finishedAt: null,
-          exitCode: null,
-          lastOutputAt: Date.now(),
-          lastOutputSnippet: "",
-        },
-      ],
+      sessions: [mockSession("s-1")],
       activeSessionId: "s-1",
       layoutMode: "single",
       gridSessionIds: [],
@@ -105,20 +124,7 @@ describe("SessionManagerView", () => {
 
   it("shows favorite preview even when a session is active", () => {
     useSessionStore.setState({
-      sessions: [
-        {
-          id: "s-1",
-          title: "Test",
-          folder: "/test",
-          shell: "powershell",
-          status: "running",
-          createdAt: Date.now(),
-          finishedAt: null,
-          exitCode: null,
-          lastOutputAt: Date.now(),
-          lastOutputSnippet: "",
-        },
-      ],
+      sessions: [mockSession("s-1")],
       activeSessionId: "s-1",
       layoutMode: "single",
       gridSessionIds: [],
@@ -129,25 +135,15 @@ describe("SessionManagerView", () => {
     render(<SessionManagerView />);
 
     expect(screen.getByTestId("favorite-preview")).toBeTruthy();
-    expect(screen.queryByTestId("session-terminal")).toBeNull();
+    // Terminals bleiben gemountet (Scrollback-Schutz), werden aber versteckt.
+    // Deshalb: Terminal-Instanzen existieren im DOM, aber FavoritePreview ist
+    // sichtbar. Wir prüfen hier die Preview-Sichtbarkeit — das Terminal-Wrapper-
+    // Sichtbarkeitsverhalten ist durch Regression-Tests unten abgedeckt.
   });
 
   it("returns to terminal when preview is closed", () => {
     useSessionStore.setState({
-      sessions: [
-        {
-          id: "s-1",
-          title: "Test",
-          folder: "/test",
-          shell: "powershell",
-          status: "running",
-          createdAt: Date.now(),
-          finishedAt: null,
-          exitCode: null,
-          lastOutputAt: Date.now(),
-          lastOutputSnippet: "",
-        },
-      ],
+      sessions: [mockSession("s-1")],
       activeSessionId: "s-1",
       layoutMode: "single",
       gridSessionIds: [],
@@ -166,17 +162,189 @@ describe("SessionManagerView", () => {
     expect(screen.getByTestId("session-terminal")).toBeTruthy();
   });
 
-  it("renders session grid in grid layout mode", () => {
+  it("renders grid chrome elements in grid layout mode", () => {
     useSessionStore.setState({
-      sessions: [],
-      activeSessionId: null,
+      sessions: [mockSession("s-1"), mockSession("s-2")],
+      activeSessionId: "s-1",
       layoutMode: "grid",
       gridSessionIds: ["s-1", "s-2"],
+      focusedGridSessionId: "s-1",
+    });
+
+    render(<SessionManagerView />);
+
+    // Statt SessionGrid-Wrapper jetzt Grid-Cell-Chrome-Elemente pro Session.
+    expect(screen.getByTestId("grid-cell-chrome-s-1")).toBeTruthy();
+    expect(screen.getByTestId("grid-cell-chrome-s-2")).toBeTruthy();
+  });
+});
+
+// ── Regression-Tests: Scroll-Bug-Fix (Commit 8b820f5 + Option-B-Refactor) ────
+// Sichert ab dass SessionTerminal-Instanzen WEDER beim Tab-Switch NOCH
+// beim Layout-Switch unmountet werden → xterm-Scrollback-Buffer überlebt.
+describe("SessionManagerView — Scroll-Regression (always-mounted Terminals)", () => {
+  it("rendert alle Sessions gleichzeitig im Single-Mode (3 Sessions → 3 Terminal-Instanzen)", () => {
+    useSessionStore.setState({
+      sessions: [mockSession("A"), mockSession("B"), mockSession("C")],
+      activeSessionId: "A",
+      layoutMode: "single",
+      gridSessionIds: [],
       focusedGridSessionId: null,
     });
 
     render(<SessionManagerView />);
 
-    expect(screen.getByTestId("session-grid")).toBeTruthy();
+    expect(screen.getByTestId("terminal-A")).toBeTruthy();
+    expect(screen.getByTestId("terminal-B")).toBeTruthy();
+    expect(screen.getByTestId("terminal-C")).toBeTruthy();
+  });
+
+  it("zeigt nur die aktive Session, versteckt die anderen (display:none)", () => {
+    useSessionStore.setState({
+      sessions: [mockSession("A"), mockSession("B")],
+      activeSessionId: "B",
+      layoutMode: "single",
+      gridSessionIds: [],
+      focusedGridSessionId: null,
+    });
+
+    const { container } = render(<SessionManagerView />);
+
+    const wrapperA = container.querySelector('[data-session-wrapper="A"]');
+    const wrapperB = container.querySelector('[data-session-wrapper="B"]');
+
+    expect(wrapperA).toBeTruthy();
+    expect(wrapperB).toBeTruthy();
+    // Inaktive Session → display:none.
+    expect((wrapperA as HTMLElement).style.display).toBe("none");
+    // Aktive Session → display:flex (sichtbar).
+    expect((wrapperB as HTMLElement).style.display).toBe("flex");
+  });
+
+  it("unmountet SessionTerminal nicht beim Tab-Switch (Scrollback-Buffer bleibt erhalten)", () => {
+    useSessionStore.setState({
+      sessions: [mockSession("A"), mockSession("B")],
+      activeSessionId: "A",
+      layoutMode: "single",
+      gridSessionIds: [],
+      focusedGridSessionId: null,
+    });
+
+    const { rerender } = render(<SessionManagerView />);
+
+    expect(sessionTerminalUnmountSpy).not.toHaveBeenCalled();
+
+    act(() => {
+      useSessionStore.setState({ activeSessionId: "B" });
+    });
+    rerender(<SessionManagerView />);
+
+    expect(sessionTerminalUnmountSpy).not.toHaveBeenCalledWith("A");
+    expect(sessionTerminalUnmountSpy).not.toHaveBeenCalledWith("B");
+    expect(sessionTerminalUnmountSpy).not.toHaveBeenCalled();
+
+    expect(screen.getByTestId("terminal-A")).toBeTruthy();
+    expect(screen.getByTestId("terminal-B")).toBeTruthy();
+  });
+
+  it("unmountet SessionTerminal NICHT beim Layout-Switch Single → Grid → Single", () => {
+    useSessionStore.setState({
+      sessions: [mockSession("A"), mockSession("B")],
+      activeSessionId: "A",
+      layoutMode: "single",
+      gridSessionIds: [],
+      focusedGridSessionId: null,
+    });
+
+    const { rerender } = render(<SessionManagerView />);
+
+    // Initial-Mount: A + B werden genau einmal gemountet.
+    expect(sessionTerminalMountSpy).toHaveBeenCalledWith("A");
+    expect(sessionTerminalMountSpy).toHaveBeenCalledWith("B");
+    const initialMountCount = sessionTerminalMountSpy.mock.calls.length;
+    expect(initialMountCount).toBe(2);
+
+    // Switch Single → Grid.
+    act(() => {
+      useSessionStore.setState({
+        layoutMode: "grid",
+        gridSessionIds: ["A", "B"],
+        focusedGridSessionId: "A",
+      });
+    });
+    rerender(<SessionManagerView />);
+
+    // Switch Grid → Single.
+    act(() => {
+      useSessionStore.setState({
+        layoutMode: "single",
+        gridSessionIds: [],
+        focusedGridSessionId: null,
+      });
+    });
+    rerender(<SessionManagerView />);
+
+    // Nach 2 Layout-Switches dürfen KEINE Unmounts passiert sein.
+    expect(sessionTerminalUnmountSpy).not.toHaveBeenCalled();
+    // Und die Terminal-Instanzen wurden nur beim Initial-Render gemountet,
+    // nicht nochmal bei den Layout-Switches.
+    expect(sessionTerminalMountSpy.mock.calls.length).toBe(initialMountCount);
+  });
+
+  it("data-session-wrapper-Divs sind identische DOM-Nodes über Layout-Switches", () => {
+    useSessionStore.setState({
+      sessions: [mockSession("A"), mockSession("B")],
+      activeSessionId: "A",
+      layoutMode: "single",
+      gridSessionIds: [],
+      focusedGridSessionId: null,
+    });
+
+    const { container, rerender } = render(<SessionManagerView />);
+
+    const wrapperABefore = container.querySelector('[data-session-wrapper="A"]');
+    const wrapperBBefore = container.querySelector('[data-session-wrapper="B"]');
+    expect(wrapperABefore).toBeTruthy();
+    expect(wrapperBBefore).toBeTruthy();
+
+    // Single → Grid.
+    act(() => {
+      useSessionStore.setState({
+        layoutMode: "grid",
+        gridSessionIds: ["A", "B"],
+        focusedGridSessionId: "A",
+      });
+    });
+    rerender(<SessionManagerView />);
+
+    const wrapperAAfter = container.querySelector('[data-session-wrapper="A"]');
+    const wrapperBAfter = container.querySelector('[data-session-wrapper="B"]');
+
+    // Gleiche DOM-Referenz → React hat NICHT remountet.
+    expect(wrapperAAfter).toBe(wrapperABefore);
+    expect(wrapperBAfter).toBe(wrapperBBefore);
+  });
+
+  it("Grid-Mode: beide Grid-Sessions sind sichtbar (display:flex)", () => {
+    useSessionStore.setState({
+      sessions: [mockSession("A"), mockSession("B"), mockSession("C")],
+      activeSessionId: "A",
+      layoutMode: "grid",
+      gridSessionIds: ["A", "B"],
+      focusedGridSessionId: "A",
+    });
+
+    const { container } = render(<SessionManagerView />);
+
+    const wrapperA = container.querySelector('[data-session-wrapper="A"]') as HTMLElement;
+    const wrapperB = container.querySelector('[data-session-wrapper="B"]') as HTMLElement;
+    const wrapperC = container.querySelector('[data-session-wrapper="C"]') as HTMLElement;
+
+    // A + B im Grid → sichtbar.
+    expect(wrapperA.style.display).toBe("flex");
+    expect(wrapperB.style.display).toBe("flex");
+    // C nicht im Grid → versteckt, aber gemountet.
+    expect(wrapperC.style.display).toBe("none");
+    expect(wrapperC).toBeTruthy();
   });
 });

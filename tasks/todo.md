@@ -6,6 +6,26 @@
 > **Doku-Orientierung**: `tasks/docs-inventory.md`
 > Alle neuen Tasks werden als GitHub Issues erfasst und ueber das Board getrackt.
 
+## Abgeschlossen: v1.6.26 "Kanban v2 + Bugfix-Sprint" (2026-04-22)
+
+Reconcile-Release nach paralleler Entwicklung auf zwei Rechnern. Weg 3 (pragmatisch)
+gewählt: Design-System-Intake verworfen, Kanban-V2 + alle kritischen Bugfixes in v1.6.26
+integriert. Siehe CHANGELOG.md + `reports/ich-will-den-stand-partitioned-pancake.md`.
+
+- [x] Pre-Flight-Sicherung (Backups + Bundle)
+- [x] WIP-Commit dcbb597 in 5 atomare Commits gesplittet
+- [x] 10 Local-Commits + 5 Split + 13 Remote-Commits cherry-gepickt
+- [x] 6 semantische Konflikte aufgelöst
+- [x] Alle Gates grün (tsc, lint, build, vitest, cargo fmt/clippy/test)
+- [x] Release v1.6.26 getaggt
+
+### Backlog v1.6.27
+- [ ] **Design-System-Intake nachziehen**: Commits 5a34876, ab48cc9, 0c8f020, 982d481,
+      92371fd, c3ea26f, a31791e, 3431f0a, 42d7c07, da53c3f, 412e129 aus
+      `backup/origin-master-snapshot` selektiv cherry-picken. Enthält: semantische
+      `.ae-*`-Classes, icon-registry, 3D-Hover-Pattern, UPPERCASE-Panel-Titles,
+      number-format-Standards, Rust-Toolchain 1.95 Pin.
+
 ## Abgeschlossen: Konsolidierungs-Sprint (2026-03-25)
 
 - [x] Retrospektive durchfuehren
