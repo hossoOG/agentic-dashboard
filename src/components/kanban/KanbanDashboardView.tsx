@@ -24,6 +24,7 @@ export function KanbanDashboardView() {
   const [validGitFolders, setValidGitFolders] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    let cancelled = false;
     async function checkFolders() {
       const foldersToCheck = new Set<string>();
       if (activeSession?.folder) foldersToCheck.add(activeSession.folder);
@@ -31,6 +32,7 @@ export function KanbanDashboardView() {
 
       const valid = new Set<string>();
       for (const folder of Array.from(foldersToCheck)) {
+        if (cancelled) return;
         try {
           await invoke("get_git_info", { folder });
           valid.add(folder);
@@ -39,9 +41,11 @@ export function KanbanDashboardView() {
           // not a git repo
         }
       }
+      if (cancelled) return;
       setValidGitFolders(valid);
     }
     checkFolders();
+    return () => { cancelled = true; };
   }, [activeSession?.folder, favorites]);
 
   // Compute available git folders

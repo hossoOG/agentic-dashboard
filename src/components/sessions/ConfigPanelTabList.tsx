@@ -19,6 +19,14 @@ interface ConfigPanelTabListProps {
   folder: string;
   /** Tab size variant — ConfigPanel uses "md", FavoritePreview uses "sm" */
   size?: "sm" | "md";
+  /**
+   * Whether this instance owns the canonical tab state.
+   * Only the primary instance is allowed to auto-switch the global
+   * `configSubTab` when its current value isn't visible for the folder.
+   * Non-primary instances (e.g. FavoritePreview) must not mutate the
+   * shared store on mount — otherwise they hijack the main panel's tab.
+   */
+  isPrimary?: boolean;
 }
 
 /**
@@ -28,7 +36,7 @@ interface ConfigPanelTabListProps {
  * Uses `uiStore.configSubTab` so tab selection stays consistent across views.
  * File-picking, pin add/remove and toasts are handled here.
  */
-export function ConfigPanelTabList({ folder, size = "md" }: ConfigPanelTabListProps) {
+export function ConfigPanelTabList({ folder, size = "md", isPrimary = true }: ConfigPanelTabListProps) {
   const configSubTab = useUIStore((s) => s.configSubTab);
   const setConfigSubTabRaw = useUIStore((s) => s.setConfigSubTab);
   const addToast = useUIStore((s) => s.addToast);
@@ -138,15 +146,18 @@ export function ConfigPanelTabList({ folder, size = "md" }: ConfigPanelTabListPr
     return presence[tab.requiresPresence as PresenceKey];
   }), [presence]);
 
-  // Auto-switch away from a now-hidden tab when session folder changes
+  // Auto-switch away from a now-hidden tab when session folder changes.
+  // Gated on isPrimary so a non-primary instance (FavoritePreview) cannot
+  // hijack the main panel's tab via the shared uiStore.
   useEffect(() => {
+    if (!isPrimary) return;
     if (presence === null) return;
     const isActiveVisible = visibleTabs.some((t) => t.id === configSubTab);
     const isPinned = configSubTab.startsWith("pin:");
     if (!isActiveVisible && !isPinned) {
       setConfigSubTabRaw(visibleTabs[0]?.id ?? "github");
     }
-  }, [presence, visibleTabs, configSubTab, setConfigSubTabRaw]);
+  }, [isPrimary, presence, visibleTabs, configSubTab, setConfigSubTabRaw]);
 
   const buttonPadding = size === "sm" ? "px-2.5 py-1" : "px-2 py-1";
   const iconSize = "w-3 h-3";

@@ -22,9 +22,11 @@ export function FavoritePreview({ folder, onClose, onResumeSession }: FavoritePr
         <span className="text-sm font-bold text-neutral-200 truncate mr-3">{projectName}</span>
         <span className="text-[11px] text-neutral-500 truncate mr-auto" title={folder}>{folder}</span>
 
-        {/* Tabs (shared state with ConfigPanel via uiStore) */}
+        {/* Tabs (shared state with ConfigPanel via uiStore).
+            isPrimary=false so the preview cannot auto-switch the global
+            configSubTab when an artifact is missing for this folder. */}
         <div className="flex items-center gap-0 mx-4 overflow-x-auto">
-          <ConfigPanelTabList folder={folder} size="sm" />
+          <ConfigPanelTabList folder={folder} size="sm" isPrimary={false} />
         </div>
 
         <button
