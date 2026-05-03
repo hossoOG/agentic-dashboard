@@ -80,7 +80,7 @@ function WorkflowCard({
           </span>
         </div>
         <span
-          className={`px-1.5 py-0.5 text-[10px] rounded-full shrink-0 ${config.bg} ${config.color}`}
+          className={`px-1.5 py-0.5 text-[10px] rounded-sm shrink-0 ${config.bg} ${config.color}`}
         >
           {config.label}
         </span>
@@ -221,7 +221,7 @@ export function WorkflowLauncher({ folder: folderProp }: WorkflowLauncherProps) 
       <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-800">
         <div className="flex items-center gap-2">
           <Layers className="w-4 h-4 text-neutral-400" />
-          <span className="text-xs font-medium text-neutral-300 tracking-wider uppercase">
+          <span className="text-xs font-medium text-neutral-300 tracking-widest uppercase">
             Erkannte Workflows
           </span>
           {workflows.length > 0 && (
@@ -233,7 +233,7 @@ export function WorkflowLauncher({ folder: folderProp }: WorkflowLauncherProps) 
         <button
           onClick={handleRefresh}
           disabled={loading}
-          className="p-1 text-neutral-500 hover:text-neutral-300 transition-colors disabled:opacity-50"
+          className="p-1 text-neutral-500 hover:text-neutral-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           title="Workflows neu erkennen"
         >
           {loading ? (

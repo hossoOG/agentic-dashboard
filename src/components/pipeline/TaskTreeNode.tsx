@@ -63,7 +63,7 @@ export const TaskTreeNode = memo(function TaskTreeNode({
               e.stopPropagation();
               setIsExpanded(!isExpanded);
             }}
-            className="p-0.5 hover:bg-neutral-700 rounded shrink-0"
+            className="p-0.5 hover:bg-hover-overlay rounded shrink-0"
           >
             {isExpanded ? (
               <ChevronDown className="w-3 h-3 text-neutral-500" />
@@ -87,7 +87,7 @@ export const TaskTreeNode = memo(function TaskTreeNode({
         <div className="flex items-center gap-2 shrink-0 ml-2">
           {/* Blocked badge */}
           {agent.blockedBy != null && (
-            <span className="flex items-center gap-0.5 text-[10px] text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded-full">
+            <span className="flex items-center gap-0.5 text-[10px] text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded-sm">
               <Lock className="w-2.5 h-2.5" />
               #{agent.blockedBy}
             </span>

@@ -292,6 +292,32 @@ integriert. Siehe CHANGELOG.md + `reports/ich-will-den-stand-partitioned-pancake
 - [x] `/parallel-implement` 2. Lauf (2026-04-06) — #113, #115, #116 parallel, alle 3 merged inkl. Auto-Merge + Konflikt-Resolution
 - [x] `/implement` + `/parallel-implement` Skills: Auto-Merge + Merge-Konflikt-Resolution ergaenzt (2026-04-06)
 
+## Laufend: Design-System-Intake (2026-04-17, #232)
+
+> Externes Design-System-Paket (cyan-teal, sharp corners, expo easing) ins Repo eingepflegt. Plan: `reports/hier-ist-eine-anleitung-polished-meadow.md`.
+
+- [x] Design-System-Zip entpacken nach `docs/design-system/` (ohne `colors_and_type.css` als Live-Token-Quelle)
+- [x] `CLAUDE.md` Design-System-Abschnitt + Non-negotiables
+- [x] Drift: `rounded-md`/`rounded-lg` → `rounded-none` in 4 Files (KanbanDetailModal, LibraryDetailModal, LibraryView, SessionHistoryViewer)
+- [x] Drift: Emoji `📌` → Lucide `Pin` in PinnedDocViewer
+- [x] Drift: Toast Spring-Transition → Expo-Easing (`EASE.out` + `DURATION.base`)
+- [x] `src/utils/motion.ts` — SPRING-Preset entfernt (unbenutzt, spec-widersprüchlich)
+- [x] Placeholder-Logo nach `public/logo.svg`, `index.html` Favicon umgestellt
+- [ ] Verify: `npx tsc --noEmit`, `npm run lint`, `npm run test`, `npm run build`
+- [ ] PR erstellen, mergen, Board-Lane auf "Done"
+- [ ] Follow-up-Issue: Echtes Logo + Tauri-Icon-Set
+
+## Abgeschlossen: v1.6.25 — "Update-Indicator-Cleanup" (2026-04-17)
+
+> Release v1.6.25: https://github.com/hossoOG/agentic-dashboard/releases/tag/v1.6.25
+
+- [x] fix(ui): UpdateNotification "Aktuell"-Toast entfernt, nur bei verfügbarem Update rendern
+- [x] fix(ui): useAutoUpdate auto-reset nach 800ms auf idle nach upToDate
+- [x] fix(ui): SideNav StatusIcon nur bei Update verfügbar / Fehler
+- [x] fix(ui): Kanban Branch-Chip, Sky-Blue Dot, Cache-Fix, Non-Git-Filter
+- [x] fix(ui): Config-Panel leere Tabs ausgeblendet
+- [x] fix(terminal): Ctrl+V-Handler entfernt (xterm native paste)
+
 ## Abgeschlossen: v1.6.24 — "Session-Name-Fix" (2026-04-10)
 
 > Release v1.6.24: https://github.com/hossoOG/agentic-dashboard/releases/tag/v1.6.24

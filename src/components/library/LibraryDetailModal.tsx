@@ -37,7 +37,7 @@ function DetailHeader({ detail }: { detail: SelectedDetail }): JSX.Element {
       <Icon className={`w-4 h-4 shrink-0 ${iconClass}`} />
       <span className="text-sm font-semibold text-neutral-200 truncate">{title}</span>
       {scope && (
-        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-neutral-700 text-neutral-400 shrink-0">
+        <span className="text-[10px] px-1.5 py-0.5 rounded-sm bg-neutral-700 text-neutral-400 shrink-0">
           {scope}
         </span>
       )}
@@ -57,7 +57,7 @@ export function LibraryDetailModal(): JSX.Element {
       onClose={closeDetail}
       title={selectedDetail ? <DetailHeader detail={selectedDetail} /> : undefined}
       size="none"
-      className="w-[min(1100px,90vw)] max-h-[85vh] rounded-md shadow-2xl flex flex-col"
+      className="w-[min(1100px,90vw)] max-h-[85vh] rounded-none shadow-2xl flex flex-col"
     >
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {selectedDetail && (

@@ -79,7 +79,7 @@ export function SessionList({ onNewSession, onQuickStart }: SessionListProps) {
 
         {/* Sessions section header */}
         <div
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-neutral-500 tracking-widest border-b border-neutral-700 cursor-pointer hover:bg-hover-overlay transition-colors"
+          className="flex items-center gap-1.5 px-3 py-2 text-xs text-neutral-500 uppercase tracking-widest border-b border-neutral-700 cursor-pointer hover:bg-hover-overlay transition-colors"
           onClick={() => setSessionsExpanded((v) => !v)}
         >
           {sessionsExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}

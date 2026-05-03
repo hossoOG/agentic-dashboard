@@ -10,23 +10,8 @@ import {
 } from "lucide-react";
 import { useAgentStore } from "../../store/agentStore";
 import type { DetectedAgent, DetectedWorktree } from "../../store/agentStore";
+import { formatElapsed } from "../../utils/format";
 import { DURATION, EASE } from "../../utils/motion";
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) return "< 1s";
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return `${hours}h ${remainingMinutes}m`;
-}
 
 interface AgentMetrics {
   total: number;
@@ -185,7 +170,7 @@ export function AgentMetricsPanel({ sessionId }: AgentMetricsPanelProps) {
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-neutral-800">
         <Activity className="w-4 h-4 text-neutral-400" />
-        <span className="text-xs font-medium text-neutral-300 tracking-wider uppercase">
+        <span className="text-xs font-medium text-neutral-300 tracking-widest uppercase">
           Agent-Metriken
         </span>
       </div>
@@ -220,8 +205,8 @@ export function AgentMetricsPanel({ sessionId }: AgentMetricsPanelProps) {
         <MetricCard
           icon={Clock}
           label="Laufzeit"
-          value={formatDuration(sessionDuration)}
-          subValue={metrics.total > 1 ? `${formatDuration(Math.round(metrics.totalDurationMs / metrics.total))} avg` : undefined}
+          value={formatElapsed(sessionDuration)}
+          subValue={metrics.total > 1 ? `${formatElapsed(Math.round(metrics.totalDurationMs / metrics.total))} avg` : undefined}
           color="text-neutral-400"
         />
         {metrics.tokenAgents.length > 0 && (

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { RefreshCw, FileText, Pencil, Eye, Save, Loader2 } from "lucide-react";
+import { RefreshCw, FileText, Pencil, Eye, Save, Loader2, Pin } from "lucide-react";
 import { getErrorMessage } from "../../utils/adpError";
 import { logError } from "../../utils/errorLogger";
 import { MarkdownPreview } from "../editor/MarkdownPreview";
@@ -169,10 +169,11 @@ export function PinnedDocViewer({ folder, pinId }: PinnedDocViewerProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-700 shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-700 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xs text-neutral-400 font-medium truncate" title={relativePath}>
-            📌 {label}
+          <span className="flex items-center gap-1.5 text-xs text-neutral-400 font-medium truncate" title={relativePath}>
+            <Pin className="w-3 h-3 shrink-0" aria-hidden="true" />
+            {label}
           </span>
           {label !== relativePath && (
             <span className="text-[10px] text-neutral-600 font-mono truncate hidden md:inline" title={relativePath}>
@@ -189,7 +190,7 @@ export function PinnedDocViewer({ folder, pinId }: PinnedDocViewerProps) {
               <button
                 onClick={saveFile}
                 disabled={!isDirty || isSaving}
-                className="flex items-center gap-1 px-2 py-0.5 text-[11px] rounded transition-colors disabled:opacity-40 text-accent hover:bg-accent-a10"
+                className="flex items-center gap-1 px-2 py-0.5 text-[11px] rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-accent hover:bg-accent-a10"
                 title="Speichern (Ctrl+S)"
                 aria-label="Datei speichern"
               >

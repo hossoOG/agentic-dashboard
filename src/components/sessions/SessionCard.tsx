@@ -9,6 +9,7 @@ import { logError } from "../../utils/errorLogger";
 import { SessionStatusDot } from "./SessionStatusDot";
 import { useNowTick } from "../../hooks/useNowTick";
 import { shortenPath } from "../../utils/pathUtils";
+import { formatElapsed, formatExit } from "../../utils/format";
 
 interface SessionCardProps {
   session: ClaudeSession;
@@ -16,13 +17,6 @@ interface SessionCardProps {
   isInGrid?: boolean;
   onClick: (sessionId: string) => void;
   onClose: (sessionId: string) => void;
-}
-
-function formatDuration(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
 function TimeDisplay({ session }: { session: ClaudeSession }) {
@@ -37,20 +31,20 @@ function TimeDisplay({ session }: { session: ClaudeSession }) {
       }
       return (
         <span className="text-neutral-400">
-          Läuft seit {formatDuration(now - session.createdAt)}
+          Läuft seit {formatElapsed(now - session.createdAt)}
         </span>
       );
     case "running":
       if (activityLevel === "idle") {
         return (
           <span className="text-neutral-400">
-            Idle seit {formatDuration(now - session.lastOutputAt)}
+            Idle seit {formatElapsed(now - session.lastOutputAt)}
           </span>
         );
       }
       return (
         <span className="text-neutral-400">
-          Läuft seit {formatDuration(now - session.createdAt)}
+          Läuft seit {formatElapsed(now - session.createdAt)}
         </span>
       );
     case "waiting":
@@ -58,13 +52,13 @@ function TimeDisplay({ session }: { session: ClaudeSession }) {
     case "done":
       return (
         <span className="text-neutral-400">
-          Fertig ({formatDuration((session.finishedAt ?? now) - session.createdAt)})
+          Fertig ({formatElapsed((session.finishedAt ?? now) - session.createdAt)})
         </span>
       );
     case "error":
       return (
         <span className="text-error">
-          Fehler (Exit {session.exitCode ?? "?"})
+          Fehler ({session.exitCode != null ? formatExit(session.exitCode) : "Exit ?"})
         </span>
       );
   }

@@ -87,6 +87,12 @@ export function useAutoUpdate(): UseAutoUpdateReturn {
           status: "upToDate",
           lastChecked: new Date(),
         }));
+        // Auto-reset to idle — no toast needed, lastChecked is persisted
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            setState((s) => s.status === "upToDate" ? { ...s, status: "idle" } : s);
+          }
+        }, 800);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

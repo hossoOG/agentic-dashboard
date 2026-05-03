@@ -24,6 +24,7 @@ export function KanbanDashboardView() {
   const [validGitFolders, setValidGitFolders] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    let cancelled = false;
     async function checkFolders() {
       const foldersToCheck = new Set<string>();
       if (activeSession?.folder) foldersToCheck.add(activeSession.folder);
@@ -31,6 +32,7 @@ export function KanbanDashboardView() {
 
       const valid = new Set<string>();
       for (const folder of Array.from(foldersToCheck)) {
+        if (cancelled) return;
         try {
           await invoke("get_git_info", { folder });
           valid.add(folder);
@@ -39,9 +41,11 @@ export function KanbanDashboardView() {
           // not a git repo
         }
       }
+      if (cancelled) return;
       setValidGitFolders(valid);
     }
     checkFolders();
+    return () => { cancelled = true; };
   }, [activeSession?.folder, favorites]);
 
   // Compute available git folders
@@ -57,6 +61,7 @@ export function KanbanDashboardView() {
   if (!folderModeFolder || !availableOptions.includes(folderModeFolder)) {
     folderModeFolder = availableOptions.length > 0 ? availableOptions[0] : null;
   }
+
 
   // ── Mode toggle ───────────────────────────────────────────────────────
 
@@ -83,9 +88,9 @@ export function KanbanDashboardView() {
   if (boardMode === "global") {
     return (
       <div className="flex flex-col h-full">
-        <div className="flex items-center gap-2 px-4 py-2 border-b border-neutral-700 shrink-0">
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-neutral-700 shrink-0">
           <Columns3 className="w-3.5 h-3.5 text-neutral-500" />
-          <span className="text-xs text-neutral-500 mr-auto">Globales Board</span>
+          <span className="text-xs text-neutral-500 mr-auto uppercase tracking-widest">Globales Board</span>
           {modeToggle}
         </div>
         <div className="flex-1 min-h-0">
@@ -100,7 +105,7 @@ export function KanbanDashboardView() {
   if (!folderModeFolder && availableOptions.length === 0) {
     return (
       <div className="flex flex-col h-full">
-        <div className="flex items-center justify-end gap-2 px-4 py-2 border-b border-neutral-700 shrink-0">
+        <div className="flex items-center justify-end gap-2 px-3 py-2 border-b border-neutral-700 shrink-0">
           {modeToggle}
         </div>
         <div className="flex flex-col items-center justify-center flex-1 gap-3 text-neutral-500">
@@ -117,7 +122,7 @@ export function KanbanDashboardView() {
   return (
     <div className="flex flex-col h-full">
       {/* Header: folder picker + mode toggle */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-neutral-700 shrink-0">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-neutral-700 shrink-0">
         <span className="text-xs text-neutral-500">Projekt:</span>
         <select
           value={folderModeFolder ?? ""}

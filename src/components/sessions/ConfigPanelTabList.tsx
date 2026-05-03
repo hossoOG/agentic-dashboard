@@ -21,6 +21,14 @@ interface ConfigPanelTabListProps {
   folder: string;
   /** Tab size variant — ConfigPanel uses "md", FavoritePreview uses "sm" */
   size?: "sm" | "md";
+  /**
+   * Whether this instance owns the canonical tab state.
+   * Only the primary instance is allowed to auto-switch the global
+   * `configSubTab` when its current value isn't visible for the folder.
+   * Non-primary instances (e.g. FavoritePreview) must not mutate the
+   * shared store on mount — otherwise they hijack the main panel's tab.
+   */
+  isPrimary?: boolean;
 }
 
 /**
@@ -30,7 +38,7 @@ interface ConfigPanelTabListProps {
  * Uses `uiStore.configSubTab` so tab selection stays consistent across views.
  * File-picking, pin add/remove and toasts are handled here.
  */
-export function ConfigPanelTabList({ folder, size = "md" }: ConfigPanelTabListProps) {
+export function ConfigPanelTabList({ folder, size = "md", isPrimary = true }: ConfigPanelTabListProps) {
   const configSubTab = useUIStore((s) => s.configSubTab);
   const setConfigSubTabRaw = useUIStore((s) => s.setConfigSubTab);
   const addToast = useUIStore((s) => s.addToast);
@@ -98,15 +106,21 @@ export function ConfigPanelTabList({ folder, size = "md" }: ConfigPanelTabListPr
     if (!folder) { setPresence(null); return; }
 
     (async () => {
+      // Resolve to the main working tree root — worktree sessions may point to a
+      // branch-specific path that lacks the context artifacts (CLAUDE.md, .claude/...).
+      // Mirrors the resolution done in ClaudeMdViewer.load/save.
+      const resolvedFolder = await invoke<string>("resolve_project_root", { folder }).catch(() => folder);
+      if (cancelled) return;
+
       const [claudeMdText, skillDirs, agentFiles, settingsText, projectPresence] = await Promise.all([
-        invoke<string>("read_project_file", { folder, relativePath: "CLAUDE.md" }).catch(() => ""),
-        invoke<unknown[]>("list_skill_dirs", { folder }).catch(() => [] as unknown[]),
-        invoke<string[]>("list_project_dir", { folder, relativePath: ".claude/agents" })
+        invoke<string>("read_project_file", { folder: resolvedFolder, relativePath: "CLAUDE.md" }).catch(() => ""),
+        invoke<unknown[]>("list_skill_dirs", { folder: resolvedFolder }).catch(() => [] as unknown[]),
+        invoke<string[]>("list_project_dir", { folder: resolvedFolder, relativePath: ".claude/agents" })
           .then((files) => files.filter((f) => f.endsWith(".md")))
           .catch(() => [] as string[]),
-        invoke<string>("read_project_file", { folder, relativePath: ".claude/settings.json" }).catch(() => ""),
+        invoke<string>("read_project_file", { folder: resolvedFolder, relativePath: ".claude/settings.json" }).catch(() => ""),
         invoke<{ has_git: boolean; has_github: boolean; remote_url: string | null }>(
-          "check_project_presence", { folder }
+          "check_project_presence", { folder: resolvedFolder }
         ).catch(() => ({ has_git: false, has_github: false, remote_url: null })),
       ]);
 
@@ -139,15 +153,18 @@ export function ConfigPanelTabList({ folder, size = "md" }: ConfigPanelTabListPr
     return presence[tab.requiresPresence as PresenceKey];
   }), [presence]);
 
-  // Auto-switch away from a now-hidden tab when session folder changes
+  // Auto-switch away from a now-hidden tab when session folder changes.
+  // Gated on isPrimary so a non-primary instance (FavoritePreview) cannot
+  // hijack the main panel's tab via the shared uiStore.
   useEffect(() => {
+    if (!isPrimary) return;
     if (presence === null) return;
     const isActiveVisible = visibleTabs.some((t) => t.id === configSubTab);
     const isPinned = configSubTab.startsWith("pin:");
     if (!isActiveVisible && !isPinned) {
       setConfigSubTabRaw(visibleTabs[0]?.id ?? "github");
     }
-  }, [visibleTabs, configSubTab, setConfigSubTabRaw, presence]);
+  }, [isPrimary, presence, visibleTabs, configSubTab, setConfigSubTabRaw]);
 
   const buttonPadding = size === "sm" ? "px-2.5 py-1" : "px-2 py-1";
   const iconSize = "w-3 h-3";

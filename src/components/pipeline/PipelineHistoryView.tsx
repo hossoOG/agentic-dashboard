@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { RefreshCw, Loader2, Inbox } from "lucide-react";
 import { usePipelineHistoryStore } from "../../store/pipelineHistoryStore";
-import { formatElapsed } from "../../utils/formatElapsed";
+import { formatElapsed } from "../../utils/format";
 import { OUTCOME_CONFIG, formatTimestamp } from "./pipelineOutcomeConfig";
 import type { PipelineRun } from "../../types/pipelineHistory";
 
@@ -29,7 +29,7 @@ function RunRow({
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.15 }}
       onClick={() => onSelect(run.id)}
-      className="w-full text-left px-4 py-3 hover:bg-surface-raised/60 transition-colors border-b border-neutral-700/50 flex items-center gap-3 group"
+      className="w-full text-left px-4 py-3 hover:bg-hover-overlay transition-colors border-b border-neutral-700/50 flex items-center gap-3 group"
       data-testid={`run-row-${run.id}`}
     >
       {/* Status icon */}
@@ -83,14 +83,14 @@ export function PipelineHistoryView() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-700">
-        <h3 className="text-xs font-display font-bold text-neutral-400 tracking-wider uppercase">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-700">
+        <h3 className="text-xs font-display font-bold text-neutral-400 tracking-widest uppercase">
           Pipeline-Verlauf
         </h3>
         <button
           onClick={() => loadRuns()}
           disabled={isLoading}
-          className="p-1 rounded hover:bg-surface-raised text-neutral-500 hover:text-neutral-300 transition-colors disabled:opacity-50"
+          className="p-1 rounded hover:bg-hover-overlay text-neutral-500 hover:text-neutral-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           title="Aktualisieren"
           data-testid="refresh-button"
         >

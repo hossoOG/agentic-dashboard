@@ -29,7 +29,7 @@ export function TaskTreeView({ sessionId }: TaskTreeViewProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Summary bar */}
-      <div className="flex items-center gap-4 px-4 py-2 border-b border-neutral-700 text-xs text-neutral-400 shrink-0">
+      <div className="flex items-center gap-4 px-3 py-2 border-b border-neutral-700 text-xs text-neutral-400 shrink-0">
         <span>
           <strong className="text-neutral-200">{summary.total}</strong> Agenten
         </span>

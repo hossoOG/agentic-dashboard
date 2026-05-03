@@ -158,7 +158,7 @@ export function KanbanDetailModal({
       onClose={onClose}
       title={headerTitle}
       size="none"
-      className="w-[960px] max-w-[95vw] max-h-[85vh] rounded-md shadow-2xl"
+      className="w-[960px] max-w-[95vw] max-h-[85vh] rounded-none shadow-2xl"
     >
       {loading ? (
         <div className="flex items-center justify-center py-12 text-neutral-500 text-sm">
@@ -171,7 +171,7 @@ export function KanbanDetailModal({
           <span className="text-red-400 text-sm">{error}</span>
           <button
             onClick={() => void loadDetail()}
-            className="px-3 py-1.5 text-xs text-neutral-300 bg-surface-raised border border-neutral-700 rounded-sm hover:bg-hover-overlay transition-colors"
+            className="px-3 py-1.5 text-xs text-neutral-300 bg-surface-raised border border-neutral-700 rounded-sm hover:text-neutral-100 hover:border-neutral-500 hover:bg-hover-overlay transition-colors"
           >
             Erneut versuchen
           </button>

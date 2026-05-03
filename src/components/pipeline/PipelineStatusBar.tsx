@@ -6,7 +6,7 @@ import {
   selectIsIdle,
   selectIsTerminal,
 } from "../../store/pipelineStatusStore";
-import { formatElapsed } from "../../utils/formatElapsed";
+import { formatElapsed } from "../../utils/format";
 import type { PipelineState } from "../../protocols/schema";
 
 // ============================================================================
@@ -48,7 +48,7 @@ export function PipelineStatusBar() {
   const showError = statusInfo.status === "failed" && statusInfo.errorMessage;
 
   return (
-    <div className="border-b border-neutral-700 px-4 py-2">
+    <div className="border-b border-neutral-700 px-3 py-2">
       <AnimatePresence mode="wait">
         <motion.div
           key={statusInfo.status}

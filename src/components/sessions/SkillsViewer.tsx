@@ -106,7 +106,7 @@ export function SkillsViewer({ folder }: SkillsViewerProps) {
       <div className="w-64 min-w-[256px] border-r border-neutral-700 flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-700 shrink-0">
-          <span className="text-xs text-neutral-400 font-medium">
+          <span className="text-xs text-neutral-400 font-medium uppercase tracking-widest">
             Skills ({skills.length})
           </span>
           <button
@@ -125,7 +125,7 @@ export function SkillsViewer({ folder }: SkillsViewerProps) {
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
+                className={`px-2 py-0.5 text-xs rounded-sm transition-colors ${
                   filter === f
                     ? "bg-accent-a10 text-accent"
                     : "text-neutral-400 hover:text-neutral-200 hover:bg-hover-overlay"
@@ -183,7 +183,7 @@ export function SkillsViewer({ folder }: SkillsViewerProps) {
                   )}
                   <div className="mt-1">
                     <span
-                      className={`inline-block px-1.5 py-0 text-[10px] rounded-full ${
+                      className={`inline-block px-1.5 py-0 text-[10px] rounded-sm ${
                         metadata.userInvokable
                           ? "bg-accent-a10 text-accent"
                           : "bg-neutral-800 text-neutral-500"
@@ -225,7 +225,7 @@ function SkillDetail({ entry }: { entry: SkillEntry }) {
             {metadata.name}
           </h2>
           <span
-            className={`inline-block px-1.5 py-0 text-[10px] rounded-full ${
+            className={`inline-block px-1.5 py-0 text-[10px] rounded-sm ${
               metadata.userInvokable
                 ? "bg-accent-a10 text-accent"
                 : "bg-neutral-800 text-neutral-500"
@@ -234,7 +234,7 @@ function SkillDetail({ entry }: { entry: SkillEntry }) {
             {metadata.userInvokable ? "Aufrufbar" : "Auto"}
           </span>
           {entry.hasReferenceDir && (
-            <span className="inline-flex items-center gap-1 px-1.5 py-0 text-[10px] rounded-full bg-neutral-800 text-neutral-500">
+            <span className="inline-flex items-center gap-1 px-1.5 py-0 text-[10px] rounded-sm bg-neutral-800 text-neutral-500">
               <FolderOpen className="w-2.5 h-2.5" />
               Referenzen
             </span>
@@ -265,7 +265,7 @@ function SkillDetail({ entry }: { entry: SkillEntry }) {
                     *erforderlich
                   </span>
                 )}
-                <span className="text-xs text-neutral-400">
+                <span className="ae-body-sm">
                   {arg.description}
                 </span>
               </div>

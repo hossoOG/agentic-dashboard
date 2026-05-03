@@ -115,7 +115,7 @@ export function LibraryViewer({ folder = "" }: LibraryViewerProps) {
           </button>
           <button
             onClick={handleRefresh}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-neutral-400 border border-neutral-700 rounded hover:bg-hover-overlay transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-neutral-400 border border-neutral-700 rounded hover:text-neutral-200 hover:border-neutral-500 hover:bg-hover-overlay transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             Index neu aufbauen
@@ -131,7 +131,7 @@ export function LibraryViewer({ folder = "" }: LibraryViewerProps) {
       <div className="w-64 min-w-[256px] border-r border-neutral-700 flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-700 shrink-0">
-          <span className="text-xs text-neutral-400 font-medium">
+          <span className="text-xs text-neutral-400 font-medium uppercase tracking-widest">
             Library ({items.length})
           </span>
           <div className="flex items-center gap-1">
@@ -170,7 +170,7 @@ export function LibraryViewer({ folder = "" }: LibraryViewerProps) {
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
+                className={`px-2 py-0.5 text-xs rounded-sm transition-colors ${
                   filter === f
                     ? "bg-accent-a10 text-accent"
                     : "text-neutral-400 hover:text-neutral-200 hover:bg-hover-overlay"
@@ -230,7 +230,7 @@ export function LibraryViewer({ folder = "" }: LibraryViewerProps) {
                   )}
                   <div className="flex items-center gap-1 mt-1">
                     <span
-                      className={`inline-block px-1.5 py-0 text-[10px] rounded-full ${
+                      className={`inline-block px-1.5 py-0 text-[10px] rounded-sm ${
                         TYPE_COLORS[item.item_type]
                       }`}
                     >
@@ -239,7 +239,7 @@ export function LibraryViewer({ folder = "" }: LibraryViewerProps) {
                     {item.tags.slice(0, 2).map((tag) => (
                       <span
                         key={tag}
-                        className="inline-block px-1.5 py-0 text-[10px] rounded-full bg-neutral-800 text-neutral-500"
+                        className="inline-block px-1.5 py-0 text-[10px] rounded-sm bg-neutral-800 text-neutral-500"
                       >
                         {tag}
                       </span>
@@ -348,7 +348,7 @@ function ItemDetail({
             {item.name}
           </h2>
           <span
-            className={`inline-block px-1.5 py-0 text-[10px] rounded-full ${
+            className={`inline-block px-1.5 py-0 text-[10px] rounded-sm ${
               TYPE_COLORS[item.item_type]
             }`}
           >
@@ -363,7 +363,7 @@ function ItemDetail({
             {item.tags.map((tag) => (
               <span
                 key={tag}
-                className="inline-block px-1.5 py-0.5 text-[10px] rounded-full bg-neutral-800 text-neutral-400"
+                className="inline-block px-1.5 py-0.5 text-[10px] rounded-sm bg-neutral-800 text-neutral-400"
               >
                 {tag}
               </span>
@@ -376,7 +376,7 @@ function ItemDetail({
       <div className="flex items-center gap-2">
         <button
           onClick={handleCopyPath}
-          className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-neutral-300 border border-neutral-700 rounded hover:bg-hover-overlay transition-colors"
+          className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-neutral-300 border border-neutral-700 rounded hover:text-neutral-100 hover:border-neutral-500 hover:bg-hover-overlay transition-colors"
           title="Pfad in Zwischenablage kopieren"
         >
           <Copy className="w-3.5 h-3.5" />
@@ -557,7 +557,7 @@ function NewItemForm({
               <button
                 key={type}
                 onClick={() => setItemType(type)}
-                className={`px-2.5 py-1 text-xs rounded-full transition-colors ${
+                className={`px-2.5 py-1 text-xs rounded-sm transition-colors ${
                   itemType === type
                     ? TYPE_COLORS[type]
                     : "text-neutral-400 hover:text-neutral-200 bg-neutral-800 hover:bg-neutral-700"

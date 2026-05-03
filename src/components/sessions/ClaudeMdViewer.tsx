@@ -119,9 +119,9 @@ export function ClaudeMdViewer({ folder }: ClaudeMdViewerProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-neutral-700 shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-700 shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-neutral-400 font-medium">CLAUDE.md</span>
+          <span className="text-xs text-neutral-400 font-medium uppercase tracking-widest">CLAUDE.md</span>
           {isDirty && (
             <span className="w-2 h-2 rounded-full bg-orange-400" title="Ungespeicherte Änderungen" />
           )}
@@ -132,7 +132,7 @@ export function ClaudeMdViewer({ folder }: ClaudeMdViewerProps) {
               <button
                 onClick={saveFile}
                 disabled={!isDirty || isSaving}
-                className="flex items-center gap-1 px-2 py-0.5 text-[11px] rounded transition-colors disabled:opacity-40 text-accent hover:bg-accent-a10"
+                className="flex items-center gap-1 px-2 py-0.5 text-[11px] rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-accent hover:bg-accent-a10"
                 title="Speichern (Ctrl+S)"
                 aria-label="Datei speichern"
               >

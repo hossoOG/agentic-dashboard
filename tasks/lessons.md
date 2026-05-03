@@ -5,6 +5,25 @@
 
 ---
 
+## 2026-04-17 — Design-System-Intake
+
+### Eingehende Style-Contracts gegen Ist-Stand diffen, nicht blind uebernehmen
+**Kontext:** Anleitung zum Design-System-Intake verlangte "Token-Reconcile" via Copy aus `colors_and_type.css`. Tatsaechlich hatte `src/index.css` alle Tokens (Durations, Easings, Spacing, Alpha-Varianten, Glows) bereits — die eingehende CSS war ein Snapshot AUS dem Repo.
+**Erkenntnis:** Wenn ein externes Design-System aus dem eigenen Code extrahiert wurde, ist `src/index.css` die Source of Truth. Einseitig kopieren ueberschreibt moeglicherweise bereits weitergepflegte Werte.
+**Regel:** Tokens aus externer CSS immer gegen `src/index.css` diffen und explizit Delta-Listen erstellen. `src/index.css` niemals durch "Paket-CSS" ueberschreiben.
+
+### Scope-Disziplin bei Drift-Audits
+**Kontext:** Drift-Scan fand 4 harte `rounded-md/lg`-Violations, aber dazu ~25 `rounded-full`-Pills die streng genommen auch gegen "full = nur Status-Dots" verstossen.
+**Erkenntnis:** Ein Audit-Ticket eskaliert schnell von "6 Findings" zu "jede Pille prüfen", was zu unreviewbaren PRs und potentiellen Regressions fuehrt.
+**Regel:** Im Plan definierte Drift-Liste strikt abarbeiten. Graubereiche (hier: Pill-Shapes) als Follow-up-Issues dokumentieren, nicht in laufenden PR aufblaehen.
+
+### Vite-Public vs src/assets fuer Favicons
+**Kontext:** Anleitung schlug `<link rel="icon" href="/src/assets/logo.svg">` vor — das funktioniert in Vite nicht ohne Bundler-Hook (nur `public/*` wird als URL-Root gemountet).
+**Erkenntnis:** Generische Design-System-Anleitungen uebersehen oft Framework-Spezifika.
+**Regel:** Statisches Favicon → `public/<file>` + absoluter Pfad `/<file>` im `<link>`. `/src/...` nur via bundler-imports.
+
+---
+
 ## 2026-03-25 — Retrospektive & Konsolidierung
 
 ### Over-Planning ohne Feedback-Loop

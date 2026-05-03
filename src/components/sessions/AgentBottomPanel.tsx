@@ -20,6 +20,7 @@ import {
   type DetectedAgent,
   type DetectedWorktree,
 } from "../../store/agentStore";
+import { formatElapsed } from "../../utils/format";
 
 interface AgentBottomPanelProps {
   sessionId: string;
@@ -225,11 +226,7 @@ function AgentDetailCard({
     const duration = agent.completedAt
       ? agent.completedAt - agent.detectedAt
       : Date.now() - agent.detectedAt;
-    const durationSec = Math.floor(duration / 1000);
-    const durationMin = Math.floor(durationSec / 60);
-    return durationMin > 0
-      ? `${durationMin}m ${durationSec % 60}s`
-      : `${durationSec}s`;
+    return formatElapsed(duration);
   })();
 
   const statusLabel = {
@@ -256,7 +253,7 @@ function AgentDetailCard({
         <span className="text-sm font-semibold text-neutral-200">
           {agent.name ?? agent.task ?? "Agent"}
         </span>
-        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${statusColorClass}`}>
+        <span className={`text-[10px] px-1.5 py-0.5 rounded-sm ${statusColorClass}`}>
           {statusLabel}
         </span>
       </div>

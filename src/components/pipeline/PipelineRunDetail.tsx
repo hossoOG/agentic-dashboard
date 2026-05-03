@@ -7,7 +7,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { usePipelineHistoryStore } from "../../store/pipelineHistoryStore";
-import { formatElapsed } from "../../utils/formatElapsed";
+import { formatElapsed } from "../../utils/format";
 import { OUTCOME_CONFIG, formatTimestamp } from "./pipelineOutcomeConfig";
 import type {
   PipelineRun,
@@ -137,7 +137,7 @@ export function PipelineRunDetail({ run }: { run: PipelineRun }) {
         <div className="flex items-center gap-2">
           <button
             onClick={clearSelection}
-            className="p-1 rounded hover:bg-surface-raised text-neutral-500 hover:text-neutral-300 transition-colors"
+            className="p-1 rounded hover:bg-hover-overlay text-neutral-500 hover:text-neutral-300 transition-colors"
             title="Zurueck"
             data-testid="back-button"
           >
