@@ -4,12 +4,18 @@ import type { LucideIcon } from "lucide-react";
 import { DURATION, EASE } from "../../utils/motion";
 import { ICONS, ICON_SIZE } from "../../utils/icons";
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 export interface ToastData {
   id: string;
   type: "success" | "error" | "achievement" | "info";
   title: string;
   message?: string;
   duration?: number;
+  action?: ToastAction;
 }
 
 const TOAST_CONFIG: Record<
@@ -82,6 +88,17 @@ export function Toast({ toast, onDismiss }: ToastProps) {
             <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
               {toast.message}
             </p>
+          )}
+          {toast.action && (
+            <button
+              onClick={() => {
+                toast.action?.onClick();
+                onDismiss(toast.id);
+              }}
+              className={`mt-2 text-xs font-bold uppercase tracking-widest ${config.text} hover:underline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2`}
+            >
+              {toast.action.label}
+            </button>
           )}
         </div>
         <button

@@ -48,12 +48,21 @@ export function getPinIdFromTab(tab: ConfigSubTab): string | null {
 
 export type ToastType = "achievement" | "error" | "info" | "success";
 
+export interface ToastAction {
+  /** Button label shown inside the toast — keep short, max ~15 chars. */
+  label: string;
+  /** Fired on click. Toast auto-dismisses after the action runs. */
+  onClick: () => void;
+}
+
 export interface Toast {
   id: string;
   type: ToastType;
   title: string;
   message?: string;
   duration?: number;
+  /** Optional inline action button (e.g. "Speichern", "Rückgängig"). */
+  action?: ToastAction;
 }
 
 export interface DetailPanel {

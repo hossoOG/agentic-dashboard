@@ -4,7 +4,6 @@ import { SessionList } from "./SessionList";
 import { SessionTerminal } from "./SessionTerminal";
 import { GridCellChrome } from "./GridCell";
 import { TerminalToolbar } from "./TerminalToolbar";
-import { NewSessionDialog } from "./NewSessionDialog";
 import { SessionStatusBar } from "./SessionStatusBar";
 import { EmptyState } from "./EmptyState";
 import { ConfigPanel } from "./ConfigPanel";
@@ -20,7 +19,6 @@ export function SessionManagerView() {
   const renderDone = markRender("SessionManagerView");
   useEffect(() => { renderDone.done(); });
 
-  const [showNewDialog, setShowNewDialog] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const configPanelOpen = useUIStore((s) => s.configPanelOpen);
@@ -41,7 +39,7 @@ export function SessionManagerView() {
 
   const { containerRef, handleResizeStart } = useResizeHandle();
   useSessionEvents();
-  const { handleResumeSession, handleQuickStart } = useSessionCreation();
+  const { handleResumeSession, handleQuickStart, handleNewSessionFromDefaults } = useSessionCreation();
 
   // ─────────────────────────────────────────────────────────────────
   // Einheitlicher Render-Baum (Scroll-Bug-Fix, Option B).
@@ -94,7 +92,7 @@ export function SessionManagerView() {
         {/* Left column: Session list (collapsible) */}
         {!sidebarCollapsed && (
           <div className="w-[280px] min-w-[280px] border-r border-neutral-700 flex flex-col min-h-0">
-            <SessionList onNewSession={() => setShowNewDialog(true)} onQuickStart={handleQuickStart} />
+            <SessionList onNewSession={handleNewSessionFromDefaults} onQuickStart={handleQuickStart} />
           </div>
         )}
         {/* Sidebar toggle */}
@@ -136,7 +134,7 @@ export function SessionManagerView() {
 
             {/* EmptyState — only when no sessions AND no preview to show */}
             {!showPreview && showEmptyState && (
-              <EmptyState onNewSession={() => setShowNewDialog(true)} />
+              <EmptyState onNewSession={handleNewSessionFromDefaults} />
             )}
 
             {/* Unified terminal tree — ALL sessions stay mounted regardless of layout.
@@ -238,9 +236,6 @@ export function SessionManagerView() {
 
       {/* Bottom: Status bar */}
       <SessionStatusBar />
-
-      {/* Modal */}
-      <NewSessionDialog open={showNewDialog} onClose={() => setShowNewDialog(false)} />
     </div>
   );
 }

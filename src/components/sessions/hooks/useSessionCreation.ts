@@ -1,19 +1,38 @@
 import { useCallback } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
 import { wrapInvoke } from "../../../utils/perfLogger";
 import { useSessionStore } from "../../../store/sessionStore";
 import { useSettingsStore } from "../../../store/settingsStore";
 import { useUIStore } from "../../../store/uiStore";
 import { logError } from "../../../utils/errorLogger";
-import type { FavoriteFolder } from "../../../store/settingsStore";
+import type { FavoriteFolder, SettingsState } from "../../../store/settingsStore";
 import type { SessionShell } from "../../../store/sessionStore";
 
 function generateSessionId(): string {
   return `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function extractFolderName(path: string): string {
+  const parts = path.replace(/\\/g, "/").split("/").filter(Boolean);
+  return parts[parts.length - 1] ?? "session";
+}
+
+/**
+ * Resolves the user's `defaultShell` preference into a concrete shell that the
+ * Rust session backend understands. "auto" picks PowerShell on Windows (the
+ * primary supported platform); "bash" maps to gitbash since that is the actual
+ * Windows-side bash shell available to the PTY backend.
+ */
+function resolveDefaultShell(pref: SettingsState["defaultShell"]): SessionShell {
+  if (pref === "powershell" || pref === "cmd") return pref;
+  if (pref === "bash" || pref === "zsh") return "gitbash";
+  return "powershell"; // "auto" → safe Windows default
+}
+
 export interface UseSessionCreationReturn {
   handleResumeSession: (resumeSessionId: string, cwd: string, title?: string) => Promise<void>;
   handleQuickStart: (favorite: FavoriteFolder) => Promise<void>;
+  handleNewSessionFromDefaults: () => Promise<void>;
 }
 
 export function useSessionCreation(): UseSessionCreationReturn {
@@ -85,5 +104,71 @@ export function useSessionCreation(): UseSessionCreationReturn {
     }
   }, []);
 
-  return { handleResumeSession, handleQuickStart };
+  /**
+   * Ein-Klick: starts a session using the persisted defaults. Falls back to a
+   * folder picker when no default project path is set, then nudges the user
+   * to save it via a toast action so the next click is truly one-tap.
+   */
+  const handleNewSessionFromDefaults = useCallback(async () => {
+    const settings = useSettingsStore.getState();
+    let folder = settings.defaultProjectPath;
+
+    if (!folder) {
+      try {
+        const picked = await open({
+          directory: true,
+          multiple: false,
+          title: "Arbeitsordner wählen",
+        });
+        if (!picked || typeof picked !== "string") return;
+        folder = picked;
+
+        const pickedFolder = picked;
+        useUIStore.getState().addToast({
+          type: "info",
+          title: "Default speichern?",
+          message: "Setze diesen Ordner in Einstellungen, dann startet der Klick sofort.",
+          duration: 8000,
+          action: {
+            label: "Speichern",
+            onClick: () => useSettingsStore.getState().setDefaultProjectPath(pickedFolder),
+          },
+        });
+      } catch (err) {
+        logError("useSessionCreation.newSession.pickFolder", err);
+        return;
+      }
+    }
+
+    const id = generateSessionId();
+    const shell = resolveDefaultShell(settings.defaultShell);
+    const title = extractFolderName(folder);
+
+    try {
+      const result = await wrapInvoke<{
+        id: string;
+        title: string;
+        folder: string;
+        shell: string;
+      }>("create_session", { id, folder, title, shell });
+
+      const sessionId = result?.id ?? id;
+      useSessionStore.getState().addSession({
+        id: sessionId,
+        title: result?.title ?? title,
+        folder: result?.folder ?? folder,
+        shell: (result?.shell ?? shell) as SessionShell,
+      });
+      useUIStore.getState().closePreview();
+    } catch (err) {
+      logError("useSessionCreation.newSession.create", err);
+      useUIStore.getState().addToast({
+        type: "error",
+        title: "Session-Start fehlgeschlagen",
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }, []);
+
+  return { handleResumeSession, handleQuickStart, handleNewSessionFromDefaults };
 }

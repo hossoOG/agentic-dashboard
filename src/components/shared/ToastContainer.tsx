@@ -30,6 +30,7 @@ export function ToastContainer() {
               title: t.title,
               message: t.message,
               duration: t.duration,
+              action: t.action,
             }}
             onDismiss={removeToast}
           />
