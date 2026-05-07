@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  Monitor, Columns3, ScrollText, BookOpen, FileEdit,
+  Monitor, Columns3, ScrollText, BookOpen, FileEdit, Settings as SettingsIcon,
   Sun, Moon, Check, RefreshCw, ArrowDownCircle, AlertCircle, ExternalLink,
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
@@ -40,6 +40,7 @@ export function SideNav({ badges = {} }: SideNavProps) {
   const { activeTab, setActiveTab } = useUIStore();
   const mode = useSettingsStore((s) => s.theme.mode);
   const setTheme = useSettingsStore((s) => s.setTheme);
+  const showProtokolleTab = useSettingsStore((s) => s.preferences.showProtokolleTab);
   const [showChangelog, setShowChangelog] = useState(false);
   const { status, progress, newVersion, lastChecked, checkForUpdate, downloadAndInstall, confirmRelaunch } = useAutoUpdate();
 
@@ -55,7 +56,10 @@ export function SideNav({ badges = {} }: SideNavProps) {
   ];
 
   const bottomItems: NavItem[] = [
-    { id: "logs", label: "Protokolle", icon: ScrollText, badge: badges.logs },
+    ...(showProtokolleTab
+      ? [{ id: "logs" as ActiveTab, label: "Protokolle", icon: ScrollText, badge: badges.logs }]
+      : []),
+    { id: "settings", label: "Einstellungen", icon: SettingsIcon, badge: badges.settings },
   ];
 
   const detachableViews = new Set<ActiveTab>(["kanban", "library", "editor"]);

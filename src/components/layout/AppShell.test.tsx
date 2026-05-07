@@ -22,8 +22,8 @@ vi.mock("../pipeline/PipelineView", () => ({
 }));
 
 // Lazy-loaded views — mock as simple components
-vi.mock("./placeholders", () => ({
-  SettingsPlaceholder: () => <div data-testid="settings-placeholder" />,
+vi.mock("../settings/PreferencesView", () => ({
+  PreferencesView: () => <div data-testid="preferences-view" />,
 }));
 vi.mock("../kanban/KanbanDashboardView", () => ({
   KanbanDashboardView: () => <div data-testid="kanban-view" />,

@@ -1,12 +1,13 @@
-import React, { Suspense } from "react";
+import React, { Suspense, useEffect } from "react";
 import { SideNav } from "./SideNav";
 import { PipelineView } from "../pipeline/PipelineView";
 import { SessionManagerView } from "../sessions/SessionManagerView";
 import { useUIStore } from "../../store/uiStore";
+import { useSettingsStore } from "../../store/settingsStore";
 
 // Lazy-loaded views
-const SettingsPlaceholder = React.lazy(() =>
-  import("./placeholders").then((m) => ({ default: m.SettingsPlaceholder }))
+const PreferencesView = React.lazy(() =>
+  import("../settings/PreferencesView").then((m) => ({ default: m.PreferencesView }))
 );
 const KanbanDashboardView = React.lazy(() =>
   import("../kanban/KanbanDashboardView").then((m) => ({ default: m.KanbanDashboardView }))
@@ -31,6 +32,16 @@ function NeonSpinner() {
 
 export function AppShell() {
   const activeTab = useUIStore((s) => s.activeTab);
+  const setActiveTab = useUIStore((s) => s.setActiveTab);
+  const showProtokolleTab = useSettingsStore((s) => s.preferences.showProtokolleTab);
+
+  // If the user hides the Protokolle tab while standing on it, fall back to
+  // sessions so the main pane never renders an unreachable view.
+  useEffect(() => {
+    if (activeTab === "logs" && !showProtokolleTab) {
+      setActiveTab("sessions");
+    }
+  }, [activeTab, showProtokolleTab, setActiveTab]);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -65,7 +76,7 @@ export function AppShell() {
       case "settings":
         return (
           <Suspense fallback={<NeonSpinner />}>
-            <SettingsPlaceholder />
+            <PreferencesView />
           </Suspense>
         );
       default:
