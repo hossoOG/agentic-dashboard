@@ -4,6 +4,49 @@ Alle relevanten Änderungen an AgenticExplorer werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [Unreleased] — Einstellungen-Tab + Ein-Klick-Session
+
+### Added
+- **Globaler `Einstellungen`-Tab in der SideNav** mit drei Panels:
+  - `Neue Session` — Standard-Shell und Standard-Projektordner für den
+    `+ Neue Session`-Button. Folder-Picker mit `Leeren`-Option.
+  - `Debug-Logging` — Master-Schalter (off/on) plus drei feinere Toggles
+    für Frontend-Errors, Backend-Log-Files und Performance-Profiler.
+    Standardmäßig komplett aus, um RAM/Disk im Daily-Use zu sparen.
+  - `Sidebar` — Toggle für die `Protokolle`-Tab-Sichtbarkeit (Default aus).
+- **Ein-Klick-`+ NEUE SESSION`** — der Button im Sessions-Sidebar startet
+  jetzt sofort eine Session mit den gespeicherten Defaults. Wenn kein
+  Default-Ordner gesetzt ist, öffnet sich der Folder-Picker und ein Toast
+  bietet `Speichern` an, um den Pfad in die Einstellungen zu übernehmen.
+- **`Toast`-API um optionales `action: { label, onClick }`-Feld erweitert.**
+  Generischer Inline-Button für Toasts, sichtbar im neuen Settings-Flow.
+- **Tauri-Command `set_file_logging_enabled(enabled: bool)`** — runtime
+  Toggle für den `env_logger`-File-Appender via `AtomicBool`. Kein
+  Subscriber-Rebuild, flippt zur Laufzeit.
+
+### Changed
+- **`+ NEUE SESSION` öffnet keinen Modal-Dialog mehr.** Die zentrale
+  Konfiguration läuft über `Einstellungen → Neue Session`.
+- **Logging-Defaults sind nach dem Update aus.** `frontendLogging`,
+  `backendFileLogging` und `performanceProfiler` defaulten zu `false`,
+  ebenso `showProtokolleTab`. Power-User aktivieren beides wieder unter
+  `Einstellungen → Debug-Logging` bzw. `Einstellungen → Sidebar`.
+- **`SettingsPlaceholder` (`src/components/layout/placeholders.tsx`)
+  ersetzt durch `PreferencesView`** — Lazy-Import in `AppShell.tsx`
+  swaped, Datei gelöscht.
+
+### Removed
+- **`NewSessionDialog.tsx` + Test gelöscht** — dead code nach Ein-Klick-
+  Refactor. Funktionalität durch Settings-Defaults und Folder-Picker-
+  Fallback ersetzt.
+
+### Migration (Schema v2 → v3)
+- Bestehende Settings bleiben erhalten. Neue `preferences`-Slice mit
+  vier Booleans (alle `false`) wird automatisch ergänzt.
+- Erste Session-Erstellung nach Update öffnet den Folder-Picker, da
+  `defaultProjectPath` leer ist — ein Klick auf den Toast-Action-Button
+  speichert ihn als Default für künftige Klicks.
+
 ## [1.6.27] — 2026-04-27 — "Clipboard Plugin + Scroll-History Hardening"
 
 > Quick-Patch nach v1.6.26: zwei Multi-Agent-Analysen haben weitere

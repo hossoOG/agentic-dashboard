@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   logError,
   logWarn,
@@ -6,6 +6,7 @@ import {
   getRecentLogs,
   clearLogs,
   subscribeToLogs,
+  wireLoggingGate,
 } from "./errorLogger";
 
 // ---------------------------------------------------------------------------
@@ -156,6 +157,55 @@ describe("clearLogs", () => {
 // ---------------------------------------------------------------------------
 // subscribeToLogs
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// wireLoggingGate — runtime master switch
+// ---------------------------------------------------------------------------
+
+describe("wireLoggingGate", () => {
+  afterEach(() => {
+    // Reset the gate for the next test run, otherwise an "off" gate from
+    // an earlier test silences the whole module.
+    wireLoggingGate(() => true);
+    clearLogs();
+  });
+
+  it("buffer stays empty when the gate returns false", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    wireLoggingGate(() => false);
+
+    logError("src", new Error("dropped"));
+    logWarn("src", "also dropped");
+    logInfo("src", "and this");
+
+    expect(getRecentLogs()).toHaveLength(0);
+  });
+
+  it("subscriber is not called while gate is closed", () => {
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    const received: unknown[] = [];
+    subscribeToLogs((entry) => received.push(entry));
+
+    wireLoggingGate(() => false);
+    logInfo("src", "muted");
+
+    expect(received).toHaveLength(0);
+  });
+
+  it("buffer fills again once gate flips back on", () => {
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    let enabled = false;
+    wireLoggingGate(() => enabled);
+
+    logInfo("src", "first");
+    expect(getRecentLogs()).toHaveLength(0);
+
+    enabled = true;
+    logInfo("src", "second");
+    expect(getRecentLogs()).toHaveLength(1);
+    expect(getRecentLogs()[0].message).toBe("second");
+  });
+});
 
 describe("subscribeToLogs", () => {
   it("subscriber receives new entries", () => {

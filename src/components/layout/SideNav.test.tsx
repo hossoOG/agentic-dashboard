@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { SideNav } from "./SideNav";
 import { useUIStore } from "../../store/uiStore";
+import { useSettingsStore } from "../../store/settingsStore";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -38,20 +39,43 @@ vi.mock("../shared/UpdateNotification", () => ({
 describe("SideNav", () => {
   beforeEach(() => {
     useUIStore.setState({ activeTab: "sessions" });
+    // Reset preferences slice to deterministic defaults — preferences are
+    // persisted, so a previous test could otherwise leak `showProtokolleTab`.
+    useSettingsStore.setState({
+      preferences: {
+        frontendLogging: false,
+        backendFileLogging: false,
+        performanceProfiler: false,
+        showProtokolleTab: false,
+      },
+    });
     vi.clearAllMocks();
   });
 
-  it("renders all 5 visible nav items with German labels", () => {
+  it("renders the default-visible nav items with German labels", () => {
     render(<SideNav />);
     expect(screen.getByLabelText("Sitzungen")).toBeTruthy();
     expect(screen.getByLabelText("Kanban")).toBeTruthy();
     expect(screen.getByLabelText("Bibliothek")).toBeTruthy();
     expect(screen.getByLabelText("Editor")).toBeTruthy();
-    expect(screen.getByLabelText("Protokolle")).toBeTruthy();
+    expect(screen.getByLabelText("Einstellungen")).toBeTruthy();
     // Pipeline tab is disabled (not production-ready)
     expect(screen.queryByLabelText("Pipeline")).toBeNull();
-    // Settings tab is hidden (#138)
-    expect(screen.queryByLabelText("Einstellungen")).toBeNull();
+    // Protokolle is hidden by default — opt-in via Einstellungen
+    expect(screen.queryByLabelText("Protokolle")).toBeNull();
+  });
+
+  it("shows the Protokolle tab when preferences.showProtokolleTab is true", () => {
+    useSettingsStore.setState({
+      preferences: {
+        frontendLogging: false,
+        backendFileLogging: false,
+        performanceProfiler: false,
+        showProtokolleTab: true,
+      },
+    });
+    render(<SideNav />);
+    expect(screen.getByLabelText("Protokolle")).toBeTruthy();
   });
 
   it("highlights active tab and calls setActiveTab on click", () => {
@@ -74,7 +98,7 @@ describe("SideNav", () => {
     expect(screen.getByText("Sitzungen")).toBeTruthy();
     expect(screen.getByText("Kanban")).toBeTruthy();
     expect(screen.getByText("Bibliothek")).toBeTruthy();
-    expect(screen.getByText("Protokolle")).toBeTruthy();
+    expect(screen.getByText("Einstellungen")).toBeTruthy();
   });
 
   it("renders badge when count > 0 and hides when 0 or undefined", () => {

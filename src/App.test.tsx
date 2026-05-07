@@ -9,7 +9,7 @@ import { initSessionRestoreSync } from "./store/sessionRestoreSync";
 // ── Mocks ─────────────────────────────────────────────────────────────
 
 vi.mock("@tauri-apps/api/core", () => ({
-  invoke: vi.fn(),
+  invoke: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock("@tauri-apps/api/window", () => ({
