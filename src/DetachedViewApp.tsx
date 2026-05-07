@@ -1,5 +1,6 @@
 import { Suspense, lazy, useEffect } from "react";
 import { useSettingsStore } from "./store/settingsStore";
+import { wireRuntimeGates } from "./utils/wireRuntimeGates";
 
 const KanbanDashboardView = lazy(() =>
   import("./components/kanban/KanbanDashboardView").then((m) => ({ default: m.KanbanDashboardView }))
@@ -21,6 +22,13 @@ function NeonSpinner() {
 
 export default function DetachedViewApp({ view }: { view: string }) {
   const theme = useSettingsStore((s) => s.theme);
+
+  useEffect(() => {
+    // Each window mounts its own React root; perf/logging gates are
+    // module-local and must be re-wired per-window. No backend sync
+    // here — only the main window owns the Rust-side toggle.
+    return wireRuntimeGates();
+  }, []);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme.mode === "dark");

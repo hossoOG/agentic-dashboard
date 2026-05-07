@@ -4,7 +4,7 @@ import { ICONS, ICON_SIZE } from "./icons";
 describe("ICONS registry", () => {
   it("exports stable nav keys", () => {
     expect(Object.keys(ICONS.nav).sort()).toEqual(
-      ["editor", "kanban", "library", "logs", "sessions"],
+      ["editor", "kanban", "library", "logs", "sessions", "settings"],
     );
   });
 

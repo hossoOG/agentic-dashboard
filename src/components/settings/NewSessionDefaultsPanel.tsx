@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { FolderOpen } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useSettingsStore, type SettingsState } from "../../store/settingsStore";
 import { logError } from "../../utils/errorLogger";
+import { ICONS, ICON_SIZE } from "../../utils/icons";
 import { Button } from "../ui";
+
+const FolderOpenIcon = ICONS.action.folderOpen;
 
 const SHELL_OPTIONS: { value: SettingsState["defaultShell"]; label: string }[] = [
   { value: "auto", label: "Auto (Plattform-Default)" },
@@ -40,7 +42,7 @@ export function NewSessionDefaultsPanel() {
 
   return (
     <section className="border border-neutral-700 bg-surface-raised">
-      <header className="px-4 py-3 border-b border-neutral-700">
+      <header className="px-3 py-2 border-b border-neutral-700">
         <h3 className="text-xs font-bold uppercase tracking-widest text-neutral-300">
           Neue Session
         </h3>
@@ -90,7 +92,7 @@ export function NewSessionDefaultsPanel() {
               onClick={handlePickFolder}
               disabled={picking}
             >
-              <FolderOpen className="w-3.5 h-3.5" />
+              <FolderOpenIcon className={ICON_SIZE.card} />
               <span>Wählen</span>
             </Button>
             {defaultProjectPath && (

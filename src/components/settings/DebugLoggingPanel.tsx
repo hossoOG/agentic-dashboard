@@ -52,7 +52,7 @@ export function DebugLoggingPanel() {
 
   return (
     <section className="border border-neutral-700 bg-surface-raised">
-      <header className="px-4 py-3 border-b border-neutral-700">
+      <header className="px-3 py-2 border-b border-neutral-700">
         <h3 className="text-xs font-bold uppercase tracking-widest text-neutral-300">
           Debug-Logging
         </h3>

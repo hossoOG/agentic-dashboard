@@ -13,11 +13,13 @@ pub mod util;
 pub mod validation;
 
 /// Runtime flag for the env_logger format closure: when false, the closure
-/// short-circuits and skips both the stderr write and the file write. Default
-/// matches dev/release: `true` in debug builds (so `cargo run` terminal output
-/// works), `false` in release (so a fresh install respects the off-by-default
-/// preference until the frontend syncs the persisted value).
-pub static LOGGING_ENABLED: AtomicBool = AtomicBool::new(cfg!(debug_assertions));
+/// short-circuits and skips both the stderr write and the file write.
+/// Defaults to `true` so logs emitted before the frontend rehydrates and
+/// pushes the persisted preference are NOT lost — exactly the boot-window
+/// where diagnostics are most valuable. Users who keep logging off pay a
+/// tiny per-startup write window (a few KB), then it flips off as soon as
+/// `App.tsx` calls `set_file_logging_enabled(false)` on first mount.
+pub static LOGGING_ENABLED: AtomicBool = AtomicBool::new(true);
 
 fn init_logging() {
     use env_logger::Builder;

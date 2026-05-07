@@ -21,7 +21,7 @@
 
 import {
   // nav
-  Monitor, Columns3, BookOpen, FileEdit, ScrollText,
+  Monitor, Columns3, BookOpen, FileEdit, ScrollText, Settings,
   // theme
   Sun, Moon,
   // actions
@@ -47,6 +47,7 @@ export const ICONS = {
     library: BookOpen,
     editor: FileEdit,
     logs: ScrollText,
+    settings: Settings,
   },
   theme: {
     light: Sun,

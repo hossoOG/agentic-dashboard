@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { useSettingsStore } from "./store/settingsStore";
 import { useLogViewerStore } from "./store/logViewerStore";
+import { wireRuntimeGates } from "./utils/wireRuntimeGates";
 
 const LogViewer = lazy(() => import("./components/logs/LogViewer").then(m => ({ default: m.LogViewer })));
 
@@ -9,6 +10,11 @@ export default function LogWindowApp() {
   const theme = useSettingsStore((s) => s.theme);
 
   useEffect(() => {
+    // Each window mounts its own React root; perf/logging gates are
+    // module-local and must be re-wired per-window. No backend sync
+    // here — only the main window owns the Rust-side toggle.
+    const unsubscribeGates = wireRuntimeGates();
+
     const addEntries = useLogViewerStore.getState().addEntries;
     // Payload shape matches App.tsx: { line: string; stream: string }
     const unlisten = listen<{ line: string; stream: string }>("pipeline-log", (event) => {
@@ -21,7 +27,10 @@ export default function LogWindowApp() {
         message: line,
       }]);
     });
-    return () => { unlisten.then((fn) => fn()); };
+    return () => {
+      unsubscribeGates();
+      unlisten.then((fn) => fn());
+    };
   }, []);
 
   useEffect(() => {

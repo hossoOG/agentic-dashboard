@@ -20,6 +20,13 @@ vi.mock("./utils/errorLogger", () => ({
   getRecentLogs: vi.fn(() => []),
   subscribeToLogs: vi.fn(() => () => {}),
   logError: vi.fn(),
+  wireLoggingGate: vi.fn(),
+}));
+
+vi.mock("./utils/perfLogger", () => ({
+  setPerfEnabled: vi.fn(),
+  // Other exports referenced indirectly via the wrapInvoke in subscribed views
+  wrapInvoke: vi.fn(<T,>(_cmd: string, _args?: unknown) => Promise.resolve(undefined as T)),
 }));
 
 // ---------------------------------------------------------------------------

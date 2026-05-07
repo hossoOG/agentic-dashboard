@@ -91,9 +91,20 @@ export function Toast({ toast, onDismiss }: ToastProps) {
           )}
           {toast.action && (
             <button
+              type="button"
               onClick={() => {
-                toast.action?.onClick();
-                onDismiss(toast.id);
+                // Always dismiss, even when the action throws — otherwise the
+                // toast stays mounted forever and the user gets no feedback.
+                try {
+                  const result: unknown = toast.action!.onClick();
+                  if (result instanceof Promise) {
+                    result.catch(() => { /* swallowed: globalErrorHandler surfaces it */ });
+                  }
+                } catch {
+                  // Surfaced via globalErrorHandler if it bubbles to window.
+                } finally {
+                  onDismiss(toast.id);
+                }
               }}
               className={`mt-2 text-xs font-bold uppercase tracking-widest ${config.text} hover:underline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2`}
             >
@@ -102,6 +113,7 @@ export function Toast({ toast, onDismiss }: ToastProps) {
           )}
         </div>
         <button
+          type="button"
           onClick={() => onDismiss(toast.id)}
           className="text-neutral-500 hover:text-neutral-300 transition-colors shrink-0"
           aria-label="Benachrichtigung schließen"

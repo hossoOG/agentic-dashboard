@@ -112,6 +112,7 @@ export function useSessionCreation(): UseSessionCreationReturn {
   const handleNewSessionFromDefaults = useCallback(async () => {
     const settings = useSettingsStore.getState();
     let folder = settings.defaultProjectPath;
+    let pickedFolder: string | null = null;
 
     if (!folder) {
       try {
@@ -122,18 +123,7 @@ export function useSessionCreation(): UseSessionCreationReturn {
         });
         if (!picked || typeof picked !== "string") return;
         folder = picked;
-
-        const pickedFolder = picked;
-        useUIStore.getState().addToast({
-          type: "info",
-          title: "Default speichern?",
-          message: "Setze diesen Ordner in Einstellungen, dann startet der Klick sofort.",
-          duration: 8000,
-          action: {
-            label: "Speichern",
-            onClick: () => useSettingsStore.getState().setDefaultProjectPath(pickedFolder),
-          },
-        });
+        pickedFolder = picked;
       } catch (err) {
         logError("useSessionCreation.newSession.pickFolder", err);
         return;
@@ -160,6 +150,23 @@ export function useSessionCreation(): UseSessionCreationReturn {
         shell: (result?.shell ?? shell) as SessionShell,
       });
       useUIStore.getState().closePreview();
+
+      // Only nudge the user to bookmark this folder once the session
+      // actually started — inviting a save for a path that just failed
+      // would be misleading.
+      if (pickedFolder) {
+        const folderToSave = pickedFolder;
+        useUIStore.getState().addToast({
+          type: "info",
+          title: "Default speichern?",
+          message: "Setze diesen Ordner in Einstellungen, dann startet der Klick sofort.",
+          duration: 8000,
+          action: {
+            label: "Speichern",
+            onClick: () => useSettingsStore.getState().setDefaultProjectPath(folderToSave),
+          },
+        });
+      }
     } catch (err) {
       logError("useSessionCreation.newSession.create", err);
       useUIStore.getState().addToast({
