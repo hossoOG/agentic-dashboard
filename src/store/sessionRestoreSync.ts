@@ -1,5 +1,51 @@
-import { useSessionStore } from "./sessionStore";
+import { useSessionStore, type ClaudeSession } from "./sessionStore";
 import { useSettingsStore, type RestorableSession } from "./settingsStore";
+import { logWarn } from "../utils/errorLogger";
+
+/**
+ * De-duplicate alive sessions before persisting.
+ *
+ * Background: A discovery race (useSessionEvents.ts) can map several
+ * frontend cards onto the same Claude CLI session UUID. Without dedup
+ * we would persist the corrupt state, then the restore loop would
+ * recreate N cards all pointing at the same backend session.
+ *
+ * Dedup rule: if a `claudeSessionId` is set, it must be unique across
+ * the persisted snapshot. The first card carrying a given UUID wins,
+ * subsequent duplicates are dropped (with a warning log).
+ *
+ * Sessions without a `claudeSessionId` (discovery not yet complete) are
+ * never deduped — they may legitimately share folder + title. The
+ * restore-side claim set in `useSessionRestore` ensures distinct UUIDs
+ * are assigned on the next start.
+ */
+export function dedupRestorableSessions(
+  alive: readonly ClaudeSession[],
+): RestorableSession[] {
+  const result: RestorableSession[] = [];
+  const seenClaudeIds = new Set<string>();
+
+  for (const s of alive) {
+    if (s.claudeSessionId) {
+      if (seenClaudeIds.has(s.claudeSessionId)) {
+        logWarn(
+          "sessionRestoreSync",
+          `Doppelte claudeSessionId "${s.claudeSessionId}" — Card "${s.title}" (${s.folder}) wird nicht persistiert`,
+        );
+        continue;
+      }
+      seenClaudeIds.add(s.claudeSessionId);
+    }
+    result.push({
+      folder: s.folder,
+      title: s.title,
+      shell: s.shell,
+      claudeSessionId: s.claudeSessionId,
+    });
+  }
+
+  return result;
+}
 
 /**
  * Subscribes to sessionStore changes and continuously syncs
@@ -18,12 +64,7 @@ export function initSessionRestoreSync(): () => void {
       (s) => s.status !== "done" && s.status !== "error",
     );
 
-    const sessions: RestorableSession[] = alive.map((s) => ({
-      folder: s.folder,
-      title: s.title,
-      shell: s.shell,
-      claudeSessionId: s.claudeSessionId,
-    }));
+    const sessions = dedupRestorableSessions(alive);
 
     // Resolve active/grid sessions by folder (stable across restore failures)
     const activeSession = state.activeSessionId

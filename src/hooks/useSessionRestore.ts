@@ -43,11 +43,29 @@ async function restoreSessions(
   const createdIds: string[] = [];
   const errors: string[] = [];
 
+  // Track Claude session UUIDs claimed across this restore run.
+  // Prevents two cards from latching onto the same backend session when:
+  //  (a) persisted state still carries duplicates from a pre-fix install, or
+  //  (b) several entries fall back to scan_claude_sessions and would otherwise
+  //      all pick history[0].
+  const claimedClaudeIds = new Set<string>();
+
   for (const entry of sessionsToRestore) {
     const id = generateSessionId();
     try {
       // Use persisted Claude CLI session ID if available, otherwise scan for most recent
       let resumeSessionId: string | undefined = entry.claudeSessionId;
+
+      // If the persisted UUID was already claimed by an earlier iteration,
+      // drop the resume hint — fall through to scan or fresh-spawn.
+      if (resumeSessionId && claimedClaudeIds.has(resumeSessionId)) {
+        logWarn(
+          "sessionRestore",
+          `Duplikat claudeSessionId "${resumeSessionId}" in persistierten Sessions — ignoriere Resume für "${entry.title}"`,
+        );
+        resumeSessionId = undefined;
+      }
+
       if (!resumeSessionId) {
         try {
           const history = await wrapInvoke<ClaudeSessionSummary[]>(
@@ -55,13 +73,21 @@ async function restoreSessions(
             { folder: entry.folder },
           );
           if (history && history.length > 0) {
-            // Sessions are sorted by date desc — first entry is the most recent
-            resumeSessionId = history[0].session_id;
+            // Sessions are sorted by date desc — pick the newest UUID that
+            // hasn't already been claimed by an earlier restore iteration.
+            const candidate = history.find((h) => !claimedClaudeIds.has(h.session_id));
+            if (candidate) {
+              resumeSessionId = candidate.session_id;
+            }
           }
         } catch {
           // Non-critical: if scan fails, just start a fresh session
           logWarn("sessionRestore", `Claude-History für "${entry.folder}" nicht lesbar, starte frisch`);
         }
+      }
+
+      if (resumeSessionId) {
+        claimedClaudeIds.add(resumeSessionId);
       }
 
       const result = await wrapInvoke<{
