@@ -9,7 +9,7 @@ import { logError, logWarn } from "../../../utils/errorLogger";
 const trackSessionOutput = createEventTracker("session-output");
 
 // Private type — backend already sends started_at, only the TS type was missing
-interface ClaudeHistoryEntry {
+export interface ClaudeHistoryEntry {
   session_id: string;
   started_at: string; // ISO-8601, e.g. "2026-04-13T10:05:00.000Z"
 }
@@ -19,6 +19,45 @@ const DISCOVERY_RETRY_DELAY_MS = 3_000;
 // 10s covers the gap between React session creation (Date.now()) and the moment
 // Claude CLI writes started_at to its session file, plus any clock skew
 const DISCOVERY_TIMESTAMP_TOLERANCE_MS = 10_000;
+
+/**
+ * Pick the best history entry to attach to a session by Claude session UUID.
+ *
+ * Two callers (this hook and tests) need this exact logic, so it lives as a
+ * pure helper. The previous implementation took `history.find()` over a
+ * timestamp window — i.e. the *newest unclaimed* entry. That misassigns
+ * UUIDs when multiple sessions are spawned in quick succession in the same
+ * folder: the first discovery to dispatch latches onto the newest jsonl,
+ * even though that jsonl belongs to the most recently started card.
+ *
+ * Correct heuristic: pick the unclaimed entry whose `started_at` is
+ * **closest** to `sessionCreatedAt` — Claude CLI writes its session file
+ * a few hundred ms after spawn, so the closest match is the right one.
+ *
+ * Returns null when no candidate falls inside the tolerance window or all
+ * candidates are already claimed.
+ */
+export function pickBestHistoryMatch(
+  history: readonly ClaudeHistoryEntry[],
+  sessionCreatedAt: number,
+  isClaimed: (sessionId: string) => boolean,
+  toleranceMs: number = DISCOVERY_TIMESTAMP_TOLERANCE_MS,
+): ClaudeHistoryEntry | null {
+  let best: { entry: ClaudeHistoryEntry; diff: number } | null = null;
+
+  for (const entry of history) {
+    if (isClaimed(entry.session_id)) continue;
+    const ts = new Date(entry.started_at).getTime();
+    if (Number.isNaN(ts)) continue;
+    const diff = Math.abs(ts - sessionCreatedAt);
+    if (diff > toleranceMs) continue;
+    if (!best || diff < best.diff) {
+      best = { entry, diff };
+    }
+  }
+
+  return best?.entry ?? null;
+}
 
 /**
  * Registers Tauri event listeners for core session lifecycle:
@@ -86,8 +125,23 @@ export function useSessionEvents(): void {
     const scannedSessions = new Set<string>();
     // Tracks retry attempts and pending timer IDs per session tab-id
     const retryMap = new Map<string, { count: number; timerId: ReturnType<typeof setTimeout> }>();
-    // Tracks claudeSessionIds already claimed by another tab — prevents collision
+    // Tracks claudeSessionIds already claimed by another tab in this effect
+    // closure. Combined with a live sessionStore check below, the pair survives
+    // an effect remount (StrictMode / hot-reload) — a fresh Set wouldn't see
+    // older sessions, but the store does.
     const claimedIds = new Set<string>();
+
+    /**
+     * True if the given Claude UUID is already attached to some session
+     * — either claimed locally in this discovery wave, or already persisted
+     * on a session in the store (defense across effect remounts).
+     */
+    function isClaudeIdClaimed(sessionId: string): boolean {
+      if (claimedIds.has(sessionId)) return true;
+      return useSessionStore
+        .getState()
+        .sessions.some((s) => s.claudeSessionId === sessionId);
+    }
 
     async function discoverClaudeSessionId(id: string, attempt: number): Promise<void> {
       const session = useSessionStore.getState().sessions.find((s) => s.id === id);
@@ -101,15 +155,15 @@ export function useSessionEvents(): void {
         );
 
         if (history && history.length > 0) {
-          // Find the first history entry that:
-          // 1. Is not already claimed by another tab
-          // 2. Has a valid timestamp at or after this session's creation time (within tolerance)
-          const match = history.find((h) => {
-            if (claimedIds.has(h.session_id)) return false;
-            const historyTs = new Date(h.started_at).getTime();
-            if (isNaN(historyTs)) return false;
-            return historyTs >= session.createdAt - DISCOVERY_TIMESTAMP_TOLERANCE_MS;
-          });
+          // Pick the unclaimed entry whose started_at is closest to
+          // session.createdAt — Claude CLI writes the session file shortly
+          // after spawn, so the closest jsonl is the right one. Avoids the
+          // "newest first" misassignment when 3 sessions spawn within 1s.
+          const match = pickBestHistoryMatch(
+            history,
+            session.createdAt,
+            isClaudeIdClaimed,
+          );
 
           if (match) {
             claimedIds.add(match.session_id);

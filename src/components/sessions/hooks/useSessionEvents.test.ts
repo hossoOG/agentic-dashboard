@@ -2,7 +2,11 @@ import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from "vite
 import { renderHook } from "@testing-library/react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
-import { useSessionEvents } from "./useSessionEvents";
+import {
+  useSessionEvents,
+  pickBestHistoryMatch,
+  type ClaudeHistoryEntry,
+} from "./useSessionEvents";
 
 // ── Mocks ─────────────────────────────────────────────────────────────
 
@@ -319,5 +323,182 @@ describe("useSessionEvents", () => {
       expect(invoke).toHaveBeenCalledTimes(3);
       expect(mockSetClaudeSessionId).toHaveBeenCalledWith("tab-1", "SID-NEW");
     });
+
+    it("3-session race regression: 3 same-folder sessions get distinct UUIDs", async () => {
+      // Repro the bug team's failure-mode: 3 sessions spawn at +0/+100/+200ms
+      // in the same folder. Their jsonl files are written ~300ms after spawn.
+      // Closest-match must assign each card to its OWN jsonl, not "the newest
+      // unclaimed" which would invert the ordering.
+      mockSessionsData = [
+        { id: "tab-A", createdAt: 1000, folder: "C:/proj/m2", title: "m2" },
+        { id: "tab-B", createdAt: 1100, folder: "C:/proj/m2", title: "m2" },
+        { id: "tab-C", createdAt: 1200, folder: "C:/proj/m2", title: "m2" },
+      ];
+      (invoke as Mock).mockResolvedValue([
+        // Backend returns DESC sorted by started_at (newest first)
+        { session_id: "uuid-C", started_at: new Date(1500).toISOString() },
+        { session_id: "uuid-B", started_at: new Date(1400).toISOString() },
+        { session_id: "uuid-A", started_at: new Date(1300).toISOString() },
+      ]);
+
+      renderHook(() => useSessionEvents());
+      const cb = getListenCallback("session-status");
+
+      cb({ payload: { id: "tab-A", status: "running" } });
+      cb({ payload: { id: "tab-B", status: "running" } });
+      cb({ payload: { id: "tab-C", status: "running" } });
+
+      await vi.advanceTimersByTimeAsync(3_000);
+
+      // Each card claims its own jsonl — no UUID collisions.
+      expect(mockSetClaudeSessionId).toHaveBeenCalledWith("tab-A", "uuid-A");
+      expect(mockSetClaudeSessionId).toHaveBeenCalledWith("tab-B", "uuid-B");
+      expect(mockSetClaudeSessionId).toHaveBeenCalledWith("tab-C", "uuid-C");
+      expect(mockSetClaudeSessionId).toHaveBeenCalledTimes(3);
+    });
+
+    it("respects existing store-claimed UUIDs across an effect remount", async () => {
+      // Defense across StrictMode / hot-reload: a fresh useEffect run gets a
+      // new local claimedIds Set, but the store still carries the previous
+      // session's claudeSessionId. The discovery must not re-pick that UUID.
+      mockSessionsData = [
+        // tab-old already has uuid-A claimed in the store
+        { id: "tab-old", createdAt: 1000, folder: "C:/proj/m2", title: "m2", claudeSessionId: "uuid-A" },
+        // tab-new is the one currently discovering
+        { id: "tab-new", createdAt: 1100, folder: "C:/proj/m2", title: "m2" },
+      ];
+      (invoke as Mock).mockResolvedValue([
+        { session_id: "uuid-A", started_at: new Date(1300).toISOString() },
+        { session_id: "uuid-B", started_at: new Date(1400).toISOString() },
+      ]);
+
+      renderHook(() => useSessionEvents());
+      const cb = getListenCallback("session-status");
+
+      cb({ payload: { id: "tab-new", status: "running" } });
+      await vi.advanceTimersByTimeAsync(3_000);
+
+      // uuid-A is store-claimed → tab-new must pick uuid-B.
+      expect(mockSetClaudeSessionId).toHaveBeenCalledWith("tab-new", "uuid-B");
+      expect(mockSetClaudeSessionId).not.toHaveBeenCalledWith("tab-new", "uuid-A");
+    });
+  });
+});
+
+// ── Pure helper: pickBestHistoryMatch ────────────────────────────────────
+
+const NEVER_CLAIMED = (): boolean => false;
+
+function entry(session_id: string, isoStartedAt: string): ClaudeHistoryEntry {
+  return { session_id, started_at: isoStartedAt };
+}
+
+describe("pickBestHistoryMatch", () => {
+  it("returns null for empty history", () => {
+    expect(pickBestHistoryMatch([], Date.now(), NEVER_CLAIMED)).toBeNull();
+  });
+
+  it("returns null when every entry is already claimed", () => {
+    const history = [entry("uuid-1", "2026-01-01T10:00:00.000Z")];
+    const claimed = (id: string) => id === "uuid-1";
+    expect(
+      pickBestHistoryMatch(history, Date.parse("2026-01-01T10:00:00Z"), claimed),
+    ).toBeNull();
+  });
+
+  it("returns null when entries are outside the tolerance window", () => {
+    const history = [entry("uuid-1", "2026-01-01T10:00:00.000Z")];
+    const sessionCreatedAt = Date.parse("2026-01-01T10:01:00.000Z"); // +60s away
+    expect(
+      pickBestHistoryMatch(history, sessionCreatedAt, NEVER_CLAIMED, 10_000),
+    ).toBeNull();
+  });
+
+  it("returns the single unclaimed in-window entry", () => {
+    const history = [entry("uuid-1", "2026-01-01T10:00:00.500Z")];
+    const sessionCreatedAt = Date.parse("2026-01-01T10:00:00.000Z"); // 500ms before
+    expect(pickBestHistoryMatch(history, sessionCreatedAt, NEVER_CLAIMED)?.session_id).toBe("uuid-1");
+  });
+
+  it("picks closest started_at — not newest, when sessions are well-spaced", () => {
+    // Three sessions widely spaced enough that each is unambiguously closer
+    // to its own jsonl. The naive `find()` over a DESC-sorted history would
+    // pick uuid-newest for ALL queries; closest-match picks the right one
+    // per session.
+    //
+    // For closely-spaced sessions (within the spawn-to-jsonl delay), the
+    // picker alone is insufficient — see the regression test below for the
+    // claim-set sequence that handles that case.
+    const history: ClaudeHistoryEntry[] = [
+      entry("uuid-3", new Date(9_100).toISOString()),
+      entry("uuid-2", new Date(5_100).toISOString()),
+      entry("uuid-1", new Date(1_100).toISOString()),
+    ];
+
+    expect(pickBestHistoryMatch(history, 1_000, NEVER_CLAIMED)?.session_id).toBe("uuid-1");
+    expect(pickBestHistoryMatch(history, 5_000, NEVER_CLAIMED)?.session_id).toBe("uuid-2");
+    expect(pickBestHistoryMatch(history, 9_000, NEVER_CLAIMED)?.session_id).toBe("uuid-3");
+  });
+
+  it("skips claimed entries and falls back to next-closest", () => {
+    const history: ClaudeHistoryEntry[] = [
+      entry("uuid-A", new Date(1300).toISOString()),
+      entry("uuid-B", new Date(1400).toISOString()),
+      entry("uuid-C", new Date(1500).toISOString()),
+    ];
+    const claimed = (id: string) => id === "uuid-A";
+
+    expect(pickBestHistoryMatch(history, 1000, claimed)?.session_id).toBe("uuid-B");
+  });
+
+  it("ignores entries with invalid timestamps", () => {
+    const history: ClaudeHistoryEntry[] = [
+      entry("uuid-bad", "not-a-date"),
+      entry("uuid-good", new Date(1100).toISOString()),
+    ];
+
+    expect(pickBestHistoryMatch(history, 1000, NEVER_CLAIMED)?.session_id).toBe("uuid-good");
+  });
+
+  it("respects a custom tolerance parameter", () => {
+    const history: ClaudeHistoryEntry[] = [
+      entry("uuid-X", new Date(2000).toISOString()), // 1000ms after
+    ];
+
+    expect(pickBestHistoryMatch(history, 1000, NEVER_CLAIMED)?.session_id).toBe("uuid-X");
+    expect(pickBestHistoryMatch(history, 1000, NEVER_CLAIMED, 500)).toBeNull();
+  });
+
+  it("is deterministic on tie — first encountered wins", () => {
+    const history: ClaudeHistoryEntry[] = [
+      entry("uuid-first", new Date(900).toISOString()),  // -100ms
+      entry("uuid-second", new Date(1100).toISOString()), // +100ms
+    ];
+
+    expect(pickBestHistoryMatch(history, 1000, NEVER_CLAIMED)?.session_id).toBe("uuid-first");
+  });
+
+  it("regression: simulated 3-session sequence produces 3 distinct UUIDs", () => {
+    const history: ClaudeHistoryEntry[] = [
+      entry("uuid-C", new Date(1500).toISOString()),
+      entry("uuid-B", new Date(1400).toISOString()),
+      entry("uuid-A", new Date(1300).toISOString()),
+    ];
+    const claimed = new Set<string>();
+    const isClaimed = (id: string) => claimed.has(id);
+
+    const matchA = pickBestHistoryMatch(history, 1000, isClaimed);
+    if (matchA) claimed.add(matchA.session_id);
+
+    const matchB = pickBestHistoryMatch(history, 1100, isClaimed);
+    if (matchB) claimed.add(matchB.session_id);
+
+    const matchC = pickBestHistoryMatch(history, 1200, isClaimed);
+    if (matchC) claimed.add(matchC.session_id);
+
+    expect(matchA?.session_id).toBe("uuid-A");
+    expect(matchB?.session_id).toBe("uuid-B");
+    expect(matchC?.session_id).toBe("uuid-C");
+    expect(new Set([matchA?.session_id, matchB?.session_id, matchC?.session_id]).size).toBe(3);
   });
 });
