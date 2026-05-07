@@ -44,6 +44,21 @@ export interface PipelineSettings {
   logBufferSize: number;
 }
 
+/**
+ * Logging + UI toggles for daily-use performance.
+ * All default to `false` — power-users opt in when actively debugging.
+ */
+export interface AppPreferencesSettings {
+  /** Frontend errorLogger ring-buffer aktiv? Toast-Output bleibt unabhängig. */
+  frontendLogging: boolean;
+  /** Rust file logging aktiv? Steuert agentic-explorer.log via Tauri-Command. */
+  backendFileLogging: boolean;
+  /** perfLogger (IPC-Latenz, Render-Zeit) aktiv? Bereits DEV-only, dieses Toggle gated zusätzlich. */
+  performanceProfiler: boolean;
+  /** Protokolle-Tab in SideNav sichtbar? */
+  showProtokolleTab: boolean;
+}
+
 export interface ApiKeyMetadataEntry {
   id: string;
   provider: string;
@@ -119,6 +134,7 @@ export interface SettingsState {
   notifications: NotificationSettings;
   sound: SoundSettings;
   pipeline: PipelineSettings;
+  preferences: AppPreferencesSettings;
   apiKeys: ApiKeyMetadataEntry[];
   favorites: FavoriteFolder[];
   locale: "de" | "en";
@@ -138,6 +154,7 @@ export interface SettingsState {
   setNotifications: (partial: Partial<NotificationSettings>) => void;
   setSound: (partial: Partial<SoundSettings>) => void;
   setPipeline: (partial: Partial<PipelineSettings>) => void;
+  setPreferences: (partial: Partial<AppPreferencesSettings>) => void;
   setLocale: (locale: "de" | "en") => void;
   setDefaultShell: (shell: SettingsState["defaultShell"]) => void;
   setDefaultProjectPath: (path: string) => void;
@@ -194,6 +211,13 @@ const defaultPipeline: PipelineSettings = {
   maxConcurrentWorktrees: 5,
   autoRetryOnError: false,
   logBufferSize: 200,
+};
+
+const defaultPreferences: AppPreferencesSettings = {
+  frontendLogging: false,
+  backendFileLogging: false,
+  performanceProfiler: false,
+  showProtokolleTab: false,
 };
 
 const defaultSessionRestore: SessionRestoreData = {
@@ -272,6 +296,7 @@ export const useSettingsStore = create<SettingsState>()(
       notifications: defaultNotifications,
       sound: defaultSound,
       pipeline: defaultPipeline,
+      preferences: defaultPreferences,
       apiKeys: [],
       favorites: [],
       locale: "de",
@@ -327,6 +352,23 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => ({
           pipeline: { ...state.pipeline, ...partial },
         })),
+
+      setPreferences: (partial) =>
+        set((state) => {
+          const next = { ...state.preferences, ...partial };
+          // Sync backend logging toggle with Rust side. Fire-and-forget; the
+          // store update is the source of truth, the command just mirrors it.
+          if (
+            isTauri &&
+            partial.backendFileLogging !== undefined &&
+            partial.backendFileLogging !== state.preferences.backendFileLogging
+          ) {
+            invoke("set_file_logging_enabled", { enabled: partial.backendFileLogging }).catch(
+              (err) => logError("settingsStore.setBackendFileLogging", err),
+            );
+          }
+          return { preferences: next };
+        }),
 
       setLocale: (locale) => set({ locale }),
 
@@ -473,6 +515,7 @@ export const useSettingsStore = create<SettingsState>()(
           notifications: defaultNotifications,
           sound: defaultSound,
           pipeline: defaultPipeline,
+          preferences: defaultPreferences,
           locale: "de",
           defaultShell: "auto",
           defaultProjectPath: "",
@@ -493,6 +536,7 @@ export const useSettingsStore = create<SettingsState>()(
         notifications: state.notifications,
         sound: state.sound,
         pipeline: state.pipeline,
+        preferences: state.preferences,
         apiKeys: state.apiKeys,
         favorites: state.favorites,
         locale: state.locale,
@@ -504,7 +548,7 @@ export const useSettingsStore = create<SettingsState>()(
         sessionRestore: state.sessionRestore,
         sessionTitleOverrides: state.sessionTitleOverrides,
       }),
-      version: 2,
+      version: 3,
       migrate: (persisted: unknown, _version: number) => {
         // Deep-merge persisted data with defaults so new fields get defaults
         // while existing values are preserved. This prevents undefined fields
@@ -514,6 +558,7 @@ export const useSettingsStore = create<SettingsState>()(
           notifications: defaultNotifications,
           sound: defaultSound,
           pipeline: defaultPipeline,
+          preferences: defaultPreferences,
           apiKeys: [],
           favorites: [],
           locale: "de" as const,
@@ -552,6 +597,7 @@ export const useSettingsStore = create<SettingsState>()(
           notifications: { ...defaults.notifications, ...(p.notifications && typeof p.notifications === "object" ? p.notifications : {}) },
           sound: { ...defaults.sound, ...(p.sound && typeof p.sound === "object" ? p.sound : {}) },
           pipeline: { ...defaults.pipeline, ...(p.pipeline && typeof p.pipeline === "object" ? p.pipeline : {}) },
+          preferences: { ...defaults.preferences, ...(p.preferences && typeof p.preferences === "object" ? p.preferences : {}) },
           apiKeys: Array.isArray(p.apiKeys) ? p.apiKeys : defaults.apiKeys,
           favorites: Array.isArray(p.favorites) ? p.favorites : defaults.favorites,
           locale: p.locale === "de" || p.locale === "en" ? p.locale : defaults.locale,
