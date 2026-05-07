@@ -68,6 +68,14 @@ export function initPerf(): void {
   };
 }
 
+/**
+ * External toggle, e.g. driven by user-facing Settings. Hot-path checks read a
+ * plain boolean so a function-call gate would be measurably more expensive.
+ */
+export function setPerfEnabled(value: boolean): void {
+  enabled = value;
+}
+
 export function recordPerf(
   category: PerfCategory,
   label: string,

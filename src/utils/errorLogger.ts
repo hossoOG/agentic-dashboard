@@ -22,6 +22,19 @@ const logBuffer: LogEntry[] = [];
 type LogSubscriber = (entry: LogEntry) => void;
 let subscriber: LogSubscriber | null = null;
 
+/**
+ * Runtime gate. Defaults to ON so early-startup errors (before the gate is
+ * wired) are not silently dropped. The settingsStore replaces this at app
+ * boot via wireLoggingGate(). Injection-pattern avoids a circular import
+ * with settingsStore (which depends on logError for its own error paths).
+ */
+type LoggingGate = () => boolean;
+let isLoggingEnabled: LoggingGate = () => true;
+
+export function wireLoggingGate(gate: LoggingGate): void {
+  isLoggingEnabled = gate;
+}
+
 export function subscribeToLogs(cb: LogSubscriber): () => void {
   subscriber = cb;
   return () => {
@@ -34,6 +47,10 @@ function formatEntry(entry: LogEntry): string {
 }
 
 function addEntry(entry: LogEntry): void {
+  // Master gate — when disabled, drop the buffer write and subscriber call.
+  // Toasts via globalErrorHandler are independent and remain visible.
+  if (!isLoggingEnabled()) return;
+
   logBuffer.push(entry);
   if (logBuffer.length > MAX_BUFFER_SIZE) {
     logBuffer.shift();
