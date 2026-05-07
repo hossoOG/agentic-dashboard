@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 pub mod adp;
@@ -10,6 +11,13 @@ pub mod session;
 pub mod settings;
 pub mod util;
 pub mod validation;
+
+/// Runtime flag for the env_logger format closure: when false, the closure
+/// short-circuits and skips both the stderr write and the file write. Default
+/// matches dev/release: `true` in debug builds (so `cargo run` terminal output
+/// works), `false` in release (so a fresh install respects the off-by-default
+/// preference until the frontend syncs the persisted value).
+pub static LOGGING_ENABLED: AtomicBool = AtomicBool::new(cfg!(debug_assertions));
 
 fn init_logging() {
     use env_logger::Builder;
@@ -26,6 +34,9 @@ fn init_logging() {
     let mut builder = Builder::new();
     builder
         .format(|buf, record| {
+            if !LOGGING_ENABLED.load(Ordering::Relaxed) {
+                return Ok(());
+            }
             writeln!(
                 buf,
                 "[{}] [{}] [{}] {}",
@@ -48,6 +59,9 @@ fn init_logging() {
     if let Ok(file) = log_file {
         let file = std::sync::Mutex::new(file);
         builder.format(move |buf, record| {
+            if !LOGGING_ENABLED.load(Ordering::Relaxed) {
+                return Ok(());
+            }
             let msg = format!(
                 "[{}] [{}] [{}] {}",
                 chrono::Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
@@ -97,7 +111,17 @@ pub struct PipelineState {
 }
 
 mod commands {
+    use super::{Ordering, LOGGING_ENABLED};
     use crate::error::ADPError;
+
+    /// Frontend-driven toggle for the env_logger format-closure gate.
+    /// Setting this to false silences both stderr and file output without
+    /// rebuilding the subscriber, so it can flip at runtime without restart.
+    #[tauri::command]
+    pub fn set_file_logging_enabled(enabled: bool) -> Result<(), ADPError> {
+        LOGGING_ENABLED.store(enabled, Ordering::Relaxed);
+        Ok(())
+    }
 
     #[tauri::command]
     pub async fn open_log_window(app: tauri::AppHandle) -> Result<(), ADPError> {
@@ -186,6 +210,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::open_log_window,
             commands::open_detached_window,
+            commands::set_file_logging_enabled,
             // Session-Commands
             session::commands::commands::create_session,
             session::commands::commands::write_session,
