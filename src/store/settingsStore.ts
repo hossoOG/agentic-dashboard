@@ -58,6 +58,29 @@ export interface AppPreferencesSettings {
   performanceProfiler: boolean;
   /** Protokolle-Tab in SideNav sichtbar? */
   showProtokolleTab: boolean;
+  /**
+   * xterm-Scrollback-Limit pro Terminal (Zeilen). Default 25_000 — eine
+   * Claude-CLI-Session mit Tool-Calls + TUI-Repaints kann 5-10× mehr
+   * Output produzieren als typische Shells, daher höher als der
+   * xterm-Default (1000). Empfohlene Werte: 5_000 / 10_000 / 25_000 / 50_000.
+   * Memory-Kosten: ~12 Bytes pro Cell × cols × scrollback. 25k @ 200 cols
+   * ≈ 63 MB pro Terminal. 50k ≈ 126 MB.
+   */
+  scrollbackLines: number;
+}
+
+/** Allowed presets for the Settings-UI scrollback selector. */
+export const SCROLLBACK_PRESETS = [5_000, 10_000, 25_000, 50_000] as const;
+export type ScrollbackPreset = (typeof SCROLLBACK_PRESETS)[number];
+
+/** Clamp + sanitize a candidate scrollback value to a known-safe preset. */
+export function sanitizeScrollbackLines(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return 25_000;
+  }
+  // Allow any positive integer in a sane band; UI only exposes presets.
+  // Hard ceiling 100k to prevent settings-tampering OOM.
+  return Math.max(1_000, Math.min(100_000, Math.floor(value)));
 }
 
 export interface ApiKeyMetadataEntry {
@@ -219,6 +242,7 @@ const defaultPreferences: AppPreferencesSettings = {
   backendFileLogging: false,
   performanceProfiler: false,
   showProtokolleTab: false,
+  scrollbackLines: 25_000,
 };
 
 const defaultSessionRestore: SessionRestoreData = {

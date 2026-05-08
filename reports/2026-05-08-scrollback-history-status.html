@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Scrollback-History Pain · Diagnose &amp; Plan</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0a; --surface: #141414; --surface-2: #1c1c1c; --border: #2a2a2a;
+    --text: #e8e8e8; --muted: #888; --dim: #555;
+    --accent: #00d4c4; --accent-dim: #006d68;
+    --success: #4ade80; --warn: #fbbf24; --crit: #ef4444; --info: #60a5fa;
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  html, body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-size: 15px; line-height: 1.5; height: 100vh; overflow: hidden;
+  }
+  .deck { position: relative; width: 100vw; height: 100vh; }
+  .slide {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    padding: 40px 56px 72px 56px;
+    display: flex; flex-direction: column;
+    opacity: 0; pointer-events: none;
+    transition: opacity 200ms var(--ease);
+    overflow: auto;
+  }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  h1 { font-size: 30px; font-weight: 700; margin-bottom: 8px; color: var(--text); letter-spacing: -0.01em; }
+  h2 { font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); margin-bottom: 20px; }
+  h3 { font-size: 15px; font-weight: 600; color: var(--text); margin: 14px 0 6px 0; }
+  p { margin-bottom: 10px; color: var(--text); }
+  .muted { color: var(--muted); } .dim { color: var(--dim); } .accent { color: var(--accent); }
+  code, .mono { font-family: "JetBrains Mono", "Cascadia Code", "Fira Code", Consolas, monospace; font-size: 12.5px; }
+  .inline-code { background: var(--surface-2); padding: 2px 6px; color: var(--success); font-family: "JetBrains Mono", Consolas, monospace; font-size: 12px; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 12.5px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; border-bottom: 1px solid var(--accent-dim); }
+  td.num { text-align: right; font-family: "JetBrains Mono", Consolas, monospace; }
+  td.mono { font-family: "JetBrains Mono", Consolas, monospace; font-size: 12px; }
+  .tag {
+    display: inline-block; padding: 2px 8px; font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.08em; margin-right: 4px;
+  }
+  .tag-crit { background: rgba(239,68,68,0.12); color: var(--crit); border: 1px solid rgba(239,68,68,0.3); }
+  .tag-warn { background: rgba(251,191,36,0.12); color: var(--warn); border: 1px solid rgba(251,191,36,0.3); }
+  .tag-info { background: rgba(96,165,250,0.12); color: var(--info); border: 1px solid rgba(96,165,250,0.3); }
+  .tag-ok   { background: rgba(74,222,128,0.12); color: var(--success); border: 1px solid rgba(74,222,128,0.3); }
+  .tag-dim  { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
+  .panel { background: var(--surface); border: 1px solid var(--border); padding: 14px 18px; margin: 6px 0; }
+  .panel-accent { border-left: 2px solid var(--accent); }
+  .panel-success { border-left: 2px solid var(--success); }
+  .panel-warn { border-left: 2px solid var(--warn); }
+  .panel-crit { border-left: 2px solid var(--crit); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); padding: 14px 18px; border-left: 2px solid var(--accent); }
+  .stat-num { font-size: 26px; font-weight: 700; font-family: "JetBrains Mono", Consolas, monospace; color: var(--accent); line-height: 1; }
+  .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin-top: 6px; }
+  ul { list-style: none; padding: 0; }
+  ul li { padding: 3px 0; padding-left: 18px; position: relative; }
+  ul li::before { content: "→"; color: var(--accent); position: absolute; left: 0; font-weight: 700; }
+  .footer { position: absolute; bottom: 22px; left: 56px; right: 56px; display: flex; justify-content: space-between; align-items: center; font-size: 10.5px; color: var(--dim); letter-spacing: 0.08em; text-transform: uppercase; }
+  .progress { flex: 1; margin: 0 22px; height: 1px; background: var(--border); position: relative; }
+  .progress-fill { position: absolute; top: 0; left: 0; height: 100%; background: var(--accent); transition: width 200ms var(--ease); }
+  kbd { background: var(--surface-2); border: 1px solid var(--border); padding: 2px 8px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 11px; color: var(--text); }
+  .big-arrow { font-size: 36px; color: var(--accent); font-weight: 700; }
+  .pain-box {
+    background: rgba(239,68,68,0.06);
+    border: 1px solid rgba(239,68,68,0.3);
+    border-left: 3px solid var(--crit);
+    padding: 16px 22px;
+    margin: 14px 0;
+    font-size: 16px;
+  }
+  .fix-box {
+    background: rgba(74,222,128,0.06);
+    border: 1px solid rgba(74,222,128,0.3);
+    border-left: 3px solid var(--success);
+    padding: 16px 22px;
+    margin: 14px 0;
+    font-size: 16px;
+  }
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <!-- ============= 1 — TITLE ============= -->
+  <section class="slide active">
+    <div style="margin: auto; text-align: center;">
+      <h2 style="margin-bottom: 28px;">GSD-Analyse · 2026-05-08</h2>
+      <h1 style="font-size: 42px; margin-bottom: 16px;">Scrollback-History<br>"abgeschnitten"</h1>
+      <div class="pain-box" style="max-width: 700px; margin: 32px auto;">
+        <strong style="color: var(--crit);">USER-PAIN:</strong>
+        "beim Hochscrollen den Verlauf schön sehen, nicht abgeschnitten"
+      </div>
+      <p class="muted" style="font-size: 16px; margin-top: 24px;">
+        4 parallele GSD-Subagenten · Diagnose mit <strong>95% Confidence</strong> · 3-Phasen-Plan
+      </p>
+      <p class="dim" style="margin-top: 36px; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;">
+        <kbd>→</kbd> / <kbd>Space</kbd> weiter · <kbd>←</kbd> zurück · <kbd>Home</kbd>/<kbd>End</kbd>
+      </p>
+    </div>
+  </section>
+
+  <!-- ============= 2 — DIAGNOSE ============= -->
+  <section class="slide">
+    <h2>Diagnose · Wer schneidet die History ab?</h2>
+    <h1>Ein Hauptschuldiger, zwei Beiträger, vier Verdächtige freigesprochen</h1>
+
+    <table style="margin-top: 18px;">
+      <thead><tr><th style="width: 28%;">Mechanismus</th><th>Datei:Zeile</th><th style="width: 14%;">Schuldig?</th><th>Befund</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>xterm scrollback FIFO=5000</strong></td>
+          <td class="mono">SessionTerminal.tsx:87</td>
+          <td><span class="tag tag-crit">PRIMÄR</span></td>
+          <td>Lines &gt;5000 evicted FIFO. Eine 30-min-Claude-Refactor-Session frisst 5000 Zeilen leicht weg.</td>
+        </tr>
+        <tr>
+          <td>claude --resume Reprint-Limit</td>
+          <td>CLI-Verhalten</td>
+          <td><span class="tag tag-warn">BEITRÄGER</span></td>
+          <td>CLI druckt beim Resume nicht den vollen Transcript. Innerhalb laufender Session irrelevant; sichtbar nach App-Restart.</td>
+        </tr>
+        <tr>
+          <td>conpty Reflow off bei buildNumber=19041</td>
+          <td class="mono">SessionTerminal.tsx:100</td>
+          <td><span class="tag tag-warn">KOSMETISCH</span></td>
+          <td>Bei Window-Resize bleiben gewrappte Zeilen auf alter Spaltenbreite. Inhalt im Buffer, falsch gerendert.</td>
+        </tr>
+        <tr>
+          <td>strip_ansi-Korruption</td>
+          <td class="mono">manager.rs:464</td>
+          <td><span class="tag tag-ok">FREI</span></td>
+          <td>Wirkt nur auf Status-Snippet + Agent-Detector, NICHT auf xterm-Output.</td>
+        </tr>
+        <tr>
+          <td>500-char Buffer in useSessionEvents</td>
+          <td class="mono">useSessionEvents.ts:91</td>
+          <td><span class="tag tag-ok">FREI</span></td>
+          <td>Sidebar-Snippet ONLY — xterm-Listener ist separater Pfad.</td>
+        </tr>
+        <tr>
+          <td>4096-byte PTY-Chunk</td>
+          <td class="mono">manager.rs:186</td>
+          <td><span class="tag tag-ok">FREI</span></td>
+          <td>Reines Chunking. xterm reassembled. Nur rare U+FFFD-Glitches an Multi-Byte-Grenzen.</td>
+        </tr>
+        <tr>
+          <td>Tauri IPC Payload-Limit</td>
+          <td>Default WebView2</td>
+          <td><span class="tag tag-ok">FREI</span></td>
+          <td>Default-Limit ist im MB-Bereich. 4 KB-Chunks weit unterhalb.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="muted" style="margin-top: 18px; font-size: 13px;">
+      <strong>Verifikation für dich:</strong> Session öffnen → PowerShell <code class="inline-code">1..10000</code> → komplett hochscrollen → erste sichtbare Zeile ist ~5000, nicht 1. Bestätigt #1.
+    </p>
+  </section>
+
+  <!-- ============= 3 — MEMORY-BUDGET ============= -->
+  <section class="slide">
+    <h2>Memory-Budget · Was kostet "mehr Scrollback"?</h2>
+    <h1>xterm.js v6: 12 Bytes pro Cell + ~120 Bytes Overhead pro Row</h1>
+
+    <table style="margin-top: 18px;">
+      <thead><tr><th>scrollback</th><th>@ 200 cols</th><th class="num">Memory pro Terminal</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td>1.000 (xterm-Default)</td><td>2,4 MB</td><td class="num">~3 MB</td><td><span class="tag tag-dim">zu wenig für Claude-CLI</span></td></tr>
+        <tr><td><strong>5.000 (Status quo)</strong></td><td>12 MB</td><td class="num">~13 MB</td><td><span class="tag tag-crit">PAIN-POINT</span></td></tr>
+        <tr><td><strong>25.000 (Phase-1-Vorschlag)</strong></td><td>60 MB</td><td class="num">~63 MB</td><td><span class="tag tag-ok">SWEET-SPOT</span></td></tr>
+        <tr><td>50.000 (Power-User-Opt)</td><td>120 MB</td><td class="num">~126 MB</td><td><span class="tag tag-warn">opt-in</span></td></tr>
+        <tr><td>100.000</td><td>240 MB</td><td class="num">~252 MB</td><td><span class="tag tag-warn">grenzwertig</span></td></tr>
+        <tr><td>500.000</td><td>1,2 GB</td><td class="num">~1,26 GB</td><td><span class="tag tag-crit">OOM-Risiko</span></td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="margin-top: 22px;">Was machen andere Terminals?</h3>
+    <table>
+      <thead><tr><th>Tool</th><th class="num">Default Scrollback</th><th>Notiz</th></tr></thead>
+      <tbody>
+        <tr><td>VSCode Terminal</td><td class="num">1.000</td><td>Pre-allokiert</td></tr>
+        <tr><td>Tabby</td><td class="num">1.000</td><td>Persistiert genau 1k über Restart (User-Schmerz analog!)</td></tr>
+        <tr><td>Hyper</td><td class="num">1.000</td><td>Über config konfigurierbar</td></tr>
+        <tr><td>Wezterm</td><td class="num">3.500</td><td>Native (Rust), nicht xterm.js</td></tr>
+        <tr><td><strong>AgenticExplorer (jetzt)</strong></td><td class="num"><strong>5.000</strong></td><td>5× Industry-Default — aber Claude-Sessions verbrauchen 5-10× normal-CLI</td></tr>
+      </tbody>
+    </table>
+
+    <p class="muted" style="margin-top: 14px;">
+      <strong>Schluss:</strong> 25.000 für AgenticExplorer ist 25× xterm-Default. Rechtfertigt sich durch den Use-Case (Claude-CLI mit Tool-Calls + Re-Renders + Status-Bar-Repaints).
+    </p>
+  </section>
+
+  <!-- ============= 4 — DREI PHASEN ============= -->
+  <section class="slide">
+    <h2>Plan · Drei Phasen, ~2 Personentage</h2>
+    <h1>Phase 1 löst 95% des Pains in 1 Tag</h1>
+
+    <div class="grid-3" style="margin-top: 18px;">
+      <div class="panel panel-success">
+        <h3 style="margin-top: 0; color: var(--success);">Phase 1 · Quick Win</h3>
+        <p style="font-size: 12px; color: var(--muted);">~1 PT</p>
+        <ul style="font-size: 12.5px;">
+          <li>scrollback 5000 → 25000 (1-Zeilen-Edit)</li>
+          <li>Settings-Slider 5k/10k/25k/50k</li>
+          <li>Memory-Hint-Text bei 50k</li>
+          <li>Layer-B Test: 10k Zeilen ohne Loss</li>
+        </ul>
+        <p class="muted" style="font-size: 12px; margin-top: 12px;">
+          <strong>Akzeptanz:</strong> <code class="inline-code">1..10000</code> in PowerShell → komplett hochscrollen → Zeile 1 sichtbar.
+        </p>
+      </div>
+      <div class="panel panel-success">
+        <h3 style="margin-top: 0; color: var(--success);">Phase 2 · ConPty Reflow</h3>
+        <p style="font-size: 12px; color: var(--muted);">~2h · Bonus</p>
+        <ul style="font-size: 12.5px;">
+          <li>Rust: <code class="inline-code">get_windows_build()</code></li>
+          <li>Frontend: dynamic <code class="inline-code">windowsPty.buildNumber</code></li>
+          <li>Win11 (≥21376) → Reflow ON</li>
+          <li>Win10 22H2 (19045) → no-op (wie zuvor)</li>
+        </ul>
+        <p class="muted" style="font-size: 12px; margin-top: 12px;">
+          <strong>Akzeptanz:</strong> Window schmaler ziehen → alte Zeilen wrapen sauber neu (Win11).
+        </p>
+      </div>
+      <div class="panel panel-warn">
+        <h3 style="margin-top: 0; color: var(--warn);">Phase 3 · Persist über Restart</h3>
+        <p style="font-size: 12px; color: var(--muted);">~1 PT · separater PR</p>
+        <ul style="font-size: 12.5px;">
+          <li><code class="inline-code">@xterm/addon-serialize@0.14.0</code></li>
+          <li>Storage: <code class="inline-code">${app_data}/scrollback/&lt;id&gt;.vt.gz</code></li>
+          <li>Save: on-close + 60s throttled</li>
+          <li>Restore: vor PTY-Spawn</li>
+          <li>GC: removeSession → delete file</li>
+        </ul>
+        <p class="muted" style="font-size: 12px; margin-top: 12px;">
+          <strong>Akzeptanz:</strong> App schließen → öffnen → Resume → kompletter Verlauf da.
+        </p>
+      </div>
+    </div>
+
+    <h3 style="margin-top: 22px;">Empfohlene Reihenfolge</h3>
+    <p>
+      <span class="tag tag-ok">PR 1</span> Phase 1 + Phase 2 zusammen — <code class="inline-code">scrollback hardcap fix</code>. ~1 PT, klein, sofortige Erleichterung.
+      <br>
+      <span class="tag tag-ok">PR 2</span> Phase 3 separat — <code class="inline-code">scrollback persistence</code>. ~1 PT, größere Änderung mit addon-serialize-Risiko.
+    </p>
+  </section>
+
+  <!-- ============= 5 — RISIKEN ============= -->
+  <section class="slide">
+    <h2>Risk Register</h2>
+    <h1>Wo könnte es schiefgehen — und wie wir es abfangen</h1>
+
+    <table style="margin-top: 16px;">
+      <thead><tr><th style="width: 32%;">Risiko</th><th style="width: 12%;">Phase</th><th style="width: 14%;">Severity</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>claude-code TUI Alt-Screen überschreibt restored Scrollback</td>
+          <td>3</td>
+          <td><span class="tag tag-warn">MEDIUM</span></td>
+          <td><code class="inline-code">excludeAltBuffer: true</code> in serialize-Call. Restore VOR PTY-Spawn. Smoke-Test mit echter Claude-Session bevor merge.</td>
+        </tr>
+        <tr>
+          <td>addon-serialize ist "experimental", API kann brechen</td>
+          <td>3</td>
+          <td><span class="tag tag-info">LOW</span></td>
+          <td>Exakt-Pin <code class="inline-code">@xterm/addon-serialize@0.14.0</code> (kein <code class="inline-code">^</code>).</td>
+        </tr>
+        <tr>
+          <td>4 Sessions × 50k Zeilen = ~500 MB RAM</td>
+          <td>1</td>
+          <td><span class="tag tag-warn">MEDIUM</span></td>
+          <td>Default 25k (sicher). 50k nur Opt-In via Settings + UI-Memory-Hint.</td>
+        </tr>
+        <tr>
+          <td>Win10 22H2 (build 19045) — Reflow bleibt aus</td>
+          <td>2</td>
+          <td><span class="tag tag-info">LOW</span></td>
+          <td>Erwartetes Verhalten — buildNumber &lt; 21376 hält Reflow off. Identisch zu Status quo, kein Regress.</td>
+        </tr>
+        <tr>
+          <td><code class="inline-code">\x1bc</code> RIS-Reset von Tools clears scrollback mid-session</td>
+          <td>3</td>
+          <td><span class="tag tag-info">LOW</span></td>
+          <td>Persistierter File vom letzten Save überlebt. User merkt Verlust nur bis zum nächsten Save (≤60s).</td>
+        </tr>
+        <tr>
+          <td>Serialize 50k Zeilen ≈ 200-400ms</td>
+          <td>3</td>
+          <td><span class="tag tag-info">LOW</span></td>
+          <td>Save NUR auf close/shutdown/throttled-60s. Niemals on-output (= jeder Keystroke).</td>
+        </tr>
+        <tr>
+          <td>Phase-1-Speicher-Hunger merkt User initial</td>
+          <td>1</td>
+          <td><span class="tag tag-info">LOW</span></td>
+          <td>xterm pre-allokiert lazy beim ersten Cell-Write. Idle-Sessions kosten quasi nichts.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============= 6 — WAS NICHT ============= -->
+  <section class="slide">
+    <h2>Was wurde NICHT in diesen Plan aufgenommen</h2>
+    <h1>Bewusste Out-of-Scope-Entscheidungen</h1>
+
+    <div class="grid-2">
+      <div class="panel panel-warn">
+        <h3 style="margin-top: 0;">Andere Session-Pains (separate Pläne)</h3>
+        <ul>
+          <li><span class="tag tag-warn">#197</span> Mutex-during-PTY-I/O — Backend-Concurrency, eigener Plan</li>
+          <li><span class="tag tag-warn">#200</span> strip_ansi OSC/DCS-Leak — Detector-Korruption, eigener Plan</li>
+          <li><span class="tag tag-warn">#199</span> Doppelte Session-ID überschreibt — Session-Manager-Concern</li>
+          <li><span class="tag tag-warn">#198</span> Status-bleibt-running nach Exit — UX-Concern</li>
+        </ul>
+      </div>
+      <div class="panel panel-warn">
+        <h3 style="margin-top: 0;">Nice-to-Have (nicht Pain)</h3>
+        <ul>
+          <li><code class="inline-code">@xterm/addon-search</code> für Suche im Scrollback</li>
+          <li>Export-as-Text-Button (gesamter Verlauf in .txt)</li>
+          <li>Search-Highlight mit Treffer-Zähler</li>
+          <li>Per-Session unterschiedliche Scrollback-Limits</li>
+        </ul>
+      </div>
+      <div class="panel panel-crit">
+        <h3 style="margin-top: 0;">Architektur-Niemals (Out)</h3>
+        <ul>
+          <li>Persistierung des claude-code-TUI-State (technisch unmöglich)</li>
+          <li>Native Terminal-Renderer (Warp/Wave-Style) — zu großer Schnitt</li>
+          <li>Eigene Scrollback-Engine bauen — addon-serialize reicht</li>
+        </ul>
+      </div>
+      <div class="panel panel-accent">
+        <h3 style="margin-top: 0;">Aus dem User-Pain abgeleitet (in scope)</h3>
+        <ul>
+          <li>"Verlauf abgeschnitten" → Phase 1 (raise scrollback)</li>
+          <li>"schön sehen" → Phase 2 (Reflow-Fix bei Resize)</li>
+          <li>"über App-Neustart hinweg" → Phase 3 (Persist)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============= 7 — IMPLEMENT-LIVE-DEMO ============= -->
+  <section class="slide">
+    <h2>Phase 1 · Live-Code-Diff-Vorschau</h2>
+    <h1>Ein-Zeilen-Fix mit settingsStore-Anbindung</h1>
+
+    <h3 style="margin-top: 18px;"><code class="inline-code">src/components/sessions/SessionTerminal.tsx:87</code></h3>
+    <div class="panel" style="background: var(--surface-2);">
+      <pre class="mono" style="white-space: pre-wrap;"><span style="color: var(--crit);">- scrollback: 5000,</span>
+<span style="color: var(--success);">+ scrollback: useSettingsStore.getState().preferences.scrollbackLines ?? 25000,</span></pre>
+    </div>
+
+    <h3 style="margin-top: 16px;"><code class="inline-code">src/store/settingsStore.ts</code> (defaults)</h3>
+    <div class="panel" style="background: var(--surface-2);">
+      <pre class="mono" style="white-space: pre-wrap;"><span style="color: var(--text);">const defaultPreferences: AppPreferencesSettings = {
+  frontendLogging: false,
+  backendFileLogging: false,
+  performanceProfiler: false,
+  showProtokolleTab: false,
+</span><span style="color: var(--success);">+  scrollbackLines: 25000,
+</span><span style="color: var(--text);">};</span></pre>
+    </div>
+
+    <h3 style="margin-top: 16px;">Settings-UI · neuer Bereich "Terminal-Verlauf"</h3>
+    <div class="panel">
+      <p style="font-size: 13px;">
+        <strong>Scrollback-Zeilen:</strong> <code class="inline-code">[ 25.000 ▾ ]</code>
+      </p>
+      <p class="muted" style="font-size: 12px;">
+        Auswahlmöglichkeiten: 5.000 · 10.000 · 25.000 · 50.000<br>
+        Memory-Hint bei 50.000: "≈125 MB pro Terminal — bei mehreren aktiven Sessions kann der RAM-Verbrauch spürbar sein."
+      </p>
+    </div>
+
+    <p class="muted" style="margin-top: 16px; font-size: 13px;">
+      Aufwand <strong>real:</strong> ~80 Zeilen (Code + Tests + Settings-UI).
+      <strong>Effekt:</strong> 95% des User-Pains weg. Höchste Cost/Benefit-Ratio im ganzen Plan.
+    </p>
+  </section>
+
+  <!-- ============= 8 — EMPFEHLUNG ============= -->
+  <section class="slide">
+    <h2>Empfehlung · Was als nächstes</h2>
+    <h1>Drei Wege — A wäre mein Vorschlag</h1>
+
+    <div class="grid-3" style="margin-top: 16px;">
+      <div class="stat" style="border-left-color: var(--success);"><div class="stat-num" style="color: var(--success);">95%</div><div class="stat-label">Pain mit Phase 1 weg</div></div>
+      <div class="stat"><div class="stat-num">~1 PT</div><div class="stat-label">Phase 1 Aufwand</div></div>
+      <div class="stat"><div class="stat-num">~80</div><div class="stat-label">Zeilen Code für Phase 1</div></div>
+    </div>
+
+    <h3 style="margin-top: 24px;">Pfad A · Phase 1 sofort starten <span class="tag tag-ok">EMPFOHLEN</span></h3>
+    <div class="panel panel-accent">
+      <p>Neuer Branch <code class="inline-code">feat/scrollback-history-coverage</code> ab master. Phase 1 + 2 zusammen als Single PR. Nach Merge: Phase 3 als separater PR.</p>
+      <p class="muted" style="font-size: 12px; margin-top: 8px;">
+        <strong>User-Effekt nach 1 Tag:</strong> Hochscrollen zeigt 5× mehr Verlauf. Nach 2 Tagen (mit Phase 3): Verlauf überlebt App-Neustart.
+      </p>
+    </div>
+
+    <h3 style="margin-top: 16px;">Pfad B · Erst test/issue-pack-... mergen, dann Phase 1</h3>
+    <div class="panel">
+      <p>Aktueller Branch (5 Commits, Wave 0-4 + HTML) zuerst PR + Merge. Dann frischer Branch für Scrollback. Saubere Git-History, aber Pain bleibt 2-3 Tage länger.</p>
+    </div>
+
+    <h3 style="margin-top: 16px;">Pfad C · Direkt-Patch ohne PR</h3>
+    <div class="panel panel-warn">
+      <p>1-Zeilen-Edit jetzt direkt machen, sofort builden, sofort testen. Riskant ohne Settings-UI/Tests, aber als "ich-will-jetzt-Pain-weg"-Schnellfix möglich.</p>
+    </div>
+
+    <h3 style="margin-top: 22px;">Mein Default-Vorschlag</h3>
+    <div class="fix-box">
+      <strong>Pfad A.</strong> Phase 1 jetzt anziehen (~80 Zeilen). Phase 2 als 2h-Bonus dahinter. PR 1 abschließen, dann Phase 3 als separaten PR. <strong>Sag "go" und ich starte.</strong>
+    </div>
+
+    <p class="muted" style="margin-top: 16px; font-size: 12px;">
+      Plan-Dokument: <code class="inline-code">reports/2026-05-08-scrollback-history-PLAN.md</code> (vollständige Task-Aufschlüsselung mit Akzeptanz-Kriterien)
+    </p>
+  </section>
+
+</div>
+
+<div class="footer">
+  <span>Scrollback-History · Diagnose &amp; Plan · 2026-05-08</span>
+  <div class="progress"><div class="progress-fill" id="progress"></div></div>
+  <span id="counter">1 / 8</span>
+</div>
+
+<script>
+(function() {
+  const slides = document.querySelectorAll('.slide');
+  const progress = document.getElementById('progress');
+  const counter = document.getElementById('counter');
+  let current = 0;
+  function show(idx) {
+    if (idx < 0 || idx >= slides.length) return;
+    slides[current].classList.remove('active');
+    current = idx;
+    slides[current].classList.add('active');
+    progress.style.width = ((current + 1) / slides.length * 100) + '%';
+    counter.textContent = (current + 1) + ' / ' + slides.length;
+  }
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); show(current + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp' || e.key === 'Backspace') { e.preventDefault(); show(current - 1); }
+    else if (e.key === 'Home') { e.preventDefault(); show(0); }
+    else if (e.key === 'End') { e.preventDefault(); show(slides.length - 1); }
+  });
+  show(0);
+})();
+</script>
+</body>
+</html>

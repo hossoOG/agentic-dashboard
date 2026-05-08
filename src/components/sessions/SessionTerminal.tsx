@@ -7,6 +7,7 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
 import { logError } from "../../utils/errorLogger";
 import { useUIStore } from "../../store/uiStore";
+import { useSettingsStore, sanitizeScrollbackLines } from "../../store/settingsStore";
 import "@xterm/xterm/css/xterm.css";
 
 interface SessionTerminalProps {
@@ -80,11 +81,22 @@ export function SessionTerminal({ sessionId }: SessionTerminalProps) {
   useEffect(() => {
     if (!containerRef.current) return;
 
+    // Read scrollback limit from user preferences at terminal-creation time.
+    // Default 25_000 (5× xterm.js default of 1000) — Claude-CLI-Sessions
+    // produce 5–10× the output of typical shells (tool-calls, TUI repaints,
+    // status-bar redraws). User can change in Settings → Terminal-Verlauf.
+    // sanitize: clamp to safe band (1k..100k) to prevent corrupt-settings OOM.
+    // NOTE: live-changes apply on NEXT session creation (existing xterm
+    // instances keep their original buffer to avoid data loss on shrink).
+    const scrollbackLines = sanitizeScrollbackLines(
+      useSettingsStore.getState().preferences.scrollbackLines,
+    );
+
     const term = new Terminal({
       cursorBlink: true,
       fontSize: 13,
       fontFamily: "'Cascadia Code', 'Fira Code', 'Consolas', monospace",
-      scrollback: 5000,
+      scrollback: scrollbackLines,
       // Normalize bare LF (often emitted by Node child processes under PowerShell)
       // to CRLF so xterm renders lines correctly.
       convertEol: true,

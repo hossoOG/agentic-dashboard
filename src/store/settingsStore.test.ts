@@ -4,6 +4,8 @@ import {
   type SettingsState,
   normalizeProjectKey,
   validatePinnedPath,
+  sanitizeScrollbackLines,
+  SCROLLBACK_PRESETS,
 } from "./settingsStore";
 
 // ============================================================================
@@ -946,5 +948,61 @@ describe("renamePinnedDoc", () => {
     const pin = getState().pinnedDocs[normalizeProjectKey(folder)][0];
     getState().renamePinnedDoc(folder, pin.id, "Renamed");
     expect(getState().pinnedDocs[normalizeProjectKey("C:/Projects/other")][0].label).toBe("Over There");
+  });
+});
+
+// ============================================================================
+// scrollbackLines preferences (Phase 1 of scrollback-history-coverage)
+// ============================================================================
+
+describe("preferences.scrollbackLines", () => {
+  it("defaults to 25_000 on a fresh store", () => {
+    expect(getState().preferences.scrollbackLines).toBe(25_000);
+  });
+
+  it("persists user-selected presets via setPreferences", () => {
+    getState().setPreferences({ scrollbackLines: 50_000 });
+    expect(getState().preferences.scrollbackLines).toBe(50_000);
+
+    getState().setPreferences({ scrollbackLines: 5_000 });
+    expect(getState().preferences.scrollbackLines).toBe(5_000);
+  });
+
+  it("SCROLLBACK_PRESETS contains exactly the UI options", () => {
+    expect(SCROLLBACK_PRESETS).toEqual([5_000, 10_000, 25_000, 50_000]);
+  });
+});
+
+describe("sanitizeScrollbackLines", () => {
+  it("returns the value when within safe band", () => {
+    expect(sanitizeScrollbackLines(5_000)).toBe(5_000);
+    expect(sanitizeScrollbackLines(25_000)).toBe(25_000);
+    expect(sanitizeScrollbackLines(50_000)).toBe(50_000);
+    expect(sanitizeScrollbackLines(100_000)).toBe(100_000);
+  });
+
+  it("clamps values above the 100k OOM-defense ceiling", () => {
+    expect(sanitizeScrollbackLines(500_000)).toBe(100_000);
+    expect(sanitizeScrollbackLines(1_000_000)).toBe(100_000);
+    expect(sanitizeScrollbackLines(Number.MAX_SAFE_INTEGER)).toBe(100_000);
+  });
+
+  it("clamps values below the 1k floor", () => {
+    expect(sanitizeScrollbackLines(0)).toBe(25_000); // falls through to default for non-positive
+    expect(sanitizeScrollbackLines(-1)).toBe(25_000);
+    expect(sanitizeScrollbackLines(500)).toBe(1_000);
+  });
+
+  it("returns default 25_000 for non-numeric / invalid input", () => {
+    expect(sanitizeScrollbackLines("50000" as unknown)).toBe(25_000);
+    expect(sanitizeScrollbackLines(null)).toBe(25_000);
+    expect(sanitizeScrollbackLines(undefined)).toBe(25_000);
+    expect(sanitizeScrollbackLines(NaN)).toBe(25_000);
+    expect(sanitizeScrollbackLines(Infinity)).toBe(25_000);
+  });
+
+  it("floors fractional values", () => {
+    expect(sanitizeScrollbackLines(25_000.7)).toBe(25_000);
+    expect(sanitizeScrollbackLines(50_000.99)).toBe(50_000);
   });
 });

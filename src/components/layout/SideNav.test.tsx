@@ -47,6 +47,7 @@ describe("SideNav", () => {
         backendFileLogging: false,
         performanceProfiler: false,
         showProtokolleTab: false,
+        scrollbackLines: 25_000,
       },
     });
     vi.clearAllMocks();
@@ -72,6 +73,7 @@ describe("SideNav", () => {
         backendFileLogging: false,
         performanceProfiler: false,
         showProtokolleTab: true,
+        scrollbackLines: 25_000,
       },
     });
     render(<SideNav />);

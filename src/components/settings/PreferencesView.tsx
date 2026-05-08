@@ -2,6 +2,7 @@ import { ICONS, ICON_SIZE } from "../../utils/icons";
 import { NewSessionDefaultsPanel } from "./NewSessionDefaultsPanel";
 import { DebugLoggingPanel } from "./DebugLoggingPanel";
 import { SidebarTogglesPanel } from "./SidebarTogglesPanel";
+import { TerminalScrollbackPanel } from "./TerminalScrollbackPanel";
 
 const SettingsIcon = ICONS.nav.settings;
 
@@ -18,6 +19,7 @@ export function PreferencesView() {
       <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
           <NewSessionDefaultsPanel />
+          <TerminalScrollbackPanel />
           <DebugLoggingPanel />
           <SidebarTogglesPanel />
         </div>

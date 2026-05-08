@@ -348,3 +348,22 @@
 - **B3.6** App.integration: 0/3 — Vite-Build-Constants + jsdom-flakiness (define + skip)
 **Erkenntnis:** Parallel-Subagenten produzieren unterschiedliche Qualitätsstufen abhängig von Test-Komplexität. Einfache Test-Files (lokale State-Manipulation, einfache Mocks) klappen verlässlich. Komplexe Test-Setups (fake-timers + I/O, dynamic imports + jsdom) brauchen menschliche Triage.
 **Regel:** Subagenten-Briefs für Test-Files explizit kategorisieren: "EINFACH" (lokale State, wenige Dependencies) vs. "KOMPLEX" (timer-control, dynamic import, full-app render). Bei KOMPLEX: Subagent-Output IMMER vom Orchestrator vor Commit verifizieren + Reserve-Zeit für Triage einplanen (~30% der Subagent-Zeit).
+
+---
+
+## 2026-05-08 — Scrollback-History Phase 1 (xterm scrollback hardcap fix)
+
+### Hard-Coded UI-Limits sind versteckter Tech-Debt
+**Kontext:** `SessionTerminal.tsx:87` hatte `scrollback: 5000` als Konstante. xterm-Default ist 1000, das Repo war 5× erhöht — galt als "großzügig". Tatsache: Claude-CLI-Sessions (Tool-Calls + TUI-Repaints + Status-Bar-Refreshes) verbrauchen 5-10× den Output normaler Shells. 5000 reicht für ~30 Min, dann fängt FIFO-Eviction an. User-Pain: "beim Hochscrollen ist Verlauf abgeschnitten."
+**Erkenntnis:** Numerische Limits in UI-Komponenten sind nicht "Defaults" — sie sind ungeschriebene Architektur-Entscheidungen, die User-Pain verursachen ohne dass der Code es sagt. xterm-Default 1000 ist für Standard-Shells optimiert (kurze CLI-Outputs), nicht für TUI-heavy Tools wie Claude-CLI. Use-Case-spezifische Defaults gehören in Settings, nicht in Source.
+**Regel:** Jedes hard-coded numeric Limit in einer UI-Komponente ist ein Settings-Kandidat. Bei Discovery (z.B. via Bug-Report): NICHT die Konstante erhöhen, sondern in `settingsStore` ziehen + Sanitize-Helper + UI-Slider mit Memory-Hint. Default = das Limit das den dominanten Use-Case happy macht (hier: 25k = 5× das alte Hard-Code-Limit, gerechnet auf typische Claude-Session).
+
+### Pre-Existing Tests mit hard-coded Type-Shapes brechen bei Type-Erweiterung
+**Kontext:** Hinzufügen eines required Fields `scrollbackLines: number` zu `AppPreferencesSettings` brach 10 Test-Files die das Type explizit konstruieren (`{ frontendLogging: false, backendFileLogging: false, performanceProfiler: false, showProtokolleTab: false }` ← jetzt unvollständig). TSC fängt das, aber jeder Test musste manuell erweitert werden.
+**Erkenntnis:** Tests die einen Production-Type explizit konstruieren statt einen Builder-Helper zu verwenden, koppeln sich tief an die Type-Shape. Bei jeder Schema-Erweiterung: 10× Edit. Builder-Helper (`buildPreferences({ frontendLogging: true })`) wäre wartungsärmer aber keiner hat das von Anfang an gemacht.
+**Regel:** Bei Hinzufügen eines required Fields zu Production-Types: TSC laufen lassen, ALLE betroffenen Tests im selben Commit anpassen. Optional Tech-Debt-Eintrag: einen `buildPreferences(partial)`-Helper anlegen sodass künftige Erweiterungen nur den Helper anfassen statt 10 Tests.
+
+### Sanitize-Helper für persistierte numeric Settings ist Defense-in-Depth
+**Kontext:** `scrollbackLines` ist `number` in `AppPreferencesSettings`. Settings-UI gibt nur Presets (5k/10k/25k/50k), aber persistierter State auf Disk könnte korrupt sein (manuelle Edit, alter Schema-Bug, Migration-Drift). Ohne Clamp könnte `scrollbackLines: 999_999_999` durchrutschen → 12 GB Memory pro Terminal → OOM.
+**Erkenntnis:** Bei numeric Settings die in Production-Code als Limit verwendet werden (Memory, Disk, Timeout): IMMER Sanitize-Helper am Use-Site. Hard-Ceiling weit über UI-Maximum (hier: UI-Max 50k, Sanitize-Ceiling 100k) als Safety-Net gegen tampering oder Migration-Drift. Floor ebenfalls (1k) damit absurd kleine Werte nicht xterm crashen.
+**Regel:** Pro persistiertem numeric Setting: Sanitize-Funktion exportiert (pure, testbar) die min/max clampt + non-numeric/NaN/Infinity zu Default fällt. Use-Sites rufen Sanitize, nicht direkt das Setting. UI-Selector nutzt nur freigegebene Presets, aber Sanitize bewacht den gesamten Pfad.

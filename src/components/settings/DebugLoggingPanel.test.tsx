@@ -15,6 +15,7 @@ describe("DebugLoggingPanel", () => {
         backendFileLogging: false,
         performanceProfiler: false,
         showProtokolleTab: false,
+        scrollbackLines: 25_000,
       },
     });
   });
@@ -45,6 +46,7 @@ describe("DebugLoggingPanel", () => {
         backendFileLogging: false,
         performanceProfiler: false,
         showProtokolleTab: false,
+        scrollbackLines: 25_000,
       },
     });
     render(<DebugLoggingPanel />);
@@ -60,6 +62,7 @@ describe("DebugLoggingPanel", () => {
         backendFileLogging: true,
         performanceProfiler: true,
         showProtokolleTab: false,
+        scrollbackLines: 25_000,
       },
     });
     render(<DebugLoggingPanel />);

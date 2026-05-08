@@ -49,6 +49,7 @@ beforeEach(() => {
       backendFileLogging: false,
       performanceProfiler: false,
       showProtokolleTab: false,
+      scrollbackLines: 25_000,
     },
   });
 });
