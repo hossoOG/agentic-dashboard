@@ -8,7 +8,7 @@ import {
   type LogSeverity,
   type LogSource,
 } from "../../store/logViewerStore";
-import { getRecentLogs, subscribeToLogs, logError } from "../../utils/errorLogger";
+import { logError } from "../../utils/errorLogger";
 import { ICONS, ICON_SIZE } from "../../utils/icons";
 import { LogEntryRow, LOG_ROW_HEIGHT } from "./LogEntry";
 
@@ -57,9 +57,10 @@ export function LogViewer() {
   const toggleLiveTail = useLogViewerStore(selectToggleLiveTail);
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const initializedRef = useRef(false);
 
-  // Load backend logs (can be triggered manually via refresh button)
+  // Load backend logs (can be triggered manually via refresh button or
+  // automatically on mount). The logViewerStore caps at 1000 entries
+  // and dedupes via timestamp ordering, so re-fetches are bounded.
   const loadBackendLogs = useCallback(() => {
     invoke<string[]>("read_backend_log", { maxLines: 500 })
       .then((lines) => {
@@ -72,49 +73,11 @@ export function LogViewer() {
   }, [addEntries]);
 
   useEffect(() => {
-    // Guard: only load initial logs once to prevent duplicates on re-mount
-    // (e.g., when user switches tabs and LogViewer re-mounts via React.lazy)
-    if (!initializedRef.current) {
-      initializedRef.current = true;
-
-      // Load existing frontend logs only if store is empty
-      const storeEntries = useLogViewerStore.getState().entries;
-      if (storeEntries.length === 0) {
-        const existing = getRecentLogs();
-        if (existing.length > 0) {
-          addEntries(
-            existing.map((e) => ({
-              timestamp: e.timestamp,
-              severity: e.severity,
-              source: "frontend" as const,
-              module: e.source,
-              message: e.message,
-              stack: e.stack,
-            }))
-          );
-        }
-
-        // Load backend logs only on first mount
-        loadBackendLogs();
-      }
-    }
-
-    // Subscribe to live frontend logs
-    const unsub = subscribeToLogs((entry) => {
-      useLogViewerStore.getState().addEntries([
-        {
-          timestamp: entry.timestamp,
-          severity: entry.severity,
-          source: "frontend",
-          module: entry.source,
-          message: entry.message,
-          stack: entry.stack,
-        },
-      ]);
-    });
-
-    return unsub;
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // Frontend logs flow into logViewerStore directly via errorLogger —
+    // no separate subscription needed. Just refresh the on-disk backend
+    // log on every mount; the store handles dedup.
+    loadBackendLogs();
+  }, [loadBackendLogs]);
 
   // Filter entries, then group consecutive identical ones
   const grouped = useMemo(() => {

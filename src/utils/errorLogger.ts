@@ -2,9 +2,17 @@
  * Error Logging Service
  *
  * Captures errors with timestamp, severity, source, message, and stack.
- * Operates in-memory with console output. No Tauri fs plugin dependency.
- * Keeps last 100 entries for UI display via getRecentLogs().
+ * Pushes directly into the unified `logViewerStore` (the single source of
+ * truth for all log surfaces). Console output is preserved as a debugging
+ * aid in DevTools.
+ *
+ * Why no second buffer here: a previous version maintained a 100-entry
+ * ring buffer plus a single-subscriber callback as a separate pipeline.
+ * It diverged from logViewerStore's 1000-entry FIFO and led to dual-store
+ * coupling bugs. One store, one truth, one gate.
  */
+
+import { useLogViewerStore } from "../store/logViewerStore";
 
 export type LogSeverity = "error" | "warn" | "info";
 
@@ -15,12 +23,6 @@ export interface LogEntry {
   message: string;
   stack?: string;
 }
-
-const MAX_BUFFER_SIZE = 100;
-const logBuffer: LogEntry[] = [];
-
-type LogSubscriber = (entry: LogEntry) => void;
-let subscriber: LogSubscriber | null = null;
 
 /**
  * Runtime gate. Defaults to ON so early-startup errors (before the gate is
@@ -35,31 +37,29 @@ export function wireLoggingGate(gate: LoggingGate): void {
   isLoggingEnabled = gate;
 }
 
-export function subscribeToLogs(cb: LogSubscriber): () => void {
-  subscriber = cb;
-  return () => {
-    if (subscriber === cb) subscriber = null;
-  };
-}
-
 function formatEntry(entry: LogEntry): string {
   return `[${entry.timestamp}] [${entry.severity.toUpperCase()}] [${entry.source}] ${entry.message}`;
 }
 
 function addEntry(entry: LogEntry): void {
-  // Master gate — when disabled, drop the buffer write and subscriber call.
-  // Toasts via globalErrorHandler are independent and remain visible.
+  // Master gate — when disabled, drop everything (no buffer, no console
+  // mirror). Toasts via globalErrorHandler are independent and remain
+  // visible even with the gate closed.
   if (!isLoggingEnabled()) return;
 
-  logBuffer.push(entry);
-  if (logBuffer.length > MAX_BUFFER_SIZE) {
-    logBuffer.shift();
-  }
+  // Push into the unified log store — one source of truth.
+  useLogViewerStore.getState().addEntries([
+    {
+      timestamp: entry.timestamp,
+      severity: entry.severity,
+      source: "frontend",
+      module: entry.source,
+      message: entry.message,
+      stack: entry.stack,
+    },
+  ]);
 
-  // Notify subscriber
-  subscriber?.(entry);
-
-  // Mirror to console (intentional — this IS the logging sink)
+  // Mirror to console (intentional — DevTools is the dev's debugging surface).
   const formatted = formatEntry(entry);
   switch (entry.severity) {
     case "error":
@@ -115,12 +115,4 @@ export function logInfo(source: string, message: string): void {
     source,
     message,
   });
-}
-
-export function getRecentLogs(): readonly LogEntry[] {
-  return logBuffer;
-}
-
-export function clearLogs(): void {
-  logBuffer.length = 0;
 }

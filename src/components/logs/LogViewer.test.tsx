@@ -12,9 +12,10 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 vi.mock("../../utils/errorLogger", () => ({
-  getRecentLogs: vi.fn(() => []),
-  subscribeToLogs: vi.fn(() => () => {}),
   logError: vi.fn(),
+  logWarn: vi.fn(),
+  logInfo: vi.fn(),
+  wireLoggingGate: vi.fn(),
 }));
 
 // Mock @tanstack/react-virtual — jsdom has no layout engine, so the virtualizer
@@ -75,21 +76,8 @@ describe("LogViewer", () => {
     expect(screen.getByText("Test error message")).toBeInTheDocument();
   });
 
-  it("does not duplicate entries on re-mount when store already has data", async () => {
-    const { getRecentLogs } = await import("../../utils/errorLogger");
-    const mockGetRecentLogs = vi.mocked(getRecentLogs);
-
-    // Simulate first mount having loaded logs
-    mockGetRecentLogs.mockReturnValue([
-      {
-        timestamp: "2025-01-15T10:30:00.000Z",
-        severity: "info",
-        source: "test",
-        message: "existing log",
-      },
-    ]);
-
-    // Pre-populate store (simulates logs already loaded on prior mount)
+  it("re-fetches backend logs on every mount and respects the 1000-entry cap", async () => {
+    // Pre-populate as if logs already loaded on prior mount
     useLogViewerStore.getState().addEntries([
       {
         timestamp: "2025-01-15T10:30:00.000Z",
@@ -100,13 +88,15 @@ describe("LogViewer", () => {
       },
     ]);
 
-    const countBefore = useLogViewerStore.getState().entries.length;
+    const { invoke } = await import("@tauri-apps/api/core");
+    const mockInvoke = vi.mocked(invoke);
+    mockInvoke.mockClear();
 
-    // Re-mount: should NOT add duplicates because store already has entries
     render(<LogViewer />);
 
-    const countAfter = useLogViewerStore.getState().entries.length;
-    expect(countAfter).toBe(countBefore);
+    // After dropping the dual-store dance, we ALWAYS refetch on mount —
+    // the 1000-cap + timestamp ordering keep dupes bounded.
+    expect(mockInvoke).toHaveBeenCalledWith("read_backend_log", { maxLines: 500 });
   });
 
   it("displays entry count correctly", () => {
