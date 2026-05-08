@@ -4,9 +4,46 @@ Alle relevanten Änderungen an AgenticExplorer werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
-## [Unreleased] — Einstellungen-Tab + Ein-Klick-Session
+## [Unreleased] — Logging-Subsystem-Refactor + Einstellungen-Tab + Ein-Klick-Session
 
-### Added
+### Logging-Subsystem-Refactor (v2)
+
+Nach 3-Agent-Audit (Architektur, Toggle-Flow, Bug-Hunt) wurde das
+Logging-Subsystem chirurgisch überarbeitet. Vier BLOCKERs adressiert,
+plus die strukturellen Komplexitäts-Smells beseitigt:
+
+- **Backend-Logging respektiert User-Pref ab dem ersten Boot-Log.** Rust
+  liest `Documents/AgenticExplorer/settings.json` synchron beim Start,
+  bevor `init_logging` die Datei öffnet. Opt-out-User erzeugen die
+  Logfile **gar nicht mehr** (statt sie bei jedem Start mit Boot-Lärm
+  zu füllen). Lazy file open via `OnceLock`. Default `LOGGING_ENABLED =
+  false` mit Fallback `cfg!(debug_assertions)` damit `cargo run`-
+  Terminal-Output weiter funktioniert.
+- **Cross-Window-Propagation für Preferences.** Tauri-Event
+  `preferences-changed` wird beim Toggeln aus jedem Webview broadcastet.
+  Echo-Schutz via `sourceWindow`-Filter; Empfänger nutzen `setState`
+  statt `setPreferences` um Loops zu verhindern. Detached/Log-Windows
+  sehen User-Toggles jetzt sofort, nicht erst nach Restart.
+- **`tauriStorage.setItem` schreibt nur aus Main-Window.** Sekundär-
+  Windows updaten nur den lokalen Cache (für ihre Selektoren via
+  `preferences-changed`-Broadcast). Eliminert den Datenverlust-Race
+  wo Detached-Windows die Main-Toggles via Debounce überschrieben.
+- **Pipeline-Output sichtbar im Main-Window-Protokolle.** `pipeline-log`
+  Listener ist jetzt in beiden Windows (Main + Log) per
+  `subscribeToPipelineLog`. Vorher waren Pipeline-Events nur im
+  detachten Log-Fenster sichtbar; Main-Protokolle blieb leer.
+  Pipeline-Push respektiert jetzt `frontendLogging`-Gate.
+- **Eine Log-Quelle, eine Wahrheit.** `errorLogger.logError/Warn/Info`
+  pusht direkt in `logViewerStore`. Gelöscht: `logBuffer` (100-Ring),
+  `subscribeToLogs`, `getRecentLogs`, `clearLogs`, Single-Subscriber.
+  Spart ~140 Zeilen, Dual-Store-Tanz im LogViewer eliminiert.
+- **Rust hat eine Format-Closure**, nicht zwei. Lazy-File via
+  `OnceLock<Option<Mutex<File>>>` mit klarem Failure-Mode (eprintln!).
+- **User-Feedback bei Speicher-Fail.** `storage-save-error`
+  CustomEvent löst Toast aus (vorher: 0 Listener, stiller Datenverlust).
+  `set_file_logging_enabled`-Invoke-Fehler löst ebenfalls Toast aus.
+
+### Added (Einstellungen-Tab v1)
 - **Globaler `Einstellungen`-Tab in der SideNav** mit drei Panels:
   - `Neue Session` — Standard-Shell und Standard-Projektordner für den
     `+ Neue Session`-Button. Folder-Picker mit `Leeren`-Option.
@@ -39,6 +76,8 @@ Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 - **`NewSessionDialog.tsx` + Test gelöscht** — dead code nach Ein-Klick-
   Refactor. Funktionalität durch Settings-Defaults und Folder-Picker-
   Fallback ersetzt.
+- **`errorLogger.logBuffer` + `subscribeToLogs` + `getRecentLogs` +
+  `clearLogs` gelöscht** — replaced by direct push to `logViewerStore`.
 
 ### Migration (Schema v2 → v3)
 - Bestehende Settings bleiben erhalten. Neue `preferences`-Slice mit
