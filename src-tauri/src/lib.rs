@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 
 pub mod adp;
 pub mod error;
@@ -13,80 +13,99 @@ pub mod util;
 pub mod validation;
 
 /// Runtime flag for the env_logger format closure: when false, the closure
-/// short-circuits and skips both the stderr write and the file write.
-/// Defaults to `true` so logs emitted before the frontend rehydrates and
-/// pushes the persisted preference are NOT lost — exactly the boot-window
-/// where diagnostics are most valuable. Users who keep logging off pay a
-/// tiny per-startup write window (a few KB), then it flips off as soon as
-/// `App.tsx` calls `set_file_logging_enabled(false)` on first mount.
-pub static LOGGING_ENABLED: AtomicBool = AtomicBool::new(true);
+/// short-circuits the file write (stderr stays in debug builds for cargo run).
+/// Initial value is set in `run()` from the persisted preference if present,
+/// otherwise from `cfg!(debug_assertions)`. Default `false` means a fresh
+/// install never creates a log file at all.
+pub static LOGGING_ENABLED: AtomicBool = AtomicBool::new(false);
+
+/// Lazy-opened log file. Created on the FIRST allowed write. Opt-out users
+/// (gate stays `false`) never create the file, never spend any disk.
+static LOG_FILE: OnceLock<Option<Mutex<std::fs::File>>> = OnceLock::new();
+
+fn open_log_file_lazy() -> Option<Mutex<std::fs::File>> {
+    let path = log_file_path();
+    match std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+    {
+        Ok(f) => Some(Mutex::new(f)),
+        Err(e) => {
+            eprintln!(
+                "[agentic-explorer] Failed to open log file {}: {}",
+                path.display(),
+                e
+            );
+            None
+        }
+    }
+}
+
+/// Reads the persisted `preferences.backendFileLogging` from settings.json.
+/// Returns `Some(true)`/`Some(false)` if the user has an explicit setting,
+/// `None` if the file is missing or unreadable. Caller decides the fallback.
+fn read_persisted_backend_logging() -> Option<bool> {
+    let doc_dir = dirs::document_dir()?;
+    let path = doc_dir.join("AgenticExplorer").join("settings.json");
+    let content = std::fs::read_to_string(&path).ok()?;
+    let json: serde_json::Value = serde_json::from_str(&content).ok()?;
+    json.get("state")?
+        .get("preferences")?
+        .get("backendFileLogging")?
+        .as_bool()
+}
 
 fn init_logging() {
     use env_logger::Builder;
     use log::LevelFilter;
     use std::io::Write;
 
-    // File logger: WARN+ to agentic-explorer.log in current dir (or app data dir)
-    let log_path = dirs_next_or_cwd();
-    let log_file = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&log_path);
-
     let mut builder = Builder::new();
-    builder
-        .format(|buf, record| {
-            if !LOGGING_ENABLED.load(Ordering::Relaxed) {
-                return Ok(());
-            }
-            writeln!(
-                buf,
-                "[{}] [{}] [{}] {}",
-                chrono::Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
-                record.level(),
-                record.module_path().unwrap_or("unknown"),
-                record.args()
-            )
-        })
-        .filter_level(LevelFilter::Info);
+    builder.format(|buf, record| {
+        let gate_on = LOGGING_ENABLED.load(Ordering::Relaxed);
+        let dev_mode = cfg!(debug_assertions);
 
-    // In debug/dev builds, log INFO+ to stdout; in release, only WARN+
-    if cfg!(debug_assertions) {
-        builder.filter_level(LevelFilter::Info);
+        // Release: gate applies to BOTH stderr and file.
+        // Debug:   stderr always works for cargo run; file follows the gate.
+        if !dev_mode && !gate_on {
+            return Ok(());
+        }
+
+        let msg = format!(
+            "[{}] [{}] [{}] {}",
+            chrono::Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
+            record.level(),
+            record.module_path().unwrap_or("unknown"),
+            record.args()
+        );
+        writeln!(buf, "{}", msg)?;
+
+        // File write only when the gate is on (any build). Lazy-open so that
+        // opt-out users do not even create the file.
+        if gate_on {
+            if let Some(file_mutex) = LOG_FILE.get_or_init(open_log_file_lazy) {
+                if let Ok(mut f) = file_mutex.lock() {
+                    let _ = writeln!(f, "{}", msg);
+                }
+            }
+        }
+        Ok(())
+    });
+
+    // In debug/dev builds, log INFO+; in release, only WARN+
+    builder.filter_level(if cfg!(debug_assertions) {
+        LevelFilter::Info
     } else {
-        builder.filter_level(LevelFilter::Warn);
-    }
-
-    // If we can open the log file, add it as a target via env_logger's writer
-    if let Ok(file) = log_file {
-        let file = std::sync::Mutex::new(file);
-        builder.format(move |buf, record| {
-            if !LOGGING_ENABLED.load(Ordering::Relaxed) {
-                return Ok(());
-            }
-            let msg = format!(
-                "[{}] [{}] [{}] {}",
-                chrono::Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
-                record.level(),
-                record.module_path().unwrap_or("unknown"),
-                record.args()
-            );
-            // Write to stderr (default env_logger target)
-            writeln!(buf, "{}", msg)?;
-            // Also write to file
-            if let Ok(mut f) = file.lock() {
-                let _ = writeln!(f, "{}", msg);
-            }
-            Ok(())
-        });
-    }
+        LevelFilter::Warn
+    });
 
     if builder.try_init().is_err() {
         eprintln!("[agentic-explorer] Logger already initialized, skipping.");
     }
 }
 
-fn dirs_next_or_cwd() -> std::path::PathBuf {
+fn log_file_path() -> std::path::PathBuf {
     // Try to use the app's local data dir, fallback to cwd
     if let Some(data_dir) = std::env::var_os("LOCALAPPDATA") {
         let dir = std::path::PathBuf::from(data_dir).join("agentic-explorer");
@@ -180,6 +199,13 @@ mod commands {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Set the file-logging gate BEFORE init_logging registers the format
+    // closure. If the user has explicit settings, honor them; otherwise
+    // default to debug-on / release-off so opt-out users never create a
+    // log file at all.
+    let initial_logging = read_persisted_backend_logging().unwrap_or(cfg!(debug_assertions));
+    LOGGING_ENABLED.store(initial_logging, Ordering::Relaxed);
+
     init_logging();
     log::info!("Agentic Dashboard starting up");
 
