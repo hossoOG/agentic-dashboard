@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render } from "@testing-library/react";
 import { useLogViewerStore } from "./store/logViewerStore";
+import { useSettingsStore } from "./store/settingsStore";
 
 // Capture the listener callback registered via listen()
 let capturedListener: ((event: unknown) => void) | null = null;
@@ -17,15 +18,14 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 vi.mock("./utils/errorLogger", () => ({
-  getRecentLogs: vi.fn(() => []),
-  subscribeToLogs: vi.fn(() => () => {}),
   logError: vi.fn(),
+  logWarn: vi.fn(),
+  logInfo: vi.fn(),
   wireLoggingGate: vi.fn(),
 }));
 
 vi.mock("./utils/perfLogger", () => ({
   setPerfEnabled: vi.fn(),
-  // Other exports referenced indirectly via the wrapInvoke in subscribed views
   wrapInvoke: vi.fn(<T,>(_cmd: string, _args?: unknown) => Promise.resolve(undefined as T)),
 }));
 
@@ -41,6 +41,15 @@ beforeEach(() => {
     sourceFilter: new Set(["frontend", "backend", "pipeline"]),
     searchText: "",
     liveTail: true,
+  });
+  // pipelineLogBridge gates on this — flip on so events flow into the store.
+  useSettingsStore.setState({
+    preferences: {
+      frontendLogging: true,
+      backendFileLogging: false,
+      performanceProfiler: false,
+      showProtokolleTab: false,
+    },
   });
 });
 
