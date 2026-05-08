@@ -261,3 +261,22 @@
 **Kontext:** `discoverGlobal` lud Settings, Commands, Skills, Agents und Memory — aber NICHT die globale `~/.claude/CLAUDE.md`. Der "CLAUDE.md"-Section im Global-Scope blieb unsichtbar, weil `config.claudeMd` immer `""` war.
 **Erkenntnis:** Wenn ein neuer Scope oder eine neue Quelle hinzugefuegt wird, muessen ALLE Content-Typen des Scopes geprueft werden — nicht nur die neu hinzugefuegten. Luecken in der Discovery fallen nicht sofort auf, weil die UI fehlende Daten einfach nicht anzeigt (kein Error, nur leere Sections).
 **Regel:** Bei Erweiterung von Discovery-Funktionen: Checkliste aller ScopeConfig-Felder durchgehen (skills, agents, hooks, settingsRaw, claudeMd, memoryFiles). Jedes Feld muss fuer den Scope geladen werden oder explizit als "nicht relevant" markiert sein.
+
+---
+
+## 2026-05-08 — Session-Loading Real-Test-Plan (Wave 0)
+
+### Mehrstufige Pure-Function-Refactors lassen Wrapper transitiv tot werden
+**Kontext:** Im Wave-0-Refactor von `file_reader.rs` wurden drei verschachtelte Funktionen pure-extrahiert: `parse_session_jsonl` → `parse_session_jsonl_str`, `find_project_dir` → `find_project_dir_in`, `scan_sessions_for_project` → `scan_sessions_for_project_in`. Der Plan sagte "Wrapper-API unveraendert lassen", aber: weil `scan_sessions_for_project` so umgeschrieben wurde, dass er direkt `scan_sessions_for_project_in` aufruft (statt durch beide Wrapper-Pärchen zu gehen), bekam `find_project_dir` (Wrapper) keinen Caller mehr. `cargo check` warf eine `dead_code`-Warning, `cargo clippy -- -D warnings` waere blockiert worden.
+**Erkenntnis:** Bei nested-pure-Refactors (A ruft B → beide werden pure-extrahiert) gilt: der innere Wrapper wird transitiv tot, weil der aeussere Wrapper jetzt direkt zur pure Variante des inneren springt. Pre-Refactor-Plan muss das antizipieren — sonst entsteht im Verifikations-Gate ein "ueberraschender" Cleanup-Schritt, der nicht im Plan steht.
+**Regel:** Vor jedem Pure-Refactor mit verschachtelten Funktionen: Caller-Graph zeichnen. Pro Wrapper-Funktion pruefen "Hat der nach dem Refactor noch Caller?". Wrapper ohne Caller im selben Commit loeschen, nicht spaeter aufraeumen. Plan-Dokument muss "Wrapper-Lifecycle" pro Funktion explizit machen: keep / collapse / delete.
+
+### Refactor-Verification ohne Function-Tests fuehlt sich gruen an, ist aber blind
+**Kontext:** Wave 0 Refactor (3 Funktionen pure-extrahiert) lief mit 1146 Frontend + 300 Rust = 1446 Tests gruen durch. Aber: KEINE dieser Tests deckt die drei refactorten Funktionen direkt ab — `parse_session_jsonl`, `find_project_dir`, `scan_sessions_for_project` haben keine Unit-Tests, nur Tauri-Command-Boundary-Tests. "Tests gruen" hat hier nur "kompiliert + bricht keine bestehenden Tests" verifiziert, nicht "Verhalten unveraendert".
+**Erkenntnis:** Bei Refactors von ungetesteter Logik gibt "alle Tests gruen" nur Build-Confidence, keine Behavior-Confidence. Der Fix war ein zusaetzlicher Layer: Code-Review-Subagent mit explizitem Auftrag "behavior-equivalence Zeile-fuer-Zeile pruefen". Das ist die einzige nicht-mockup-Verteidigung gegen "kompiliert, aber tut was anderes".
+**Regel:** Refactor-Verification-Gate hat zwei Stufen: (1) Build/Test-Suite gruen, (2) Behavior-Equivalence-Review (entweder per Subagent oder per neuem Test der die alte UND neue Implementation gleich behandelt). Stufe 2 ist nicht optional, wenn die refactorten Funktionen keine eigenen Tests haben.
+
+### `pub` als Sichtbarkeits-Erhoehung fuer Tests ist OK, aber im Plan dokumentieren
+**Kontext:** Die drei pure-extrahierten Funktionen wurden `pub` deklariert, weil Layer-A Integration-Tests in `src-tauri/tests/` ein **separates Crate** sind und `pub(crate)` daher nicht reicht. Der Plan hatte "API unveraendert" gesagt, aber API-Surface ist bewusst gewachsen.
+**Erkenntnis:** "Wrapper-API unveraendert" und "Pure-Variante neu sichtbar" sind zwei verschiedene Dinge. Beim Plan zur Test-Coverage muss die Sichtbarkeits-Erhoehung explizit als Akzeptanz-Kriterium genannt werden, sonst entsteht der Eindruck eines stillen API-Bruchs.
+**Regel:** Test-Enabler-Refactor-Plaene listen pro neue pure Funktion ihre **Sichtbarkeit** (`pub` / `pub(crate)`) und ihre **Test-Begruendung** ("warum reicht pub(crate) nicht?"). Kein implizites pub-Hinzufuegen.

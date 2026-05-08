@@ -162,17 +162,20 @@ fn folder_to_project_dir_name(folder: &str) -> String {
         .collect()
 }
 
-/// Find the matching project directory inside ~/.claude/projects/ (case-insensitive).
-fn find_project_dir(folder: &str) -> Option<PathBuf> {
-    let home = dirs::home_dir()?;
-    let projects_dir = home.join(".claude").join("projects");
-    if !projects_dir.is_dir() {
+/// Find the matching project directory inside the given Claude projects root
+/// (case-insensitive slug match).
+///
+/// Pure function with explicit root parameter — the path-resolving wrapper
+/// `find_project_dir` injects `~/.claude/projects/` from `dirs::home_dir()`.
+/// Tests pass a tempdir-based root.
+pub fn find_project_dir_in(claude_projects_root: &Path, folder: &str) -> Option<PathBuf> {
+    if !claude_projects_root.is_dir() {
         return None;
     }
 
     let expected = folder_to_project_dir_name(folder).to_lowercase();
 
-    let read_dir = std::fs::read_dir(&projects_dir).ok()?;
+    let read_dir = std::fs::read_dir(claude_projects_root).ok()?;
     for entry in read_dir.flatten() {
         if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
             if let Some(name) = entry.file_name().to_str() {
@@ -192,9 +195,17 @@ fn is_uuid_like(s: &str) -> bool {
         && s.matches('-').count() == 4
 }
 
-/// Parse a single JSONL session file and extract a summary.
-fn parse_session_jsonl(path: &std::path::Path, session_id: &str) -> Option<ClaudeSessionSummary> {
-    let content = std::fs::read_to_string(path).ok()?;
+/// Parse JSONL session content (already loaded into memory) and extract a summary.
+///
+/// Pure function: no I/O, no filesystem access. Tests can pass arbitrary
+/// fixture strings without needing tempfiles. The path-based wrapper
+/// `parse_session_jsonl` handles the read_to_string boundary.
+///
+/// **Precondition:** Caller is responsible for bounding `content` size —
+/// this function allocates per-line and parses each as JSON. Production callers
+/// read from disk, where session files are typically <10MB; if you call this
+/// with untrusted/unbounded input, add a size guard upstream.
+pub fn parse_session_jsonl_str(content: &str, session_id: &str) -> Option<ClaudeSessionSummary> {
     let lines: Vec<&str> = content.lines().collect();
     if lines.is_empty() {
         return None;
@@ -308,9 +319,25 @@ fn parse_session_jsonl(path: &std::path::Path, session_id: &str) -> Option<Claud
     })
 }
 
-/// Scan a project's Claude session history from ~/.claude/projects/.
-fn scan_sessions_for_project(folder: &str) -> Result<Vec<ClaudeSessionSummary>, ADPError> {
-    let project_dir = match find_project_dir(folder) {
+/// Parse a single JSONL session file and extract a summary.
+///
+/// Thin wrapper around `parse_session_jsonl_str` that handles the
+/// `read_to_string` boundary. Returns `None` on read failure or empty content.
+fn parse_session_jsonl(path: &std::path::Path, session_id: &str) -> Option<ClaudeSessionSummary> {
+    let content = std::fs::read_to_string(path).ok()?;
+    parse_session_jsonl_str(&content, session_id)
+}
+
+/// Scan a project's Claude session history from the given Claude projects root.
+///
+/// Pure function with explicit `claude_projects_root` parameter — tests pass a
+/// tempdir-based root, production calls `scan_sessions_for_project` which
+/// resolves `~/.claude/projects/`. Returns sessions sorted DESC by `started_at`.
+pub fn scan_sessions_for_project_in(
+    claude_projects_root: &Path,
+    folder: &str,
+) -> Result<Vec<ClaudeSessionSummary>, ADPError> {
+    let project_dir = match find_project_dir_in(claude_projects_root, folder) {
         Some(dir) => dir,
         None => return Ok(Vec::new()),
     };
@@ -377,6 +404,19 @@ fn scan_sessions_for_project(folder: &str) -> Result<Vec<ClaudeSessionSummary>, 
     sessions.sort_by(|a, b| b.started_at.cmp(&a.started_at));
 
     Ok(sessions)
+}
+
+/// Scan a project's Claude session history from `~/.claude/projects/`.
+///
+/// Production wrapper around `scan_sessions_for_project_in` that resolves the
+/// home directory at call time. Returns an empty Vec if the home directory
+/// cannot be determined.
+fn scan_sessions_for_project(folder: &str) -> Result<Vec<ClaudeSessionSummary>, ADPError> {
+    let claude_projects_root = match dirs::home_dir() {
+        Some(home) => home.join(".claude").join("projects"),
+        None => return Ok(Vec::new()),
+    };
+    scan_sessions_for_project_in(&claude_projects_root, folder)
 }
 
 // Commands im mod-Block wegen rustc 1.94 E0255 Workaround (siehe CLAUDE.md)
@@ -727,6 +767,31 @@ mod tests {
         let result = safe_resolve_user_claude("settings.json");
         // Should succeed (even if ~/.claude doesn't exist — returns non-existent path)
         assert!(result.is_ok());
+    }
+
+    // --- Wave 0 sanity: pure-function early-return paths ---
+
+    #[test]
+    fn test_scan_sessions_for_project_in_returns_empty_for_nonexistent_root() {
+        // Locks the early-return contract: when the projects-root does not exist,
+        // the pure function returns Ok(empty Vec) — never an error. The Tauri
+        // command relies on this so a missing ~/.claude/ on a fresh install
+        // surfaces as "no history" instead of a startup error.
+        let nonexistent = std::path::Path::new("/this/path/does/not/exist/anywhere");
+        let result = scan_sessions_for_project_in(nonexistent, "any-folder");
+        assert!(matches!(result, Ok(ref v) if v.is_empty()));
+    }
+
+    #[test]
+    fn test_find_project_dir_in_returns_none_for_nonexistent_root() {
+        let nonexistent = std::path::Path::new("/this/path/does/not/exist/anywhere");
+        let result = find_project_dir_in(nonexistent, "any-folder");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_parse_session_jsonl_str_returns_none_for_empty_content() {
+        assert!(parse_session_jsonl_str("", "uuid-xyz").is_none());
     }
 
     // ========================================================================
