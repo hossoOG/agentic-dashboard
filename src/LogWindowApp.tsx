@@ -1,8 +1,8 @@
 import { Suspense, lazy, useEffect } from "react";
-import { listen } from "@tauri-apps/api/event";
 import { useSettingsStore } from "./store/settingsStore";
-import { useLogViewerStore } from "./store/logViewerStore";
 import { wireRuntimeGates } from "./utils/wireRuntimeGates";
+import { subscribeToPipelineLog } from "./utils/pipelineLogBridge";
+import { logError } from "./utils/errorLogger";
 
 const LogViewer = lazy(() => import("./components/logs/LogViewer").then(m => ({ default: m.LogViewer })));
 
@@ -15,21 +15,14 @@ export default function LogWindowApp() {
     // here — only the main window owns the Rust-side toggle.
     const unsubscribeGates = wireRuntimeGates();
 
-    const addEntries = useLogViewerStore.getState().addEntries;
-    // Payload shape matches App.tsx: { line: string; stream: string }
-    const unlisten = listen<{ line: string; stream: string }>("pipeline-log", (event) => {
-      const line = event?.payload?.line;
-      if (typeof line !== "string") return;
-      addEntries([{
-        timestamp: new Date().toISOString(),
-        severity: event.payload.stream === "stderr" ? "warn" : "info",
-        source: "pipeline",
-        message: line,
-      }]);
-    });
+    let unlistenPipeline: (() => void) | null = null;
+    void subscribeToPipelineLog()
+      .then((fn) => { unlistenPipeline = fn; })
+      .catch((err) => logError("LogWindowApp.subscribePipelineLog", err));
+
     return () => {
       unsubscribeGates();
-      unlisten.then((fn) => fn());
+      unlistenPipeline?.();
     };
   }, []);
 

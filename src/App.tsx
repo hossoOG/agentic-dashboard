@@ -2,6 +2,8 @@ import { useEffect, useRef } from "react";
 import { AppShell } from "./components/layout/AppShell";
 import { installGlobalErrorHandlers } from "./utils/globalErrorHandler";
 import { wireRuntimeGates, syncBackendFileLoggingFromPreferences } from "./utils/wireRuntimeGates";
+import { subscribeToPipelineLog } from "./utils/pipelineLogBridge";
+import { logError } from "./utils/errorLogger";
 import { useThemeEffect } from "./hooks/useThemeEffect";
 import { useSessionRestore } from "./hooks/useSessionRestore";
 import { initSessionHistoryListener } from "./store/sessionHistoryStore";
@@ -32,6 +34,15 @@ function App() {
     // window owns this; detached windows share the same Rust process flag.
     syncBackendFileLoggingFromPreferences();
 
+    // Mirror pipeline output into the unified log store so the main-window
+    // Protokolle tab actually shows what's happening during a pipeline run.
+    // Previously this listener lived only in LogWindowApp — opening Protokolle
+    // in main while pipeline ran showed silence (G-01 BLOCKER).
+    let unlistenPipeline: (() => void) | null = null;
+    void subscribeToPipelineLog()
+      .then((fn) => { unlistenPipeline = fn; })
+      .catch((err) => logError("App.subscribePipelineLog", err));
+
     // Flush pending saves on window close to prevent data loss.
     // Use Tauri's close-requested event which supports async (unlike beforeunload).
     let unlistenClose: (() => void) | undefined;
@@ -54,6 +65,7 @@ function App() {
       unsubscribeHistory();
       unsubscribeRestore();
       unsubscribePerf();
+      unlistenPipeline?.();
       listenerActive.current = false;
     };
   }, []);
