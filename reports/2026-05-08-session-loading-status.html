@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Session-Loading Real Test Coverage · Wave 0–4 Status</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0a; --surface: #141414; --surface-2: #1c1c1c; --border: #2a2a2a;
+    --text: #e8e8e8; --muted: #888; --dim: #555;
+    --accent: #00d4c4; --accent-dim: #006d68;
+    --success: #4ade80; --warn: #fbbf24; --crit: #ef4444; --info: #60a5fa;
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  html, body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-size: 15px; line-height: 1.5; height: 100vh; overflow: hidden;
+  }
+  .deck { position: relative; width: 100vw; height: 100vh; }
+  .slide {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    padding: 48px 64px 80px 64px;
+    display: flex; flex-direction: column;
+    opacity: 0; pointer-events: none;
+    transition: opacity 200ms var(--ease);
+    overflow: auto;
+  }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; color: var(--text); letter-spacing: -0.01em; }
+  h2 { font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); margin-bottom: 24px; }
+  h3 { font-size: 16px; font-weight: 600; color: var(--text); margin: 16px 0 8px 0; }
+  p { margin-bottom: 12px; color: var(--text); }
+  .muted { color: var(--muted); } .dim { color: var(--dim); } .accent { color: var(--accent); }
+  code, .mono { font-family: "JetBrains Mono", "Cascadia Code", "Fira Code", Consolas, monospace; font-size: 13px; }
+  .inline-code { background: var(--surface-2); padding: 2px 6px; color: var(--success); font-family: "JetBrains Mono", Consolas, monospace; font-size: 12.5px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; font-size: 10.5px; border-bottom: 1px solid var(--accent-dim); }
+  td.num { text-align: right; font-family: "JetBrains Mono", Consolas, monospace; }
+  td.mono { font-family: "JetBrains Mono", Consolas, monospace; font-size: 12.5px; }
+  .tag {
+    display: inline-block; padding: 2px 8px; font-size: 10.5px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.08em; margin-right: 4px;
+  }
+  .tag-crit { background: rgba(239,68,68,0.12); color: var(--crit); border: 1px solid rgba(239,68,68,0.3); }
+  .tag-warn { background: rgba(251,191,36,0.12); color: var(--warn); border: 1px solid rgba(251,191,36,0.3); }
+  .tag-info { background: rgba(96,165,250,0.12); color: var(--info); border: 1px solid rgba(96,165,250,0.3); }
+  .tag-ok   { background: rgba(74,222,128,0.12); color: var(--success); border: 1px solid rgba(74,222,128,0.3); }
+  .tag-dim  { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
+  .panel { background: var(--surface); border: 1px solid var(--border); padding: 16px 20px; margin: 8px 0; }
+  .panel-accent { border-left: 2px solid var(--accent); }
+  .panel-success { border-left: 2px solid var(--success); }
+  .panel-warn { border-left: 2px solid var(--warn); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); padding: 16px 20px; border-left: 2px solid var(--accent); }
+  .stat-num { font-size: 28px; font-weight: 700; font-family: "JetBrains Mono", Consolas, monospace; color: var(--accent); line-height: 1; }
+  .stat-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin-top: 6px; }
+  ul { list-style: none; padding: 0; }
+  ul li { padding: 4px 0; padding-left: 18px; position: relative; }
+  ul li::before { content: "→"; color: var(--accent); position: absolute; left: 0; font-weight: 700; }
+  .footer { position: absolute; bottom: 24px; left: 64px; right: 64px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--dim); letter-spacing: 0.08em; text-transform: uppercase; }
+  .progress { flex: 1; margin: 0 24px; height: 1px; background: var(--border); position: relative; }
+  .progress-fill { position: absolute; top: 0; left: 0; height: 100%; background: var(--accent); transition: width 200ms var(--ease); }
+  .pyramid { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 16px 0; }
+  .pyramid-tier { padding: 12px 16px; border: 1px solid var(--border); background: var(--surface); text-align: center; font-size: 13px; }
+  .pyramid-tier.done { border-left: 2px solid var(--success); }
+  .pyramid-tier.partial { border-left: 2px solid var(--warn); }
+  .pyramid-tier.todo { border-left: 2px solid var(--dim); opacity: 0.6; }
+  .pyramid-tier .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; }
+  .pyramid-tier .count { color: var(--accent); font-family: "JetBrains Mono", Consolas, monospace; font-weight: 700; font-size: 18px; }
+  .pyramid-tier-narrow { width: 240px; }
+  .pyramid-tier-mid    { width: 360px; }
+  .pyramid-tier-wide   { width: 480px; }
+  kbd { background: var(--surface-2); border: 1px solid var(--border); padding: 2px 8px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 11px; color: var(--text); }
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <!-- ============= 1 — TITLE ============= -->
+  <section class="slide active">
+    <div style="margin: auto; text-align: center;">
+      <h2 style="margin-bottom: 32px;">Status-Report · 2026-05-08 · 18:15 Uhr</h2>
+      <h1 style="font-size: 44px; margin-bottom: 16px;">Session-Loading<br>Real Test Coverage</h1>
+      <p class="muted" style="font-size: 17px; margin-top: 24px;">
+        Wave 0 → 4 abgeschlossen · 5 atomare Commits · Branch
+        <span class="inline-code">test/issue-pack-session-loading-real-coverage</span>
+      </p>
+      <div class="grid-4" style="margin-top: 36px; max-width: 800px;">
+        <div class="stat" style="border-left-color: var(--success);"><div class="stat-num" style="color: var(--success);">5</div><div class="stat-label">Wellen done</div></div>
+        <div class="stat"><div class="stat-num">63</div><div class="stat-label">Layer-B grün</div></div>
+        <div class="stat"><div class="stat-num">+3.840</div><div class="stat-label">Zeilen Code</div></div>
+        <div class="stat"><div class="stat-num">15</div><div class="stat-label">Lessons</div></div>
+      </div>
+      <p class="dim" style="margin-top: 48px; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;">
+        <kbd>→</kbd> / <kbd>Space</kbd> weiter · <kbd>←</kbd> zurück · <kbd>Home</kbd>/<kbd>End</kbd> springen
+      </p>
+    </div>
+  </section>
+
+  <!-- ============= 2 — WAVE-BILANZ ============= -->
+  <section class="slide">
+    <h2>Was wurde gemacht</h2>
+    <h1>Fünf Wellen, fünf atomare Commits</h1>
+
+    <table style="margin-top: 24px;">
+      <thead><tr><th style="width: 14%;">Welle</th><th style="width: 14%;">Commit</th><th>Inhalt</th><th style="width: 14%;" class="num">Diff</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag tag-ok">Wave 0</span></td><td class="mono">92015c9</td><td>3 Pure-Funktionen extrahiert + 3 Smoke-Tests · Refactor-Foundation für Layer-A</td><td class="num">+559 / -12</td></tr>
+        <tr><td><span class="tag tag-ok">Wave 1</span></td><td class="mono">503dc27</td><td>Layer-A: 21 Rust-Integration-Tests gegen Tempfile-Fixtures · Size-Cap (100 MiB) · m2-Bug-Repro · uuid-Filter · nested-Layout</td><td class="num">+643 / -3</td></tr>
+        <tr><td><span class="tag tag-ok">Wave 2</span></td><td class="mono">3202209</td><td>Layer-B-Foundation: vitest.config.integration · setup.integration · mockTauriIPC.ts · 13 Smoke-Tests</td><td class="num">+825 / 0</td></tr>
+        <tr><td><span class="tag tag-ok">Wave 3</span></td><td class="mono">c5d7200</td><td>Layer-B: 6 Test-Dateien via 6 parallele Subagenten · 50 neue Tests · Helper-Erweiterungen + storeReset</td><td class="num">+1.813 / 0</td></tr>
+        <tr><td><span class="tag tag-ok">Wave 4</span></td><td class="mono">9c8d73b</td><td>Bug-Fixes: #215 sessionRestoreSync · #209 settingsStore UUID-validate · App.tsx Promise-return · flippt 5 RED-Tests auf GREEN</td><td class="num">+92 / -7</td></tr>
+      </tbody>
+    </table>
+
+    <div class="grid-3" style="margin-top: 32px;">
+      <div class="stat"><div class="stat-num">+3.840</div><div class="stat-label">Zeilen Code</div></div>
+      <div class="stat"><div class="stat-num">86</div><div class="stat-label">neue Tests gesamt</div></div>
+      <div class="stat"><div class="stat-num">3</div><div class="stat-label">Production-Bugs gefixt</div></div>
+    </div>
+  </section>
+
+  <!-- ============= 3 — TEST-PYRAMIDE ============= -->
+  <section class="slide">
+    <h2>Test-Pyramide nach Risiko</h2>
+    <h1>Drei Layer · zwei stehen, einer wartet</h1>
+
+    <div class="pyramid">
+      <div class="pyramid-tier todo pyramid-tier-narrow">
+        <div class="label">Layer C · E2E (Wave 5+6)</div>
+        <div class="count" style="color: var(--dim);">0 Tests</div>
+        <div class="muted" style="font-size: 11px; margin-top: 4px;">tauri-driver + Playwright · separate Sprint-Welle</div>
+      </div>
+      <div class="pyramid-tier done pyramid-tier-mid">
+        <div class="label">Layer B · Frontend Integration</div>
+        <div class="count">63 grün · 2 skip</div>
+        <div class="muted" style="font-size: 11px; margin-top: 4px;">Real Stores, mockIPC, canned-data + real-fs handler. 6 Test-Dateien decken alle Wave-Bugs ab</div>
+      </div>
+      <div class="pyramid-tier done pyramid-tier-wide">
+        <div class="label">Layer A · Rust Integration</div>
+        <div class="count">21 + 3 Smoke = 24 grün</div>
+        <div class="muted" style="font-size: 11px; margin-top: 4px;">Tempfile-Fixtures · Real JSONL · 0 Mocks · Pure-Funktionen + Wrapper</div>
+      </div>
+    </div>
+
+    <h3 style="margin-top: 24px;">Test-Bilanz Branch</h3>
+    <table>
+      <tbody>
+        <tr><td>Rust Lib + Integration</td>            <td class="num">303 + 21</td><td class="mono"><span class="tag tag-ok">grün</span></td></tr>
+        <tr><td>Frontend Unit (vitest)</td>            <td class="num">1.128</td>    <td class="mono"><span class="tag tag-ok">grün</span></td></tr>
+        <tr><td>Frontend Integration (vitest config B)</td><td class="num">63 + 2 skip</td><td class="mono"><span class="tag tag-ok">grün</span></td></tr>
+        <tr><td><strong>Gesamt grün</strong></td><td class="num"><strong>1.515</strong></td><td><span class="tag tag-warn">2 Skip mit TODO[Wave-3.5]</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============= 4 — REVIEWER-PASS-BILANZ ============= -->
+  <section class="slide">
+    <h2>Drei Reviewer-Pässe · 36 Findings adressiert</h2>
+    <h1>Intensive Reviews vor jedem Commit</h1>
+
+    <p class="muted">Pro Welle ein <code class="inline-code">code-quality</code>-Subagent mit "be ruthlessly rigorous"-Brief. Verdict aller drei: <strong>SAFE TO COMMIT</strong> nach Anwendung der HIGH/MEDIUM-Items.</p>
+
+    <table style="margin-top: 16px;">
+      <thead><tr><th>Welle</th><th>Findings</th><th>HIGH</th><th>MED</th><th>LOW</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Wave 1</strong></td>
+          <td>Reviewer fand 12 Branches die Plan-Skeleton übersehen hatte</td>
+          <td class="num">3</td><td class="num">5</td><td class="num">4</td>
+          <td><span class="tag tag-ok">12/12 fixed</span></td>
+        </tr>
+        <tr>
+          <td><strong>Wave 2</strong></td>
+          <td>Reviewer-Verdict: Title-Truncation-Drift, Sort-False-Confidence, fehlender afterEach</td>
+          <td class="num">3</td><td class="num">5</td><td class="num">4</td>
+          <td><span class="tag tag-ok">10/12 fixed · 2 LOW deferred</span></td>
+        </tr>
+        <tr>
+          <td><strong>Wave 3</strong></td>
+          <td>Orchestrator-Triage statt Reviewer (6 Subagent-Outputs verifiziert)</td>
+          <td class="num">2</td><td class="num">3</td><td class="num">3</td>
+          <td><span class="tag tag-ok">6/8 fixed · 2 SKIP[Wave-3.5]</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 style="margin-top: 24px;">Reviewer-Findings die das System wirklich vor Bugs schützen (Auswahl)</h3>
+    <ul style="font-size: 13.5px; max-width: 1100px;">
+      <li><strong>Title-Truncation Unicode-Drift</strong> — JS <code class="inline-code">slice(0,120)</code> vs Rust <code class="inline-code">chars().take(120)</code>: bei Emoji 60 vs 120 Glyphen. Fixed via <code class="inline-code">Array.from(str).slice()</code>.</li>
+      <li><strong>Adversarial DESC-Sort</strong> — wenn UUID-Filename und Timestamp gleich-monoton sind, kann ein filename-sort-Regression nicht erkannt werden. Fixed via UUID/timestamp-Inversions-Fixtures.</li>
+      <li><strong>Differential Limit-Tests</strong> — Oversized-Test passt silent durch wenn Cap auf 1 TB gebumpt würde, weil NUL-Bytes 0 gültige JSON-Zeilen produzieren. Fixed via Valid-JSON-Prefix in Sparse-File.</li>
+      <li><strong>Validation in onRehydrateStorage</strong> (nicht nur migrate) — Issue-#209 Tests blieben rot trotz F4.2-Fix, weil <code class="inline-code">migrate()</code> nur bei Schema-Bump läuft. Validation muss bei jedem Load.</li>
+      <li><strong>Canned-Data-Handler statt Real-FS in Layer-B</strong> — Fake-Timer + libuv-I/O kollidieren, Tests waren flaky. Layer-Cut: FS-Reads bleiben Layer-A.</li>
+    </ul>
+  </section>
+
+  <!-- ============= 5 — BUGS REGRESSION-PROTECTED ============= -->
+  <section class="slide">
+    <h2>Bugs jetzt regression-protected</h2>
+    <h1>Acht Bug-Klassen · zweischichtig verteidigt</h1>
+
+    <table>
+      <thead><tr><th style="width: 20%;">Bug</th><th>Layer-A (Rust)</th><th>Layer-B (Frontend)</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="tag tag-ok">#256</span> m2-Ghost</td>
+          <td class="mono"><code class="inline-code">m2_three_same_folder...</code></td>
+          <td class="mono"><code class="inline-code">m2 race: 3 distinct UUIDs</code> (sessionEvents + sessionRestore)</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-ok">#257</span> Discovery-Race</td>
+          <td class="mono">DESC-sort by started_at</td>
+          <td class="mono"><code class="inline-code">closest-timestamp match, NOT newest</code></td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-ok">JSONL-OOM</span></td>
+          <td class="mono"><code class="inline-code">oversized_jsonl_is_skipped</code> (differential)</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-ok">UUID-Filter</span></td>
+          <td class="mono"><code class="inline-code">scan_filters_non_uuid_filenames</code></td>
+          <td class="mono"><code class="inline-code">filters_non_uuid_filenames</code> (smoke)</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-ok">#215</span> layoutMode-Persist</td>
+          <td>—</td>
+          <td class="mono">2 tests in <code class="inline-code">sessionRestoreSync.integration</code></td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-ok">#209</span> UUID-validate</td>
+          <td>—</td>
+          <td class="mono">5 tests in <code class="inline-code">settingsStore.migration.integration</code></td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-ok">handleNewSessionFromDefaults</span></td>
+          <td>—</td>
+          <td class="mono">7 tests · 4 Pfade + Shell-Mapping</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-warn">App.tsx Promise-Race</span></td>
+          <td>—</td>
+          <td class="mono">Production-Fix angewendet · Test SKIP[Wave-3.5] (jsdom-Limitation)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="muted" style="margin-top: 16px;">
+      <strong>Verifikations-Methode:</strong> Mutator-Walk (<code class="inline-code">git stash</code> auf den Production-Fix → der zugeordnete Test bricht). Wenn der Test passt während der Fix entfernt ist, ist er nicht goal-backward verteidigt — dann ist der Test wertlos.
+    </p>
+  </section>
+
+  <!-- ============= 6 — WAS NICHT GEMACHT ============= -->
+  <section class="slide">
+    <h2>Was wurde NICHT gemacht</h2>
+    <h1>Bewusste Out-of-Scope-Entscheidungen</h1>
+
+    <div class="grid-2">
+      <div class="panel panel-warn">
+        <h3 style="margin-top: 0;">Wave 5+6 (Layer C · E2E) — separate Sprint</h3>
+        <ul>
+          <li>tauri-driver Setup auf Windows + Edge-WebDriver-Pin</li>
+          <li>Playwright-Konfig gegen <code class="inline-code">npm run tauri build</code> Artifakt</li>
+          <li>E2E Resume-Flow (3 Sessions in m2-Folder) gegen die echte App</li>
+          <li>E2E Settings-Corruption-Recovery</li>
+          <li>E2E "Neue Session" mit gespeichertem Default-Pfad</li>
+        </ul>
+      </div>
+      <div class="panel panel-warn">
+        <h3 style="margin-top: 0;">Wave-3.5 Follow-ups (kleine Issues)</h3>
+        <ul>
+          <li>App.integration: 2 SKIP-Tests reaktivieren (jsdom + dynamic-import + vi.mock-Race)</li>
+          <li>Isolated Pattern-Test für App.tsx Promise-chain (Option B vom Original-Brief)</li>
+          <li>TauriEvent-Enum re-export im Setup (falls nötig)</li>
+        </ul>
+      </div>
+      <div class="panel panel-warn">
+        <h3 style="margin-top: 0;">Tech-Debt (separater Sprint)</h3>
+        <ul>
+          <li>Slug-Kollisionserkennung mit Pfad-Hash (file_reader.rs)</li>
+          <li>File-Lock bei concurrent JSONL-Read (file_reader.rs)</li>
+          <li><code class="inline-code">generateSessionId</code> deduplizieren (zwei Stellen)</li>
+          <li>Browser-Fallback Dead-Code entfernen (uiStore, App.tsx)</li>
+          <li><code class="inline-code">setClaudeSessionId</code> Uniqueness-Guard zentralisieren</li>
+        </ul>
+      </div>
+      <div class="panel panel-warn">
+        <h3 style="margin-top: 0;">Out-of-Scope explizit</h3>
+        <ul>
+          <li>Performance-Tests · Visual-Regression</li>
+          <li>Coverage-Pyramide-Bump (75/65 bleiben)</li>
+          <li>UI-Layer-Tests für SessionManagerView (außerhalb Session-Loading)</li>
+          <li>Hooks für Pipeline-Engine, Library, Editor (separate Domains)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============= 7 — LESSONS LEARNED ============= -->
+  <section class="slide">
+    <h2>Lessons Learned · 15 autonome Einträge</h2>
+    <h1>Pro Welle 3 Lessons in <code class="inline-code">tasks/lessons.md</code></h1>
+
+    <div class="grid-2">
+      <div class="panel panel-accent">
+        <h3 style="margin-top: 0;">Wave 0+1 (6 Lessons)</h3>
+        <ul>
+          <li>Mehrstufige Pure-Refactors lassen Wrapper transitiv tot werden</li>
+          <li>Refactor-Verification ohne Function-Tests fühlt sich grün an, ist blind</li>
+          <li><code class="inline-code">pub</code>-Sichtbarkeit explizit im Plan</li>
+          <li>Sparse-Files via <code class="inline-code">set_len</code> für Size-Cap-Tests</li>
+          <li>Integration-Tests in <code class="inline-code">tests/</code> brauchen <code class="inline-code">pub</code>-API, NICHT pub(crate)</li>
+          <li>Erste Plan-Iteration ist Skeleton — Reviewer-Pass deckt Coverage-Löcher auf</li>
+        </ul>
+      </div>
+      <div class="panel panel-accent">
+        <h3 style="margin-top: 0;">Wave 1.5 + 2 (4 Lessons)</h3>
+        <ul>
+          <li>Differential-Limit-Tests: Bypass muss ANDERE Anzahl Resultate produzieren</li>
+          <li>Vitest-Config-Split: include/exclude müssen symmetrisch sein</li>
+          <li>Tauri-Event-Mock = Runtime-Boundary-Shim ≠ Production-Code-Mock</li>
+          <li>JS-Reimplementations brauchen Layer-A-Anker (dual-coverage)</li>
+        </ul>
+      </div>
+      <div class="panel panel-accent">
+        <h3 style="margin-top: 0;">Wave 3+4 (5 Lessons)</h3>
+        <ul>
+          <li>Vitest-fake-timers + libuv-FS = unbestimmte Async-Race</li>
+          <li>Vitest-Config-Splits brauchen Build-Constants explizit (<code class="inline-code">__GIT_HASH__</code>)</li>
+          <li>Zustand-Persist: Validation in onRehydrateStorage, NICHT nur migrate</li>
+          <li>Skip-mit-TODO ist besser als flaky Tests</li>
+          <li>6 parallele Subagenten: 4 sauber, 2 brauchen Triage</li>
+        </ul>
+      </div>
+      <div class="panel panel-success">
+        <h3 style="margin-top: 0;">Pflege-Frequenz</h3>
+        <ul>
+          <li>Nach jedem Reviewer-Pass</li>
+          <li>Nach jeder User-Korrektur</li>
+          <li>Nach jedem überraschenden Build/Test-Failure</li>
+          <li>Trigger laut User-Direktive: "regelmäßig und autonom"</li>
+        </ul>
+        <p class="muted" style="font-size: 12px; margin-top: 12px;">
+          Trade-off: Lessons.md ist auf ~10kb gewachsen. Ab v2 Project-Cycle aggregieren oder archivieren.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============= 8 — TOP TEST DIVERSITY ============= -->
+  <section class="slide">
+    <h2>Test-Diversität · keine Mock-Theater-Tests</h2>
+    <h1>Wie diese Suite sich von der bestehenden unterscheidet</h1>
+
+    <div class="grid-2">
+      <div class="panel panel-warn">
+        <h3 style="margin-top: 0;">Bestehende Unit-Suite (Pre-Wave-3)</h3>
+        <ul>
+          <li><code class="inline-code">vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }))</code></li>
+          <li><code class="inline-code">vi.mock("./store/sessionStore", () => ({ useSessionStore: { getState: () => ({...}) } }))</code></li>
+          <li>Mock-Verkabelung wird getestet, nicht das System</li>
+          <li>Falsche Sicherheit: 1.146 Tests, viele Branches ungetestet</li>
+        </ul>
+        <p class="muted" style="font-size: 12px; margin-top: 12px;">
+          <strong>Lessons.md 2026-04-02:</strong> "251 Tests gaben falsche Sicherheit. Tests prüften den einfachsten Teil und liessen den riskantesten ungetestet."
+        </p>
+      </div>
+      <div class="panel panel-success">
+        <h3 style="margin-top: 0;">Neue Layer-A + Layer-B Suite</h3>
+        <ul>
+          <li><strong>Real Zustand-Stores</strong> via <code class="inline-code">resetAllStores()</code> in beforeEach</li>
+          <li><strong>Real Filesystem-Fixtures</strong> in Layer-A via <code class="inline-code">tempfile::TempDir</code></li>
+          <li><strong>Real Tauri-IPC</strong> via <code class="inline-code">mockIPC</code> (Tauri's eigenes Test-API)</li>
+          <li><strong>Canned-Data nur wo notwendig</strong> (Layer-Cut bei FS-Logik)</li>
+          <li>Production-Code wird verbatim ausgeführt</li>
+          <li>Mutator-Walk-verifiziert: Fix entfernen → Test bricht</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 style="margin-top: 24px;">Konkrete Anti-Pattern-Vermeidung</h3>
+    <table>
+      <thead><tr><th>Pattern</th><th>Bestehende Tests</th><th>Neue Suite</th></tr></thead>
+      <tbody>
+        <tr><td><code class="inline-code">vi.mock("@tauri-apps/api/core")</code></td><td><span class="tag tag-warn">JA</span></td><td><span class="tag tag-ok">NEIN · mockIPC stattdessen</span></td></tr>
+        <tr><td>Store-Module-Mock</td><td><span class="tag tag-warn">JA (sessionHistoryStore)</span></td><td><span class="tag tag-ok">NEIN · resetAllStores</span></td></tr>
+        <tr><td>Hook-Aufrufe simulieren statt rendern</td><td><span class="tag tag-warn">teilweise</span></td><td><span class="tag tag-ok">NEIN · renderHook + waitFor</span></td></tr>
+        <tr><td>JSONL-Parser stub</td><td>n/a</td><td><span class="tag tag-ok">NEIN · echte Files in Layer-A</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============= 9 — STATUS + NEXT ============= -->
+  <section class="slide">
+    <h2>Status · Branch ready</h2>
+    <h1>Was als nächstes?</h1>
+
+    <div class="grid-3" style="margin-top: 16px;">
+      <div class="stat" style="border-left-color: var(--success);"><div class="stat-num" style="color: var(--success);">5</div><div class="stat-label">Wellen committed</div></div>
+      <div class="stat" style="border-left-color: var(--success);"><div class="stat-num" style="color: var(--success);">1.515</div><div class="stat-label">Tests grün</div></div>
+      <div class="stat" style="border-left-color: var(--warn);"><div class="stat-num" style="color: var(--warn);">2</div><div class="stat-label">Tests SKIP[Wave-3.5]</div></div>
+    </div>
+
+    <div class="panel panel-success" style="margin-top: 24px;">
+      <h3 style="margin-top: 0; color: var(--success);">Verifikations-Bilanz (post-Wave-4)</h3>
+      <ul style="font-size: 13.5px;">
+        <li><code class="inline-code">cargo check</code> · <code class="inline-code">clippy --all-targets -- -D warnings</code> · <code class="inline-code">fmt --check</code>: clean</li>
+        <li><code class="inline-code">cargo test --lib</code>: 303 grün · <code class="inline-code">--test session_discovery</code>: 21 grün</li>
+        <li><code class="inline-code">npm run test</code>: 1.128 grün · <code class="inline-code">npm run test:integration</code>: 63 grün + 2 skip</li>
+        <li><code class="inline-code">npx tsc --noEmit</code>: clean · Husky-Pre-Commit auf alle 5 Commits: clean</li>
+        <li>Drei Reviewer-Pässe (Wave 0/1/2) · 28 Findings adressiert</li>
+        <li>Issue #209 + #215 Production-Fix in Wave 4 · App.tsx Promise-Fix angewendet</li>
+      </ul>
+    </div>
+
+    <h3 style="margin-top: 24px;">Drei mögliche Wege</h3>
+    <table>
+      <thead><tr><th style="width: 14%;">Pfad</th><th>Aktion</th><th style="width: 22%;">Aufwand</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>A</strong></td>
+          <td>PR erstellen → Review → Merge in master. 5 Commits in <code class="inline-code">test/issue-pack-session-loading-real-coverage</code> sind merge-ready.</td>
+          <td class="num">~5 min · empfohlen</td>
+        </tr>
+        <tr>
+          <td><strong>B</strong></td>
+          <td>Wave 5+6 (Layer-C E2E) starten — tauri-driver-Setup, Playwright-Config, 3 E2E-Tests gegen built App.</td>
+          <td class="num">~2-3 PT · separate Sprint</td>
+        </tr>
+        <tr>
+          <td><strong>C</strong></td>
+          <td>Wave-3.5: 2 SKIP-App-Tests reaktivieren (isolated pattern test) + Tech-Debt-Cleanup (Slug-Kollision, generateSessionId-DRY, Browser-Fallback).</td>
+          <td class="num">~1 PT · low priority</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="muted" style="margin-top: 24px;">
+      Empfehlung: <strong>Pfad A</strong>. Branch ist self-contained, alle Quality-Gates clean, Test-Coverage substantiell. Wave 5+6 als Follow-up-Sprint, nicht in diesem PR-Cycle.
+    </p>
+  </section>
+
+</div>
+
+<div class="footer">
+  <span>Session-Loading · Wave 0 → 4 · Stand 18:15 Uhr</span>
+  <div class="progress"><div class="progress-fill" id="progress"></div></div>
+  <span id="counter">1 / 9</span>
+</div>
+
+<script>
+(function() {
+  const slides = document.querySelectorAll('.slide');
+  const progress = document.getElementById('progress');
+  const counter = document.getElementById('counter');
+  let current = 0;
+  function show(idx) {
+    if (idx < 0 || idx >= slides.length) return;
+    slides[current].classList.remove('active');
+    current = idx;
+    slides[current].classList.add('active');
+    progress.style.width = ((current + 1) / slides.length * 100) + '%';
+    counter.textContent = (current + 1) + ' / ' + slides.length;
+  }
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); show(current + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp' || e.key === 'Backspace') { e.preventDefault(); show(current - 1); }
+    else if (e.key === 'Home') { e.preventDefault(); show(0); }
+    else if (e.key === 'End') { e.preventDefault(); show(slides.length - 1); }
+  });
+  show(0);
+})();
+</script>
+</body>
+</html>
