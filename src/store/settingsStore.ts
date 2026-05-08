@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { tauriStorage, getLoadedFavorites, getLoadedNotes, registerNoteFlush } from "./tauriStorage";
 import { logError } from "../utils/errorLogger";
+import { broadcastPreferencesChange } from "../utils/preferencesBroadcast";
 
 // ============================================================================
 // Types
@@ -353,7 +354,8 @@ export const useSettingsStore = create<SettingsState>()(
           pipeline: { ...state.pipeline, ...partial },
         })),
 
-      setPreferences: (partial) =>
+      setPreferences: (partial) => {
+        let didChange = false;
         set((state) => {
           const next = { ...state.preferences, ...partial };
           // Sync backend logging toggle with Rust side. Fire-and-forget; the
@@ -367,8 +369,17 @@ export const useSettingsStore = create<SettingsState>()(
               (err) => logError("settingsStore.setBackendFileLogging", err),
             );
           }
+          didChange = Object.keys(partial).some(
+            (k) => state.preferences[k as keyof AppPreferencesSettings] !== next[k as keyof AppPreferencesSettings],
+          );
           return { preferences: next };
-        }),
+        });
+        // Broadcast to other webviews. Receivers filter their own echoes
+        // via sourceWindow and apply via raw setState, so no loop.
+        if (didChange) {
+          void broadcastPreferencesChange(partial);
+        }
+      },
 
       setLocale: (locale) => set({ locale }),
 
