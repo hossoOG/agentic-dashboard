@@ -358,16 +358,28 @@ export const useSettingsStore = create<SettingsState>()(
         let didChange = false;
         set((state) => {
           const next = { ...state.preferences, ...partial };
-          // Sync backend logging toggle with Rust side. Fire-and-forget; the
-          // store update is the source of truth, the command just mirrors it.
+          // Sync backend logging toggle with Rust side. The store update is
+          // the source of truth; on invoke failure we surface a toast so the
+          // user knows the Rust side may be out of sync (deliberate choice
+          // over silently rolling back the toggle and causing UI flicker).
           if (
             isTauri &&
             partial.backendFileLogging !== undefined &&
             partial.backendFileLogging !== state.preferences.backendFileLogging
           ) {
-            invoke("set_file_logging_enabled", { enabled: partial.backendFileLogging }).catch(
-              (err) => logError("settingsStore.setBackendFileLogging", err),
-            );
+            const wantedValue = partial.backendFileLogging;
+            invoke("set_file_logging_enabled", { enabled: wantedValue }).catch((err) => {
+              logError("settingsStore.setBackendFileLogging", err);
+              // Lazy import of uiStore to avoid a hard dep at module init.
+              import("./uiStore").then(({ useUIStore }) => {
+                useUIStore.getState().addToast({
+                  type: "error",
+                  title: "Backend-Logging-Toggle fehlgeschlagen",
+                  message: `Datei-Logging konnte nicht auf ${wantedValue ? "an" : "aus"} gesetzt werden. Bitte App neu starten.`,
+                  duration: 10000,
+                });
+              }).catch(() => { /* uiStore unreachable — already logged */ });
+            });
           }
           didChange = Object.keys(partial).some(
             (k) => state.preferences[k as keyof AppPreferencesSettings] !== next[k as keyof AppPreferencesSettings],

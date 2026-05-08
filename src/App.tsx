@@ -9,6 +9,7 @@ import { useSessionRestore } from "./hooks/useSessionRestore";
 import { initSessionHistoryListener } from "./store/sessionHistoryStore";
 import { initSessionRestoreSync } from "./store/sessionRestoreSync";
 import { flushPendingSaves } from "./store/tauriStorage";
+import { useUIStore } from "./store/uiStore";
 
 function App() {
   useThemeEffect();
@@ -43,6 +44,20 @@ function App() {
       .then((fn) => { unlistenPipeline = fn; })
       .catch((err) => logError("App.subscribePipelineLog", err));
 
+    // Surface settings-save failures as toast. tauriStorage and settingsStore
+    // dispatch this CustomEvent on persistence failures (after the in-store
+    // retry); previously no listener existed → silent loss of user changes.
+    const handleSaveError = (event: Event) => {
+      const detail = (event as CustomEvent<{ error: string }>).detail;
+      useUIStore.getState().addToast({
+        type: "error",
+        title: "Einstellungen konnten nicht gespeichert werden",
+        message: detail?.error ?? "Unbekannter Fehler — bitte App-Neustart versuchen.",
+        duration: 10000,
+      });
+    };
+    window.addEventListener("storage-save-error", handleSaveError);
+
     // Flush pending saves on window close to prevent data loss.
     // Use Tauri's close-requested event which supports async (unlike beforeunload).
     let unlistenClose: (() => void) | undefined;
@@ -66,6 +81,7 @@ function App() {
       unsubscribeRestore();
       unsubscribePerf();
       unlistenPipeline?.();
+      window.removeEventListener("storage-save-error", handleSaveError);
       listenerActive.current = false;
     };
   }, []);
