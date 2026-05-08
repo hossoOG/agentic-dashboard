@@ -75,8 +75,15 @@ export function initSessionRestoreSync(): () => void {
       .map((gid) => alive.find((s) => s.id === gid)?.folder)
       .filter((f): f is string => !!f);
 
-    // Shallow comparison to avoid redundant writes
-    const json = JSON.stringify(sessions);
+    // Shallow comparison to avoid redundant writes. MUST include layoutMode
+    // and gridFolders so layout-only mutations (single→grid switch, addToGrid)
+    // also trigger a persist write — without these, the layout change rides
+    // along the next sessions-array mutation and is otherwise lost on restart.
+    const json = JSON.stringify({
+      sessions,
+      layoutMode: state.layoutMode,
+      gridFolders,
+    });
     if (json === lastJson) return;
     lastJson = json;
 

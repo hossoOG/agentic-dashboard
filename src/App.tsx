@@ -60,9 +60,12 @@ function App() {
 
     // Flush pending saves on window close to prevent data loss.
     // Use Tauri's close-requested event which supports async (unlike beforeunload).
+    // The `return` is load-bearing: without it, the outer Promise resolves
+    // BEFORE `unlistenClose` is assigned, so cleanup can fire while the
+    // unlisten reference is still undefined → orphan listener leak.
     let unlistenClose: (() => void) | undefined;
     import("@tauri-apps/api/window").then(({ getCurrentWindow }) => {
-      getCurrentWindow().onCloseRequested(async () => {
+      return getCurrentWindow().onCloseRequested(async () => {
         await flushPendingSaves();
       }).then((fn) => { unlistenClose = fn; });
     }).catch(() => {

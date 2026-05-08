@@ -229,6 +229,69 @@ const defaultSessionRestore: SessionRestoreData = {
   gridFolders: [],
 };
 
+// UUID-v4 regex (lowercase only — Claude CLI writes lowercase).
+// Issue #209: persisted `claudeSessionId` must be format-validated so a
+// tampered or stale settings.json cannot inject arbitrary strings into
+// the `--resume <UUID>` Tauri command.
+const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+/**
+ * Validate the persisted `sessionRestore` payload during hydration.
+ *
+ * Filters entries with invalid `claudeSessionId` (wrong type, malformed
+ * UUID) AND deduplicates by `claudeSessionId` (first-seen wins, mirrors
+ * the persist-time dedup in `sessionRestoreSync.ts`). Entries with
+ * `claudeSessionId === undefined` are LEGITIMATE pre-discovery state
+ * and are preserved unchanged.
+ *
+ * Called from BOTH `migrate` (schema upgrades) and `onRehydrateStorage`
+ * (every hydration) so validation runs even when version matches and
+ * migrate is bypassed.
+ */
+export function validateSessionRestore(raw: unknown): SessionRestoreData {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return defaultSessionRestore;
+  }
+  const r = raw as Record<string, unknown>;
+  const sessions = Array.isArray(r.sessions) ? r.sessions : [];
+  const seenClaudeIds = new Set<string>();
+  const cleanSessions: RestorableSession[] = [];
+  for (const s of sessions) {
+    if (!s || typeof s !== "object") continue;
+    const entry = s as Record<string, unknown>;
+    if (
+      typeof entry.folder !== "string" ||
+      typeof entry.title !== "string" ||
+      typeof entry.shell !== "string"
+    ) {
+      continue;
+    }
+    let claudeSessionId: string | undefined;
+    if (entry.claudeSessionId !== undefined) {
+      if (typeof entry.claudeSessionId !== "string") continue;
+      if (!UUID_V4_RE.test(entry.claudeSessionId)) continue;
+      if (seenClaudeIds.has(entry.claudeSessionId)) continue;
+      seenClaudeIds.add(entry.claudeSessionId);
+      claudeSessionId = entry.claudeSessionId;
+    }
+    cleanSessions.push({
+      folder: entry.folder,
+      title: entry.title,
+      shell: entry.shell as RestorableSession["shell"],
+      claudeSessionId,
+    });
+  }
+  return {
+    enabled: typeof r.enabled === "boolean" ? r.enabled : defaultSessionRestore.enabled,
+    sessions: cleanSessions,
+    activeFolder: typeof r.activeFolder === "string" ? r.activeFolder : null,
+    layoutMode: r.layoutMode === "grid" ? "grid" : "single",
+    gridFolders: Array.isArray(r.gridFolders)
+      ? r.gridFolders.filter((f): f is string => typeof f === "string")
+      : [],
+  };
+}
+
 // ============================================================================
 // File persistence (Documents/AgenticExplorer/)
 // ============================================================================
@@ -629,9 +692,9 @@ export const useSettingsStore = create<SettingsState>()(
           globalNotes: typeof p.globalNotes === "string" ? p.globalNotes : defaults.globalNotes,
           projectNotes: p.projectNotes && typeof p.projectNotes === "object" && !Array.isArray(p.projectNotes) ? p.projectNotes : defaults.projectNotes,
           pinnedDocs: validatePinnedDocs(p.pinnedDocs),
-          sessionRestore: p.sessionRestore && typeof p.sessionRestore === "object" && !Array.isArray(p.sessionRestore)
-            ? { ...defaults.sessionRestore, ...(p.sessionRestore as object) }
-            : defaults.sessionRestore,
+          // Validate sessionRestore at migrate-time too (defense in depth —
+          // schema upgrades fire here, content upgrades in onRehydrateStorage).
+          sessionRestore: validateSessionRestore(p.sessionRestore),
           sessionTitleOverrides: p.sessionTitleOverrides && typeof p.sessionTitleOverrides === "object" && !Array.isArray(p.sessionTitleOverrides)
             ? Object.fromEntries(
               Object.entries(p.sessionTitleOverrides as Record<string, unknown>).filter(
@@ -641,7 +704,7 @@ export const useSettingsStore = create<SettingsState>()(
             : defaults.sessionTitleOverrides,
         } as unknown as SettingsState; // Actions are added by Zustand during merge
       },
-      onRehydrateStorage: () => (_state, error) => {
+      onRehydrateStorage: () => (state, error) => {
         if (error) {
           logError("settingsStore.hydration", error);
           return;
@@ -661,6 +724,18 @@ export const useSettingsStore = create<SettingsState>()(
           }
           if (Object.keys(fileNotes.project).length > 0) {
             patches.projectNotes = fileNotes.project;
+          }
+        }
+
+        // ALWAYS validate sessionRestore on hydration (not just on schema
+        // bump). The migrate function only fires when the persisted version
+        // differs from the current schema version; validation must run
+        // regardless to catch tampered or corrupt entries from same-version
+        // payloads (Issue #209).
+        if (state) {
+          const validatedRestore = validateSessionRestore(state.sessionRestore);
+          if (JSON.stringify(validatedRestore) !== JSON.stringify(state.sessionRestore)) {
+            patches.sessionRestore = validatedRestore;
           }
         }
 
