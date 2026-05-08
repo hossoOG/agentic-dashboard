@@ -18,6 +18,12 @@ const cache = new Map<string, string>();
 
 let initialized = false;
 
+// Cached during initTauriStorage. `null` while unknown → setItem fails open
+// (allows the write); once resolved, only "main" window persists settings.
+// Prevents the M-01 data-loss race where a detached window's incidental
+// state mutation overwrites the main window's just-toggled preferences.
+let isMainWindow: boolean | null = null;
+
 const pendingSaves = new Map<string, ReturnType<typeof setTimeout>>();
 const SAVE_DEBOUNCE_MS = 300; // coalesce rapid writes
 
@@ -36,8 +42,15 @@ export function initTauriStorage(): Promise<void> {
     invoke<string>("load_user_settings"),
     invoke<string>("load_favorites_file"),
     invoke<string>("load_notes"),
+    import("@tauri-apps/api/window").then(({ getCurrentWindow }) => {
+      isMainWindow = getCurrentWindow().label === "main";
+    }).catch(() => {
+      // Best-effort: if we can't determine, assume main (fail-open).
+      isMainWindow = true;
+    }),
   ])
-    .then(([settingsData, favoritesData, notesData]) => {
+    .then(([settingsData, favoritesData, notesData, _windowLabel]) => {
+      void _windowLabel; // resolved by side-effect in the import.then above
       if (settingsData) {
         cache.set("agenticexplorer-settings", settingsData);
       }
@@ -116,6 +129,14 @@ export const tauriStorage: StateStorage = {
       return;
     }
     cache.set(name, value);
+
+    // Scope-guard: secondary windows update the local cache (so their
+    // selectors see fresh values) but DO NOT write to disk. Disk write is
+    // a main-window prerogative — preferences-changed broadcasts handle
+    // sync across windows. `null` (still resolving) fails open.
+    if (isMainWindow === false) {
+      return;
+    }
 
     // Per-key debounce: coalesce rapid writes, always save latest value
     const existing = pendingSaves.get(name);
