@@ -149,7 +149,12 @@ pub struct ClaudeSessionSummary {
 
 /// Convert a folder path to the Claude projects directory name.
 /// E.g. `C:\Projects\agentic-dashboard` → `C--Projects-agentic-dashboard`
-fn folder_to_project_dir_name(folder: &str) -> String {
+///
+/// `pub` so integration tests in `src-tauri/tests/` can use the SAME slug
+/// logic when constructing fixture directories — closes the silent-drift
+/// contract where a fixture-builder reimplementation could go out of sync
+/// with production.
+pub fn folder_to_project_dir_name(folder: &str) -> String {
     folder
         .chars()
         .map(|c| {
@@ -206,6 +211,18 @@ fn is_uuid_like(s: &str) -> bool {
 /// read from disk, where session files are typically <10MB; if you call this
 /// with untrusted/unbounded input, add a size guard upstream.
 pub fn parse_session_jsonl_str(content: &str, session_id: &str) -> Option<ClaudeSessionSummary> {
+    // Defense-in-depth: even if a public caller bypasses the path-based
+    // wrapper's MAX_JSONL_SIZE_BYTES cap, this hard limit short-circuits
+    // before we allocate a Vec<&str> spanning the whole content.
+    if content.len() > PARSE_HARD_LIMIT_BYTES {
+        log::warn!(
+            "parse_session_jsonl_str: content exceeds hard limit ({} bytes > {} bytes), skipping session_id={}",
+            content.len(),
+            PARSE_HARD_LIMIT_BYTES,
+            session_id
+        );
+        return None;
+    }
     let lines: Vec<&str> = content.lines().collect();
     if lines.is_empty() {
         return None;
@@ -319,12 +336,61 @@ pub fn parse_session_jsonl_str(content: &str, session_id: &str) -> Option<Claude
     })
 }
 
+/// Maximum size of a JSONL session file we are willing to load into memory.
+/// 100 MiB (104,857,600 bytes) is roughly an order of magnitude above the
+/// largest realistic session transcript Claude CLI produces; anything larger
+/// is treated as corrupt-or-malicious and silently skipped to protect against
+/// OOM. Note: this is mebibytes (1024²), not megabytes (10⁶).
+const MAX_JSONL_SIZE_BYTES: u64 = 100 * 1024 * 1024;
+
+/// Hard upper bound for `parse_session_jsonl_str` content, applied as
+/// defense-in-depth even when callers bypass the path-based wrapper.
+/// Set 2× the wrapper cap so legitimate edge cases (BOM, near-cap files
+/// expanded by `read_to_string` UTF-8 decoding) still pass; truly absurd
+/// inputs short-circuit before per-line allocation.
+const PARSE_HARD_LIMIT_BYTES: usize = 200 * 1024 * 1024;
+
 /// Parse a single JSONL session file and extract a summary.
 ///
 /// Thin wrapper around `parse_session_jsonl_str` that handles the
-/// `read_to_string` boundary. Returns `None` on read failure or empty content.
+/// `read_to_string` boundary AND enforces a size cap so the pure parser
+/// never sees an unbounded allocation. Returns `None` on:
+/// - file metadata unavailable (permission denied, missing)
+/// - file size > `MAX_JSONL_SIZE_BYTES`
+/// - read failure (mid-read I/O error, non-UTF8 content)
+/// - empty content
 fn parse_session_jsonl(path: &std::path::Path, session_id: &str) -> Option<ClaudeSessionSummary> {
-    let content = std::fs::read_to_string(path).ok()?;
+    let metadata = match std::fs::metadata(path) {
+        Ok(m) => m,
+        Err(e) => {
+            log::warn!(
+                "parse_session_jsonl: cannot stat {} ({}), skipping",
+                path.display(),
+                e
+            );
+            return None;
+        }
+    };
+    if metadata.len() > MAX_JSONL_SIZE_BYTES {
+        log::warn!(
+            "Skipping oversized JSONL session file ({} bytes > {} bytes cap): {}",
+            metadata.len(),
+            MAX_JSONL_SIZE_BYTES,
+            path.display()
+        );
+        return None;
+    }
+    let content = match std::fs::read_to_string(path) {
+        Ok(c) => c,
+        Err(e) => {
+            log::warn!(
+                "parse_session_jsonl: read failed for {} ({}), skipping",
+                path.display(),
+                e
+            );
+            return None;
+        }
+    };
     parse_session_jsonl_str(&content, session_id)
 }
 
