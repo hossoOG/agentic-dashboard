@@ -64,6 +64,109 @@ export function clearTauriIPC(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Common Tauri-command handler builders
+// ---------------------------------------------------------------------------
+
+/**
+ * Handler builder for `create_session` with call recording.
+ *
+ * Returns `{ handler, calls, reset }`:
+ *   - `handler`: pass to `installRealIPC({ create_session: handler })`
+ *   - `calls`: ordered list of args each invocation received — assert in tests
+ *   - `reset()`: clear the recorded calls without re-installing the handler
+ *
+ * The handler echoes the args back as the production Rust command's response
+ * shape: `{ id, title, folder, shell }`. Pass `responseOverride` to swap in
+ * a fixed response (e.g. to simulate Rust returning a different id) or to
+ * have the handler reject.
+ */
+export function buildCreateSessionHandler(opts?: {
+  responseOverride?: (args: Record<string, unknown>) => unknown | Promise<unknown>;
+}): {
+  handler: IPCHandler;
+  calls: Array<Record<string, unknown>>;
+  reset: () => void;
+} {
+  const calls: Array<Record<string, unknown>> = [];
+  const handler: IPCHandler = async (args) => {
+    calls.push({ ...args });
+    if (opts?.responseOverride) return await opts.responseOverride(args);
+    return {
+      id: typeof args.id === "string" ? args.id : `mock-${calls.length}`,
+      title: typeof args.title === "string" ? args.title : "untitled",
+      folder: typeof args.folder === "string" ? args.folder : "",
+      shell: typeof args.shell === "string" ? args.shell : "powershell",
+    };
+  };
+  const reset = () => {
+    calls.length = 0;
+  };
+  return { handler, calls, reset };
+}
+
+/**
+ * No-op handler for `set_file_logging_enabled`. Hooks calling this command
+ * during integration tests don't need a real Rust toggle — the global
+ * flag lives in Rust and is irrelevant in jsdom.
+ */
+export function buildSetFileLoggingEnabledHandler(): IPCHandler {
+  return async () => undefined;
+}
+
+/**
+ * Handler for the dialog plugin's `open` command. The plugin-dialog wrapper
+ * `open()` from `@tauri-apps/plugin-dialog` calls `invoke("plugin:dialog|open", ...)`
+ * under the hood, so mockIPC catches it here.
+ *
+ * @param result What the dialog "returns": a string path (single file/dir),
+ *               an array (multi-select), or null (user cancelled).
+ */
+export function buildDialogOpenHandler(
+  result: string | string[] | null,
+): IPCHandler {
+  return async () => result;
+}
+
+// ---------------------------------------------------------------------------
+// Canonical recipe (read this if you're a Wave-3+ test author)
+// ---------------------------------------------------------------------------
+//
+// 1. Filename must end in `.integration.test.ts` so the integration vitest
+//    config picks it up and the regular config skips it.
+//
+// 2. ALWAYS use real Zustand stores. Reset between tests with
+//    `resetAllStores()` from `../../test/storeReset` (no mocks!).
+//
+// 3. ALWAYS go through `installRealIPC` for invoke routing. Never
+//    `vi.mock("@tauri-apps/api/core")`. Use the handler builders above
+//    where they fit; write your own when you need different behavior.
+//
+// 4. Use `emitTauriEvent(name, payload)` to drive listeners synchronously.
+//    Cleanup is automatic via the global `afterEach(clearTauriIPC)` in
+//    `setup.integration.ts` — no need to repeat in your file.
+//
+// 5. Real-fs fixtures: `mkdtempSync(join(tmpdir(), "name-"))` + `rmSync` in
+//    afterEach. Pass the tempdir path to `buildScanClaudeSessionsHandler`.
+//
+// Minimal example:
+//
+//   import { describe, it, expect, beforeEach } from "vitest";
+//   import { resetAllStores } from "../../test/storeReset";
+//   import { installRealIPC, buildCreateSessionHandler } from "../../test/mockTauriIPC";
+//   import { useSessionStore } from "../../store/sessionStore";
+//
+//   describe("my real test", () => {
+//     beforeEach(() => { resetAllStores(); });
+//
+//     it("creates a session", async () => {
+//       const { handler, calls } = buildCreateSessionHandler();
+//       installRealIPC({ create_session: handler });
+//       // ... drive your hook/component, assert on real store state + calls
+//     });
+//   });
+//
+
+// ---------------------------------------------------------------------------
 // Event-bus driver
 // ---------------------------------------------------------------------------
 
