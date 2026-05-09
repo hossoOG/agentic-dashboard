@@ -15,7 +15,11 @@ export type LibraryCategory =
   | "claudeMd"
   | "memory"
   | "commands"
-  | "mcp";
+  | "mcp"
+  | "rules"
+  | "knowledge";
+
+export type KnowledgeCategory = "security" | "templates" | "general";
 
 export interface DiscoveredSkill {
   name: string;
@@ -47,11 +51,41 @@ export interface DiscoveredMemoryFile {
   relativePath: string;
 }
 
+/** A user-global rule file from ~/.claude/rules/ (code-quality, git-safety, ...). */
+export interface DiscoveredRule {
+  /** Filename minus .md extension — e.g. "code-quality" */
+  name: string;
+  /** Original filename including extension — e.g. "code-quality.md" */
+  filename: string;
+  /** Glob pattern from the "# Glob: ..." header line, if present. Null = applies globally. */
+  glob: string | null;
+  /** File content excluding the glob header (so the body renders cleanly). */
+  body: string;
+}
+
+/** A user-global knowledge entry from ~/.claude/knowledge/ (templates, security checklists, configs). */
+export interface DiscoveredKnowledge {
+  /** Filename minus extension — e.g. "frontend-xss" */
+  name: string;
+  /** Original filename — e.g. "frontend-xss.md", "github-labels.yml" */
+  filename: string;
+  /** Subdirectory category. "general" = top-level, "security"/"templates" = subdir-derived. */
+  category: KnowledgeCategory;
+  /** Relative path from ~/.claude/ root — useful for refresh / reload. */
+  relativePath: string;
+  /** Raw file content (rendered as markdown for .md, monospace for .yml). */
+  body: string;
+  /** "md" or "yml" — drives copy-paste rendering (no markdown processing for YAML). */
+  fileType: "md" | "yml";
+}
+
 export type SelectedDetail =
   | { category: "skills"; item: DiscoveredSkill }
   | { category: "agents"; item: DiscoveredAgent }
   | { category: "hooks"; item: DiscoveredHook }
-  | { category: "memory"; item: DiscoveredMemoryFile };
+  | { category: "memory"; item: DiscoveredMemoryFile }
+  | { category: "rules"; item: DiscoveredRule }
+  | { category: "knowledge"; item: DiscoveredKnowledge };
 
 export interface ScopeConfig {
   skills: DiscoveredSkill[];
@@ -60,6 +94,10 @@ export interface ScopeConfig {
   settingsRaw: string;
   claudeMd: string;
   memoryFiles: DiscoveredMemoryFile[];
+  /** Global-only: ~/.claude/rules/*.md. Empty for project-scope. */
+  rules: DiscoveredRule[];
+  /** Global-only: ~/.claude/knowledge/**\/*.{md,yml}. Empty for project-scope. */
+  knowledge: DiscoveredKnowledge[];
 }
 
 // ── Store ──────────────────────────────────────────────────────────────
@@ -98,6 +136,8 @@ const EMPTY_SCOPE: ScopeConfig = {
   settingsRaw: "",
   claudeMd: "",
   memoryFiles: [],
+  rules: [],
+  knowledge: [],
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -313,6 +353,93 @@ export const useConfigDiscoveryStore = create<ConfigDiscoveryState>((set, get) =
           ...config.agents,
           ...mdAgents.filter((a) => !existingAgentNames.has(a.name)),
         ];
+      }
+
+      // Discover rules (~/.claude/rules/*.md) — applies user-globally to all
+      // Claude sessions. Each file may declare a "# Glob: ..." header that
+      // restricts when it applies (e.g. only to *.ts files).
+      try {
+        const ruleEntries = await invoke<string[]>("list_user_claude_dir", {
+          relativePath: "rules",
+        });
+        const rules: DiscoveredRule[] = [];
+        for (const fileName of ruleEntries) {
+          if (!fileName.endsWith(".md")) continue;
+          try {
+            const content = await invoke<string>("read_user_claude_file", {
+              relativePath: `rules/${fileName}`,
+            });
+            const globMatch = content.match(/^#\s*Glob:\s*(.+)$/m);
+            const body = globMatch
+              ? content.replace(globMatch[0], "").trim()
+              : content;
+            rules.push({
+              name: fileName.replace(/\.md$/, ""),
+              filename: fileName,
+              glob: globMatch?.[1]?.trim() ?? null,
+              body,
+            });
+          } catch {
+            // Skip unreadable rule file
+          }
+        }
+        config.rules = rules;
+      } catch {
+        // No rules dir — leave config.rules as []
+      }
+
+      // Discover knowledge entries (~/.claude/knowledge/) — recursive into
+      // security/ + templates/ subdirs. Top-level files default to "general".
+      try {
+        const topLevelEntries = await invoke<string[]>("list_user_claude_dir", {
+          relativePath: "knowledge",
+        });
+        const knowledge: DiscoveredKnowledge[] = [];
+
+        const pushEntry = async (
+          subPath: string,
+          fileName: string,
+          category: KnowledgeCategory,
+        ) => {
+          if (!fileName.endsWith(".md") && !fileName.endsWith(".yml")) return;
+          try {
+            const relativePath = subPath
+              ? `knowledge/${subPath}/${fileName}`
+              : `knowledge/${fileName}`;
+            const content = await invoke<string>("read_user_claude_file", {
+              relativePath,
+            });
+            knowledge.push({
+              name: fileName.replace(/\.(md|yml)$/, ""),
+              filename: fileName,
+              category,
+              relativePath,
+              body: content,
+              fileType: fileName.endsWith(".yml") ? "yml" : "md",
+            });
+          } catch {
+            // Skip unreadable
+          }
+        };
+
+        for (const entry of topLevelEntries) {
+          await pushEntry("", entry, "general");
+        }
+        for (const subDir of ["security", "templates"] as const) {
+          try {
+            const subEntries = await invoke<string[]>("list_user_claude_dir", {
+              relativePath: `knowledge/${subDir}`,
+            });
+            for (const entry of subEntries) {
+              await pushEntry(subDir, entry, subDir);
+            }
+          } catch {
+            // Subdir missing — fine
+          }
+        }
+        config.knowledge = knowledge;
+      } catch {
+        // No knowledge dir — leave config.knowledge as []
       }
 
       // Discover memory files in projects dir

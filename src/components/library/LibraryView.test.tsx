@@ -49,6 +49,8 @@ const makeConfig = (overrides?: Partial<ScopeConfig>): ScopeConfig => ({
   settingsRaw: "",
   claudeMd: "",
   memoryFiles: [],
+  rules: [],
+  knowledge: [],
   ...overrides,
 });
 

@@ -1,4 +1,4 @@
-import { type LucideIcon, Zap, Bot, Webhook, Brain } from "lucide-react";
+import { type LucideIcon, Zap, Bot, Webhook, Brain, Scroll, BookText } from "lucide-react";
 import { Modal } from "../ui/Modal";
 import { LibraryDetailContent } from "./LibraryDetailContent";
 import {
@@ -27,6 +27,10 @@ function getDetailMeta(detail: SelectedDetail): DetailMeta {
       return { Icon: Webhook, iconClass: "text-amber-400", title: detail.item.event, scope: detail.item.scope };
     case "memory":
       return { Icon: Brain, iconClass: "text-green-400", title: detail.item.name };
+    case "rules":
+      return { Icon: Scroll, iconClass: "text-accent", title: detail.item.name, scope: "global" };
+    case "knowledge":
+      return { Icon: BookText, iconClass: "text-accent", title: detail.item.name, scope: detail.item.category };
   }
 }
 
