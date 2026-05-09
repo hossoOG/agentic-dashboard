@@ -144,6 +144,7 @@ Bei neuen Komponenten: gegen Preview-HTMLs in `docs/design-system/preview/` abgl
 - Code/Config/Skill LESEN bevor Aussagen machen. Belege mit Dateien und Zeilennummern.
 - Unsicherheit kennzeichnen (~70% sicher etc.)
 - Skills: SKILL.md komplett lesen, Phase fuer Phase ausfuehren, STOPP-Punkte einhalten.
+- **Lern-Mandat:** User will lernen — bei jeder Antwort *warum*, nicht nur *was*. Mechanismen statt nur Konsequenzen. Ungewoehnliche Code-Regeln begruenden statt einfach anwenden. Insight-Bloecke (Output-Style "Explanatory") sind Default, nicht Add-on. Anti-Pattern: terse "ok, fixed" — stattdessen "fixed via X, weil Y sonst Z waere".
 
 ## Prozess-Dokumentation
 
