@@ -4,12 +4,6 @@ use std::fmt;
 /// Machine-readable error codes matching the ADP TypeScript schema (ADPErrorCode).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ADPErrorCode {
-    #[serde(rename = "PIPELINE_SPAWN_FAILED")]
-    PipelineSpawnFailed,
-    #[serde(rename = "PIPELINE_ALREADY_RUNNING")]
-    PipelineAlreadyRunning,
-    #[serde(rename = "PIPELINE_NOT_RUNNING")]
-    PipelineNotRunning,
     #[serde(rename = "WORKTREE_NOT_FOUND")]
     WorktreeNotFound,
     #[serde(rename = "WORKTREE_STEP_INVALID")]
@@ -166,9 +160,9 @@ mod tests {
 
     #[test]
     fn error_code_serializes_to_screaming_snake() {
-        let code = ADPErrorCode::PipelineSpawnFailed;
+        let code = ADPErrorCode::SessionNotFound;
         let json = serde_json::to_string(&code).unwrap();
-        assert_eq!(json, "\"PIPELINE_SPAWN_FAILED\"");
+        assert_eq!(json, "\"SESSION_NOT_FOUND\"");
     }
 
     #[test]

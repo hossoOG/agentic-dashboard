@@ -153,16 +153,6 @@ pub enum ADPTarget {
 /// All 26 event types from the ADP schema.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ADPEventType {
-    // Pipeline
-    #[serde(rename = "pipeline.start")]
-    PipelineStart,
-    #[serde(rename = "pipeline.stop")]
-    PipelineStop,
-    #[serde(rename = "pipeline.status")]
-    PipelineStatus,
-    #[serde(rename = "pipeline.error")]
-    PipelineError,
-
     // Orchestrator
     #[serde(rename = "orchestrator.status-change")]
     OrchestratorStatusChange,
@@ -262,9 +252,9 @@ mod tests {
 
     #[test]
     fn envelope_new_creates_valid_envelope() {
-        let payload = serde_json::json!({ "projectPath": "/tmp/test", "mode": "mock" });
+        let payload = serde_json::json!({ "uptimeMs": 1000 });
         let env = ADPEnvelope::new(
-            ADPEventType::PipelineStart,
+            ADPEventType::SystemHeartbeat,
             ADPSource::TauriBackend,
             &payload,
         )
@@ -273,7 +263,7 @@ mod tests {
         assert_eq!(env.version, "1.0.0");
         assert!(!env.id.is_empty());
         assert!(env.target.is_none());
-        assert_eq!(env.event_type, ADPEventType::PipelineStart);
+        assert_eq!(env.event_type, ADPEventType::SystemHeartbeat);
         assert_eq!(env.sequence, 0);
     }
 

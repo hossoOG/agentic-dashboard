@@ -1,12 +1,11 @@
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Mutex, OnceLock};
 
 pub mod adp;
 pub mod error;
 pub mod github;
 pub mod library;
 pub mod log_reader;
-pub mod pipeline;
 pub mod session;
 pub mod settings;
 pub mod util;
@@ -125,12 +124,6 @@ pub struct LogEvent {
     pub worktree_id: Option<String>,
 }
 
-#[derive(Default)]
-pub struct PipelineState {
-    pub child_pid: Option<u32>,
-    pub state_machine: pipeline::state_machine::PipelineStateMachine,
-}
-
 mod commands {
     use super::{Ordering, LOGGING_ENABLED};
     use crate::error::ADPError;
@@ -209,8 +202,7 @@ pub fn run() {
     init_logging();
     log::info!("Agentic Dashboard starting up");
 
-    let pipeline_state = Arc::new(Mutex::new(PipelineState::default()));
-    let session_manager = Arc::new(session::manager::SessionManager::new());
+    let session_manager = std::sync::Arc::new(session::manager::SessionManager::new());
     let session_manager_cleanup = session_manager.clone();
 
     let result = tauri::Builder::default()
@@ -233,7 +225,6 @@ pub fn run() {
             updater.build()
         })
         .plugin(tauri_plugin_process::init())
-        .manage(pipeline_state)
         .manage(session_manager)
         .invoke_handler(tauri::generate_handler![
             commands::open_log_window,
@@ -279,17 +270,6 @@ pub fn run() {
             library::commands::commands::attach_library_item,
             library::commands::commands::detach_library_item,
             library::commands::commands::get_library_item_path,
-            // Pipeline
-            pipeline::commands::start_pipeline,
-            pipeline::commands::stop_pipeline,
-            pipeline::commands::get_pipeline_status,
-            // Pipeline history
-            pipeline::commands::list_pipeline_runs,
-            pipeline::commands::get_pipeline_run,
-            // Pipeline workflow parser + executor
-            pipeline::commands::load_workflow,
-            pipeline::commands::list_workflows,
-            pipeline::commands::run_workflow,
             // Log reader
             log_reader::commands::read_backend_log,
             // User settings (Documents/AgenticExplorer/)
