@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { RefreshCw, GitBranch, Bot, MessageSquare, Clock, Play } from "lucide-react";
+import { RefreshCw, GitBranch, Bot, MessageSquare, Clock, Play, Trash2 } from "lucide-react";
 import { getErrorMessage } from "../../utils/adpError";
 import { logError } from "../../utils/errorLogger";
 import { formatElapsed } from "../../utils/format";
 import { useSettingsStore } from "../../store/settingsStore";
+import { useUIStore } from "../../store/uiStore";
 
 // ============================================================================
 // Types (matches Rust ClaudeSessionSummary)
@@ -85,6 +86,11 @@ const SessionHistoryViewer: React.FC<SessionHistoryViewerProps> = ({ folder, onR
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const sessionTitleOverrides = useSettingsStore((s) => s.sessionTitleOverrides);
+  const removeRestorableSessionByClaudeId = useSettingsStore(
+    (s) => s.removeRestorableSessionByClaudeId,
+  );
+  const addToast = useUIStore((s) => s.addToast);
+  const setActiveTab = useUIStore((s) => s.setActiveTab);
 
   const loadSessions = async () => {
     setLoading(true);
@@ -97,6 +103,44 @@ const SessionHistoryViewer: React.FC<SessionHistoryViewerProps> = ({ folder, onR
       setError(getErrorMessage(err));
     } finally {
       setLoading(false);
+    }
+  };
+
+  /**
+   * Move the session to the OS trash. Optimistic — the row disappears
+   * immediately; on backend failure we restore the snapshot so the user
+   * never has to hit "Refresh" to recover from a transient error.
+   *
+   * The toast offers a "Memory pruefen"-action that jumps to the Library
+   * tab where projektweite Memory-Eintraege gepflegt werden — die Library
+   * ist Single Source of Truth fuer Memory-Hygiene.
+   */
+  const handleDelete = async (sessionId: string, title: string) => {
+    const rollbackSnapshot = sessions;
+    setSessions((current) => current.filter((s) => s.session_id !== sessionId));
+
+    try {
+      await invoke("delete_claude_session", { folder, sessionId });
+      removeRestorableSessionByClaudeId(sessionId);
+      addToast({
+        type: "success",
+        title: "Session geloescht",
+        message: title,
+        duration: 8000,
+        action: {
+          label: "Memory pruefen",
+          onClick: () => setActiveTab("library"),
+        },
+      });
+    } catch (err) {
+      setSessions(rollbackSnapshot);
+      logError("SessionHistoryViewer.deleteSession", err);
+      addToast({
+        type: "error",
+        title: "Loeschen fehlgeschlagen",
+        message: getErrorMessage(err),
+        duration: 8000,
+      });
     }
   };
 
@@ -177,6 +221,13 @@ const SessionHistoryViewer: React.FC<SessionHistoryViewerProps> = ({ folder, onR
                   <Play className="w-3.5 h-3.5" />
                 </button>
               )}
+              <button
+                onClick={() => handleDelete(session.session_id, effectiveTitle)}
+                className="shrink-0 mt-0.5 p-1 rounded hover:bg-error/10 text-neutral-400 hover:text-error transition-colors opacity-0 group-hover:opacity-100"
+                title="Session loeschen (in den Papierkorb)"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
             </div>
 
             {/* Metadata row */}

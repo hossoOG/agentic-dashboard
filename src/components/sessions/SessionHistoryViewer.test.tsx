@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
 import SessionHistoryViewer from "./SessionHistoryViewer";
 import { useSettingsStore } from "../../store/settingsStore";
+import { useUIStore } from "../../store/uiStore";
 
 // Mock @tauri-apps/api/core
 const mockInvoke = vi.fn();
@@ -38,7 +39,17 @@ const mockSession2 = {
 describe("SessionHistoryViewer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useSettingsStore.setState({ sessionTitleOverrides: {} });
+    useSettingsStore.setState({
+      sessionTitleOverrides: {},
+      sessionRestore: {
+        enabled: true,
+        sessions: [],
+        activeFolder: null,
+        layoutMode: "single",
+        gridFolders: [],
+      },
+    });
+    useUIStore.setState({ toasts: [], activeTab: "sessions" });
   });
 
   it("shows loading state initially", () => {
@@ -189,5 +200,164 @@ describe("SessionHistoryViewer", () => {
     await waitFor(() => {
       expect(screen.getByText("1 Session")).toBeInTheDocument();
     });
+  });
+
+  // ==========================================================================
+  // Delete-Button (move-to-trash flow)
+  // ==========================================================================
+
+  it("renders a delete button per session row", async () => {
+    mockInvoke.mockResolvedValue([mockSession]);
+
+    render(<SessionHistoryViewer folder="/test/project" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Fix login bug")).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByTitle("Session loeschen (in den Papierkorb)"),
+    ).toBeInTheDocument();
+  });
+
+  it("removes the row optimistically on delete-success and shows a success toast", async () => {
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === "scan_claude_sessions") return Promise.resolve([mockSession, mockSession2]);
+      if (cmd === "delete_claude_session") return Promise.resolve(undefined);
+      return Promise.reject(new Error(`unexpected cmd: ${cmd}`));
+    });
+
+    render(<SessionHistoryViewer folder="/test/project" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Fix login bug")).toBeInTheDocument();
+    });
+
+    const deleteButtons = screen.getAllByTitle("Session loeschen (in den Papierkorb)");
+    expect(deleteButtons).toHaveLength(2);
+
+    await act(async () => {
+      fireEvent.click(deleteButtons[0]);
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Fix login bug")).not.toBeInTheDocument();
+    });
+
+    // The other session must remain visible — partial-state contract
+    expect(screen.getByText("Add unit tests")).toBeInTheDocument();
+
+    // Backend was invoked with the contract args
+    expect(mockInvoke).toHaveBeenCalledWith("delete_claude_session", {
+      folder: "/test/project",
+      sessionId: "sess-001",
+    });
+
+    // Success toast surfaces with the Memory-pruefen action
+    const toasts = useUIStore.getState().toasts;
+    const successToast = toasts.find((t) => t.type === "success");
+    expect(successToast).toBeDefined();
+    expect(successToast?.title).toBe("Session geloescht");
+    expect(successToast?.action?.label).toBe("Memory pruefen");
+  });
+
+  it("rolls back optimistic removal and shows an error toast on failure", async () => {
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === "scan_claude_sessions") return Promise.resolve([mockSession]);
+      if (cmd === "delete_claude_session") return Promise.reject(new Error("trash failed"));
+      return Promise.reject(new Error(`unexpected cmd: ${cmd}`));
+    });
+
+    render(<SessionHistoryViewer folder="/test/project" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Fix login bug")).toBeInTheDocument();
+    });
+
+    const deleteBtn = screen.getByTitle("Session loeschen (in den Papierkorb)");
+
+    await act(async () => {
+      fireEvent.click(deleteBtn);
+    });
+
+    // Rolled back — the row reappears
+    await waitFor(() => {
+      expect(screen.getByText("Fix login bug")).toBeInTheDocument();
+    });
+
+    const toasts = useUIStore.getState().toasts;
+    const errorToast = toasts.find((t) => t.type === "error");
+    expect(errorToast).toBeDefined();
+    expect(errorToast?.title).toBe("Loeschen fehlgeschlagen");
+  });
+
+  it("Memory-pruefen-action switches the active tab to Library", async () => {
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === "scan_claude_sessions") return Promise.resolve([mockSession]);
+      if (cmd === "delete_claude_session") return Promise.resolve(undefined);
+      return Promise.reject(new Error(`unexpected cmd: ${cmd}`));
+    });
+
+    render(<SessionHistoryViewer folder="/test/project" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Fix login bug")).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTitle("Session loeschen (in den Papierkorb)"));
+    });
+
+    await waitFor(() => {
+      const t = useUIStore.getState().toasts.find((t) => t.type === "success");
+      expect(t?.action).toBeDefined();
+    });
+
+    const successToast = useUIStore.getState().toasts.find((t) => t.type === "success");
+    expect(useUIStore.getState().activeTab).toBe("sessions");
+
+    act(() => {
+      successToast!.action!.onClick();
+    });
+
+    expect(useUIStore.getState().activeTab).toBe("library");
+  });
+
+  it("clears sessionRestore + sessionTitleOverrides after delete-success", async () => {
+    const ID = "sess-001";
+    useSettingsStore.setState({
+      sessionRestore: {
+        enabled: true,
+        sessions: [
+          { folder: "/test/project", title: "Old", shell: "powershell", claudeSessionId: ID },
+        ],
+        activeFolder: null,
+        layoutMode: "single",
+        gridFolders: [],
+      },
+      sessionTitleOverrides: { [ID]: "Custom Name" },
+    });
+
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === "scan_claude_sessions") return Promise.resolve([mockSession]);
+      if (cmd === "delete_claude_session") return Promise.resolve(undefined);
+      return Promise.reject(new Error(`unexpected cmd: ${cmd}`));
+    });
+
+    render(<SessionHistoryViewer folder="/test/project" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Custom Name")).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTitle("Session loeschen (in den Papierkorb)"));
+    });
+
+    await waitFor(() => {
+      expect(useSettingsStore.getState().sessionRestore.sessions).toHaveLength(0);
+    });
+
+    expect(useSettingsStore.getState().sessionTitleOverrides[ID]).toBeUndefined();
   });
 });

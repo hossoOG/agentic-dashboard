@@ -955,6 +955,123 @@ describe("renamePinnedDoc", () => {
 // scrollbackLines preferences (Phase 1 of scrollback-history-coverage)
 // ============================================================================
 
+// ============================================================================
+// removeRestorableSessionByClaudeId
+// ============================================================================
+
+describe("removeRestorableSessionByClaudeId", () => {
+  // Real UUID-v4 strings (lowercase, version-4-shape) so they pass the
+  // store's `validateSessionRestore` filter on hydration paths. The action
+  // itself does not validate — but using realistic ids matches production.
+  const ID_A = "12345678-90ab-4def-9234-567890abcdef";
+  const ID_B = "11111111-2222-4333-9444-555566667777";
+
+  beforeEach(() => {
+    useSettingsStore.setState({
+      sessionRestore: {
+        enabled: true,
+        sessions: [],
+        activeFolder: null,
+        layoutMode: "single",
+        gridFolders: [],
+      },
+      sessionTitleOverrides: {},
+    });
+  });
+
+  it("removes the matching session from sessionRestore.sessions[]", () => {
+    useSettingsStore.setState({
+      sessionRestore: {
+        enabled: true,
+        sessions: [
+          { folder: "C:/A", title: "alpha", shell: "powershell", claudeSessionId: ID_A },
+          { folder: "C:/B", title: "beta", shell: "powershell", claudeSessionId: ID_B },
+        ],
+        activeFolder: null,
+        layoutMode: "single",
+        gridFolders: [],
+      },
+    });
+
+    getState().removeRestorableSessionByClaudeId(ID_A);
+
+    expect(getState().sessionRestore.sessions).toHaveLength(1);
+    expect(getState().sessionRestore.sessions[0].claudeSessionId).toBe(ID_B);
+  });
+
+  it("clears the title override for the same id", () => {
+    getState().setSessionTitleOverride(ID_A, "Mein Titel");
+    expect(getState().sessionTitleOverrides[ID_A]).toBe("Mein Titel");
+
+    getState().removeRestorableSessionByClaudeId(ID_A);
+
+    expect(getState().sessionTitleOverrides[ID_A]).toBeUndefined();
+  });
+
+  it("removes restore-entry AND title-override in a single action", () => {
+    useSettingsStore.setState({
+      sessionRestore: {
+        enabled: true,
+        sessions: [
+          { folder: "C:/A", title: "alpha", shell: "powershell", claudeSessionId: ID_A },
+        ],
+        activeFolder: null,
+        layoutMode: "single",
+        gridFolders: [],
+      },
+    });
+    getState().setSessionTitleOverride(ID_A, "Custom");
+
+    getState().removeRestorableSessionByClaudeId(ID_A);
+
+    expect(getState().sessionRestore.sessions).toHaveLength(0);
+    expect(getState().sessionTitleOverrides[ID_A]).toBeUndefined();
+  });
+
+  it("is a no-op for unknown id", () => {
+    useSettingsStore.setState({
+      sessionRestore: {
+        enabled: true,
+        sessions: [
+          { folder: "C:/A", title: "alpha", shell: "powershell", claudeSessionId: ID_A },
+        ],
+        activeFolder: null,
+        layoutMode: "single",
+        gridFolders: [],
+      },
+    });
+    getState().setSessionTitleOverride(ID_A, "Keep");
+
+    getState().removeRestorableSessionByClaudeId("unknown-xyz");
+
+    expect(getState().sessionRestore.sessions).toHaveLength(1);
+    expect(getState().sessionTitleOverrides[ID_A]).toBe("Keep");
+  });
+
+  it("ignores empty / whitespace id without touching state", () => {
+    useSettingsStore.setState({
+      sessionRestore: {
+        enabled: true,
+        sessions: [
+          { folder: "C:/A", title: "alpha", shell: "powershell", claudeSessionId: ID_A },
+        ],
+        activeFolder: null,
+        layoutMode: "single",
+        gridFolders: [],
+      },
+    });
+
+    getState().removeRestorableSessionByClaudeId("");
+    getState().removeRestorableSessionByClaudeId("   ");
+
+    expect(getState().sessionRestore.sessions).toHaveLength(1);
+  });
+});
+
+// ============================================================================
+// preferences
+// ============================================================================
+
 describe("preferences.scrollbackLines", () => {
   it("defaults to 25_000 on a fresh store", () => {
     expect(getState().preferences.scrollbackLines).toBe(25_000);

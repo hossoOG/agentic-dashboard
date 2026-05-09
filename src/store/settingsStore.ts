@@ -188,6 +188,15 @@ export interface SettingsState {
   setSessionRestore: (data: SessionRestoreData) => void;
   setSessionTitleOverride: (sessionId: string, title: string) => void;
   clearSessionTitleOverride: (sessionId: string) => void;
+  /**
+   * Remove all restore-state tied to a Claude session UUID — invoked AFTER
+   * the session has been moved to the OS trash so persisted UI state does
+   * not keep a dangling reference to a no-longer-existing transcript.
+   * Cleans both `sessionRestore.sessions[]` (resume-on-startup list) and
+   * `sessionTitleOverrides[id]` (custom-name map). No-op if neither has
+   * an entry for this id.
+   */
+  removeRestorableSessionByClaudeId: (claudeSessionId: string) => void;
 
   addApiKeyMetadata: (entry: ApiKeyMetadataEntry) => void;
   removeApiKeyMetadata: (id: string) => void;
@@ -419,6 +428,38 @@ export const useSettingsStore = create<SettingsState>()(
           const next = { ...state.sessionTitleOverrides };
           delete next[key];
           return { sessionTitleOverrides: next };
+        }),
+
+      removeRestorableSessionByClaudeId: (claudeSessionId) =>
+        set((state) => {
+          const id = claudeSessionId.trim();
+          if (!id) return state;
+
+          const filteredSessions = state.sessionRestore.sessions.filter(
+            (s) => s.claudeSessionId !== id,
+          );
+          const sessionsChanged =
+            filteredSessions.length !== state.sessionRestore.sessions.length;
+          const overridesChanged = id in state.sessionTitleOverrides;
+
+          if (!sessionsChanged && !overridesChanged) return state;
+
+          const updates: Partial<SettingsState> = {};
+
+          if (sessionsChanged) {
+            updates.sessionRestore = {
+              ...state.sessionRestore,
+              sessions: filteredSessions,
+            };
+          }
+
+          if (overridesChanged) {
+            const nextOverrides = { ...state.sessionTitleOverrides };
+            delete nextOverrides[id];
+            updates.sessionTitleOverrides = nextOverrides;
+          }
+
+          return updates;
         }),
 
       setTheme: (partial) =>
