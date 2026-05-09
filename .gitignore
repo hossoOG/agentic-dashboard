@@ -19,6 +19,9 @@ AI_ARCHITECT_SYNC.md
 Projekt.txt
 .playwright-mcp/
 graphify-out/
+.planning/
+_temp/
+skills-lock.json
 
 # Playwright E2E artifacts
 e2e/test-results/
