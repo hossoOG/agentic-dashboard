@@ -29,14 +29,15 @@ describe("FavoriteCard", () => {
     useUIStore.setState({ previewFolder: null });
   });
 
-  it("renders favorite label and shortened path", () => {
-    render(
+  it("renders favorite label and exposes full path via title for hover tooltip", () => {
+    const { container } = render(
       <FavoriteCard favorite={makeFavorite()} onStart={vi.fn()} onRemove={vi.fn()} />,
     );
 
     expect(screen.getByText("My Project")).toBeTruthy();
-    // shortenPath("C:/Projects/my-project") has 3 segments → returned as-is
-    expect(screen.getByText("C:/Projects/my-project")).toBeTruthy();
+    // Path is no longer rendered as text (saves vertical space) — only as native title tooltip
+    expect(screen.queryByText("C:/Projects/my-project")).toBeNull();
+    expect(container.querySelector('[title="C:/Projects/my-project"]')).not.toBeNull();
   });
 
   it("calls onStart when play button is clicked", () => {

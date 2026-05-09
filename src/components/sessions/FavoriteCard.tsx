@@ -3,7 +3,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { motion } from "framer-motion";
 import type { FavoriteFolder } from "../../store/settingsStore";
 import { useUIStore } from "../../store/uiStore";
-import { shortenPath } from "../../utils/pathUtils";
 import { logError } from "../../utils/errorLogger";
 
 interface FavoriteCardProps {
@@ -21,8 +20,9 @@ export function FavoriteCard({ favorite, onStart, onRemove }: FavoriteCardProps)
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.15 }}
-      className="relative group px-3 py-2 cursor-pointer transition-all duration-150 border-l-2 border-l-transparent hover:border-l-accent hover:bg-hover-overlay"
+      className="relative group px-3 py-1.5 cursor-pointer transition-all duration-150 border-l-2 border-l-transparent hover:border-l-accent hover:bg-hover-overlay"
       onClick={() => openPreview(favorite.path)}
+      title={favorite.path}
     >
       {/* Action buttons — visible on hover */}
       <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -79,14 +79,6 @@ export function FavoriteCard({ favorite, onStart, onRemove }: FavoriteCardProps)
         <span className="font-bold text-sm text-neutral-200 truncate">
           {favorite.label}
         </span>
-      </div>
-
-      {/* Folder path */}
-      <div
-        className="mt-0.5 pl-[22px] text-xs text-neutral-500 truncate"
-        title={favorite.path}
-      >
-        {shortenPath(favorite.path)}
       </div>
     </motion.div>
   );
