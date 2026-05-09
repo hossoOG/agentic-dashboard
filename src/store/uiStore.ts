@@ -22,7 +22,7 @@ function makeLocalStorage(): StateStorage {
   }
 }
 
-export type ActiveTab = "sessions" | "pipeline" | "kanban" | "logs" | "library" | "settings" | "editor";
+export type ActiveTab = "sessions" | "kanban" | "logs" | "library" | "settings" | "editor";
 
 export type ConfigSubTab =
   | "claude-md"

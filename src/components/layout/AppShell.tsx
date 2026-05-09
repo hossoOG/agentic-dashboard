@@ -1,6 +1,5 @@
 import React, { Suspense, useEffect } from "react";
 import { SideNav } from "./SideNav";
-import { PipelineView } from "../pipeline/PipelineView";
 import { SessionManagerView } from "../sessions/SessionManagerView";
 import { useUIStore } from "../../store/uiStore";
 import { useSettingsStore } from "../../store/settingsStore";
@@ -47,8 +46,6 @@ export function AppShell() {
     switch (activeTab) {
       case "sessions":
         return <SessionManagerView />;
-      case "pipeline":
-        return <PipelineView />;
       case "kanban":
         return (
           <Suspense fallback={<NeonSpinner />}>

@@ -17,10 +17,6 @@ vi.mock("../sessions/SessionManagerView", () => ({
   SessionManagerView: () => <div data-testid="session-manager" />,
 }));
 
-vi.mock("../pipeline/PipelineView", () => ({
-  PipelineView: () => <div data-testid="pipeline-view" />,
-}));
-
 // Lazy-loaded views — mock as simple components
 vi.mock("../settings/PreferencesView", () => ({
   PreferencesView: () => <div data-testid="preferences-view" />,
@@ -55,12 +51,6 @@ describe("AppShell", () => {
   it("renders SessionManagerView for default/sessions tab", () => {
     render(<AppShell />);
     expect(screen.getByTestId("session-manager")).toBeTruthy();
-  });
-
-  it("renders PipelineView when activeTab is pipeline", () => {
-    useUIStore.setState({ activeTab: "pipeline" });
-    render(<AppShell />);
-    expect(screen.getByTestId("pipeline-view")).toBeTruthy();
   });
 
   it("has flex layout with full screen dimensions", () => {

@@ -50,18 +50,13 @@ describe("initial state", () => {
 // ============================================================================
 
 describe("setActiveTab", () => {
-  it("switches to pipeline tab", () => {
-    getState().setActiveTab("pipeline");
-    expect(getState().activeTab).toBe("pipeline");
-  });
-
   it("switches to settings tab", () => {
     getState().setActiveTab("settings");
     expect(getState().activeTab).toBe("settings");
   });
 
   it("switches back to sessions", () => {
-    getState().setActiveTab("pipeline");
+    getState().setActiveTab("kanban");
     getState().setActiveTab("sessions");
     expect(getState().activeTab).toBe("sessions");
   });
