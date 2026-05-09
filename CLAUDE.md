@@ -61,6 +61,7 @@ npm run lint             # ESLint
 - `cd src-tauri && cargo check` fuer Rust-Aenderungen
 - **Pre-Commit** (Husky + lint-staged): `tsc --noEmit` + `eslint` fuer TS, `cargo fmt --check` + `cargo check` fuer Rust
 - **CI**: `npm run test:coverage` (Ratchet-Schwellen), `cargo test` + `cargo clippy`
+- **Test-Layer**: A = Rust integration (`src-tauri/tests/*.rs`), B = Frontend integration (`*.integration.test.ts` via separates `vitest.config.integration.ts`), C = E2E (geplant). B-Tests nutzen Real-IPC via `mockIPC` aus `@tauri-apps/api/mocks` — NIEMALS `vi.mock("@tauri-apps/api/core")` oder Store-Mocks.
 - **Null-Safety**: `?.` und `??` bei Tauri-Events, Store-Zugriffen, User-Input
 - **Signature Changes**: Grep nach allen Usages, ALLE Caller updaten
 - **Nicht behaupten, verifizieren**: Build-Log/Screenshot als Beweis
@@ -84,6 +85,8 @@ npm run lint             # ESLint
 - Conventional Commits: `feat(scope):`, `fix(scope):`, `chore(scope):` — Scopes: `ui`, `store`, `parser`, `tauri`, `config`
 - React: Functional Components + Hooks
 - State: Zustand — `sessionStore` (ephemer), `settingsStore` (persistiert), `uiStore` (UI)
+- Zustand-Persist-Validation: bei persistierten Stores Validation in BEIDE Hooks — `migrate` (Schema-Bump) UND `onRehydrateStorage` (same-version-Corruption-Recovery). Migrate alleine deckt Issue-#209-Klasse nicht ab.
+- Settings-Sanitize-Helpers: jedes numerische User-Setting bekommt `sanitizeXxx(value: unknown): number` mit Clamp-Range, geteilt zwischen Store-Default und UI. Kein `Math.max/min` inline in Components.
 - Styling: Tailwind bevorzugen, Custom CSS nur fuer Animationen in `index.css`
 - Rust: Tauri Commands in `lib.rs` im `mod commands {}` Block
 - Tauri v2: Imports aus `@tauri-apps/api` (v2-Syntax)
