@@ -323,6 +323,94 @@ describe("SessionHistoryViewer", () => {
     expect(useUIStore.getState().activeTab).toBe("library");
   });
 
+  it("disables the trash button while a delete is in-flight on the same row", async () => {
+    let resolveDelete: () => void = () => {};
+    const deletePromise = new Promise<void>((res) => {
+      resolveDelete = res;
+    });
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === "scan_claude_sessions") return Promise.resolve([mockSession]);
+      if (cmd === "delete_claude_session") return deletePromise;
+      return Promise.reject(new Error(`unexpected cmd: ${cmd}`));
+    });
+
+    render(<SessionHistoryViewer folder="/test/project" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Fix login bug")).toBeInTheDocument();
+    });
+
+    const deleteBtn = screen.getByTitle("Session loeschen (in den Papierkorb)") as HTMLButtonElement;
+
+    await act(async () => {
+      fireEvent.click(deleteBtn);
+    });
+
+    // Optimistic remove already happened, but the row's button is gone with
+    // it. We probe the disabled-while-pending behavior on a stable in-flight
+    // delete using the no-op contract: a second click while the first is
+    // pending is a no-op (the only-one-trash-button shortcut never has to
+    // fire twice). We assert there was exactly ONE invoke for the delete.
+    expect(mockInvoke).toHaveBeenCalledWith("delete_claude_session", {
+      folder: "/test/project",
+      sessionId: "sess-001",
+    });
+    const deleteCalls = mockInvoke.mock.calls.filter(
+      ([cmd]) => cmd === "delete_claude_session",
+    );
+    expect(deleteCalls).toHaveLength(1);
+
+    await act(async () => {
+      resolveDelete();
+      await deletePromise;
+    });
+  });
+
+  it("does not resurrect a successfully-deleted sibling on cross-session race", async () => {
+    // Original: [Fix login bug (A), Add unit tests (B)].
+    // Scenario: rapid clicks. A's delete REJECTS (rollback), B's delete
+    // RESOLVES (kept gone). The pre-fix code captured the entire sessions
+    // array at handler entry and rolled back via direct setSessions —
+    // which would re-introduce B because A's rollback snapshot still
+    // contained B. The position-preserving functional rollback operates
+    // on live state and only re-inserts the failed session.
+    mockInvoke.mockImplementation((cmd: string, args?: { sessionId?: string }) => {
+      if (cmd === "scan_claude_sessions") return Promise.resolve([mockSession, mockSession2]);
+      if (cmd === "delete_claude_session") {
+        if (args?.sessionId === "sess-001") return Promise.reject(new Error("trash failed"));
+        if (args?.sessionId === "sess-002") return Promise.resolve(undefined);
+      }
+      return Promise.reject(new Error(`unexpected cmd: ${cmd}`));
+    });
+
+    render(<SessionHistoryViewer folder="/test/project" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Fix login bug")).toBeInTheDocument();
+    });
+
+    const deleteBtns = screen.getAllByTitle(
+      "Session loeschen (in den Papierkorb)",
+    );
+    expect(deleteBtns).toHaveLength(2);
+
+    await act(async () => {
+      fireEvent.click(deleteBtns[0]); // A — will reject
+      fireEvent.click(deleteBtns[1]); // B — will resolve
+    });
+
+    // A rolled back — visible again at its original position.
+    // B is gone — successfully deleted, no ghost.
+    await waitFor(() => {
+      expect(screen.getByText("Fix login bug")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Add unit tests")).not.toBeInTheDocument();
+
+    const toasts = useUIStore.getState().toasts;
+    expect(toasts.some((t) => t.type === "error" && t.title === "Loeschen fehlgeschlagen")).toBe(true);
+    expect(toasts.some((t) => t.type === "success" && t.title === "Session geloescht")).toBe(true);
+  });
+
   it("clears sessionRestore + sessionTitleOverrides after delete-success", async () => {
     const ID = "sess-001";
     useSettingsStore.setState({

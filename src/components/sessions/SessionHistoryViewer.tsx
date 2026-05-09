@@ -85,6 +85,7 @@ const SessionHistoryViewer: React.FC<SessionHistoryViewerProps> = ({ folder, onR
   const [sessions, setSessions] = useState<ClaudeSessionSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(new Set());
   const sessionTitleOverrides = useSettingsStore((s) => s.sessionTitleOverrides);
   const removeRestorableSessionByClaudeId = useSettingsStore(
     (s) => s.removeRestorableSessionByClaudeId,
@@ -108,15 +109,31 @@ const SessionHistoryViewer: React.FC<SessionHistoryViewerProps> = ({ folder, onR
 
   /**
    * Move the session to the OS trash. Optimistic — the row disappears
-   * immediately; on backend failure we restore the snapshot so the user
-   * never has to hit "Refresh" to recover from a transient error.
+   * immediately; on backend failure we re-insert at its original position
+   * via a functional setSessions so cross-session races never resurrect
+   * an already-deleted sibling: rolling back to a closure-captured
+   * snapshot would overwrite parallel optimistic removals and produce
+   * ghost rows in the UI.
+   *
+   * `pendingDeletes` blocks redundant re-clicks on the same row while a
+   * delete is in-flight; the trash button reflects this via `disabled`.
    *
    * The toast offers a "Memory pruefen"-action that jumps to the Library
    * tab where projektweite Memory-Eintraege gepflegt werden — die Library
    * ist Single Source of Truth fuer Memory-Hygiene.
    */
   const handleDelete = async (sessionId: string, title: string) => {
-    const rollbackSnapshot = sessions;
+    if (pendingDeletes.has(sessionId)) return;
+
+    const removed = sessions.find((s) => s.session_id === sessionId);
+    const originalIndex = sessions.findIndex((s) => s.session_id === sessionId);
+    if (!removed || originalIndex < 0) return;
+
+    setPendingDeletes((cur) => {
+      const next = new Set(cur);
+      next.add(sessionId);
+      return next;
+    });
     setSessions((current) => current.filter((s) => s.session_id !== sessionId));
 
     try {
@@ -133,13 +150,25 @@ const SessionHistoryViewer: React.FC<SessionHistoryViewerProps> = ({ folder, onR
         },
       });
     } catch (err) {
-      setSessions(rollbackSnapshot);
+      setSessions((current) => {
+        if (current.some((s) => s.session_id === sessionId)) return current;
+        const next = [...current];
+        const safeIdx = Math.min(originalIndex, next.length);
+        next.splice(safeIdx, 0, removed);
+        return next;
+      });
       logError("SessionHistoryViewer.deleteSession", err);
       addToast({
         type: "error",
         title: "Loeschen fehlgeschlagen",
         message: getErrorMessage(err),
         duration: 8000,
+      });
+    } finally {
+      setPendingDeletes((cur) => {
+        const next = new Set(cur);
+        next.delete(sessionId);
+        return next;
       });
     }
   };
@@ -223,7 +252,13 @@ const SessionHistoryViewer: React.FC<SessionHistoryViewerProps> = ({ folder, onR
               )}
               <button
                 onClick={() => handleDelete(session.session_id, effectiveTitle)}
-                className="shrink-0 mt-0.5 p-1 rounded hover:bg-error/10 text-neutral-400 hover:text-error transition-colors opacity-0 group-hover:opacity-100"
+                disabled={pendingDeletes.has(session.session_id)}
+                className={
+                  "shrink-0 mt-0.5 p-1 rounded hover:bg-error/10 text-neutral-400 hover:text-error transition-colors " +
+                  (pendingDeletes.has(session.session_id)
+                    ? "opacity-40 cursor-not-allowed"
+                    : "opacity-0 group-hover:opacity-100")
+                }
                 title="Session loeschen (in den Papierkorb)"
               >
                 <Trash2 className="w-3.5 h-3.5" />
