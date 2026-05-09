@@ -103,7 +103,7 @@ export function NotesPanel({ variant = "header" }: { variant?: "header" | "sideb
         onClick={() => setOpen(!open)}
         className={
           variant === "sidebar"
-            ? `flex items-center gap-2 w-full h-9 px-3 rounded-none transition-all duration-150 text-left border-l-2 border-transparent ${
+            ? `relative flex items-center justify-center w-full h-9 rounded-none transition-all duration-150 border-l-2 border-transparent ${
                 open
                   ? "text-accent bg-accent-a10 border-accent"
                   : hasAnyNotes
@@ -122,7 +122,17 @@ export function NotesPanel({ variant = "header" }: { variant?: "header" | "sideb
         title="Notizen"
       >
         <StickyNote className="w-4 h-4 shrink-0" />
-        <span className={variant === "sidebar" ? "text-xs truncate" : "text-xs hidden lg:inline"}>Notizen</span>
+        {/* Label nur in der Header-Variante anzeigen — die schmale Sidebar (56px) bleibt icon-only mit Tooltip. */}
+        {variant !== "sidebar" && (
+          <span className="text-xs hidden lg:inline">Notizen</span>
+        )}
+        {/* Sidebar-Variante: dezenter Indicator-Dot wenn Notizen existieren (statt Label-Badge). */}
+        {variant === "sidebar" && hasAnyNotes && !open && (
+          <span
+            className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-accent"
+            aria-label="Notizen vorhanden"
+          />
+        )}
       </button>
 
       {open && (
