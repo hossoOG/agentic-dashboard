@@ -4,7 +4,7 @@ Alle relevanten Änderungen an AgenticExplorer werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
-## [Unreleased] — Logging-Subsystem-Refactor + Einstellungen-Tab + Ein-Klick-Session
+## [1.6.28] — 2026-05-09 — "Session Hygiene + Daily-Use Settings"
 
 ### Logging-Subsystem-Refactor (v2)
 
@@ -78,6 +78,72 @@ plus die strukturellen Komplexitäts-Smells beseitigt:
   Fallback ersetzt.
 - **`errorLogger.logBuffer` + `subscribeToLogs` + `getRecentLogs` +
   `clearLogs` gelöscht** — replaced by direct push to `logViewerStore`.
+
+### Added (Session-Hygiene + Library + Terminal)
+- **Trash-Button im `SessionHistoryViewer`** mit optimistic-delete via
+  OS-Papierkorb. Erfolgs-Toast bietet `Memory pruefen`-Action, die in
+  die Library springt. Cross-Session-Race-Bug behoben: bei zwei in-flight
+  Deletes (eines fail, eines success) wird die erfolgreich gelöschte
+  Geschwister-Session nicht mehr durch den Failure-Rollback wiederbelebt.
+- **Tauri-Command `delete_claude_session`** verschiebt JSONL-Transcript
+  in den OS-Trash. UUID-Regex-Validierung + `safe_resolve_with_base`
+  schützen gegen Path-Traversal; idempotent über drei Layouts (UUID-Dir,
+  flat-file, geschachtelt).
+- **Library zeigt user-globale Rules und Knowledge** aus
+  `~/.claude/rules/` und `~/.claude/knowledge/` als eigene Sections
+  neben den project-skills.
+- **4-char `displayId` pro Session** zur visuellen Unterscheidung in
+  der SideNav-Pill und Session-Cards.
+- **Inline `+`-Trigger im SESSIONS-Header** der SideNav (ersetzt den
+  floating Button).
+- **User-konfigurierbares xterm-Scrollback** mit Presets (5k/10k/25k/50k
+  Zeilen) im Einstellungen-Panel `Terminal-Verlauf`. Default 25k —
+  Memory-Kosten ~63 MB pro Terminal.
+
+### Changed (UI-Refactor)
+- **SideNav: icon-only narrow sidebar** mit Tooltips statt sichtbarer
+  Text-Labels. Update-Feedback läuft jetzt über Toasts statt Inline-
+  Status.
+- **SideNav-Detach via Right-Click-Context-Menu** statt hover-icon
+  (auf Session-Items + Favorites). Saubereres Hover-Verhalten.
+- **Primary-Button respektiert Single-Accent-Designregel** (ein Akzent,
+  hue 190).
+- **Favorite-Cards ohne path-subtitle** — kompaktere Darstellung.
+- **Hover-Action-Bar lesbarer** durch Backdrop auf Session-, Favorite-
+  und Grid-Cards (`bg-surface-raised/95 backdrop-blur-sm`).
+
+### Fixed (Sessions)
+- **Deterministische `claude-session-id` discovery** via JSONL-Snapshot-
+  Diff (`fs::read_dir → set<UUID>` vor und nach `claude --resume`).
+  Behebt zwei Discovery-Races aus v1.6.27: m2-Ghost-Session (#256) und
+  closest-timestamp-mismatch (#257). PR-Bypass per `claudeSessionId` in
+  `restorableSessions[]` deduplicated bei Persist + Hydrate.
+- **Wave-0/1/2/3/4 Test-Coverage-Ausbau** für Session-Restore:
+  21 Layer-A (Rust) Integration-Tests + 6 Layer-B (Frontend) via
+  `mockIPC`. Wave-4-Bugfixes flippten 5 RED-by-design Tests auf GREEN
+  (Status-Spam, Copy/Paste, Scroll-Anchor, idle-dot color).
+- **Compile-Drift in `commands.rs` behoben** — `initial_cols`/
+  `initial_rows`-Plumbing für `manager.create_session` nachgereicht
+  (verschollener `git add` aus dem Discovery-Fix).
+- **Stale Test-Assertions auf aktuelle UI angeglichen** — SideNav
+  (icon-only, kein `getByText` für Labels mehr) + EmptyState
+  (Imperativ-Copy `Ordner waehlen`).
+
+### Removed (Pipeline-Engine pivot)
+- **Pipeline-Engine-Roadmap für v2.0 verworfen.** Komplette Rust-
+  Backend-Pipeline-Module (executor, parser, schema, retry, history,
+  state_machine, runner, error_detection) plus Frontend-Pipeline-
+  Components (PipelineView, WorkflowLauncher, AgentMetricsPanel,
+  PipelineHistoryView, PipelineRunDetail, TaskTreeNode/View,
+  PipelineStatusBar, PipelineControls) plus Stores
+  (`pipelineStatusStore`, `pipelineHistoryStore`, `workflowStore`,
+  `pipelineAdapter`) entfernt — netto ~22 kLOC weniger. Refocus auf
+  Session-Manager-Stabilität bevor neue Engine-Architektur sinnvoll
+  geplant werden kann.
+- **Pipeline-Tab aus AppShell unverdrahtet** — Listener und
+  Routing-Branches entfernt.
+- **Pipeline-Logs aus dem `LogViewer` rausgezogen** — Quelle existiert
+  nicht mehr.
 
 ### Migration (Schema v2 → v3)
 - Bestehende Settings bleiben erhalten. Neue `preferences`-Slice mit
