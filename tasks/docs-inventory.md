@@ -32,8 +32,6 @@
 | `tasks/todo.md` | Aktueller Sprint-Backlog + Abgeschlossen-Historie | Kontinuierlich |
 | `tasks/ideas.md` | Spontane Ideen (roh, kein Filter) | Bei Ideen-Aufkommen |
 | `tasks/lessons.md` | Lessons Learned (ab 2026-03-25) | Nach jeder User-Korrektur / jedem Problem |
-| `tasks/user-stories-pipeline.md` | User Stories US-P1–US-P5 fuer Pipeline-Feature | Bei Story-Aenderungen |
-| `tasks/sprint-plan-v1.5-v2.0.md` | Detaillierter Forecast v1.5–v2.0 (Artefakt, wird nach v2.0 archiviert) | Waehrend v1.5/v2.0 Sprint |
 | `tasks/docs-inventory.md` | **Dieses Dokument** | Nach jedem Sprint-Review |
 
 ### .claude/ (Claude Code Konfiguration)

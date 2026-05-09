@@ -327,9 +327,10 @@ integriert. Siehe CHANGELOG.md + `reports/ich-will-den-stand-partitioned-pancake
 - [x] fix(ui): SessionHistoryViewer zeigt Override-Namen + gibt sie beim Resume mit
 - [x] fix(ui): Resume aus History übernimmt Titel (kein hardcodiertes "Resume Session")
 
-## Backlog (v2.0 — Pipeline Engine)
+## Backlog (v2.x)
 
-- [ ] **US-P3**: Session-Start nach erkanntem Workflow (abhaengig von US-P2)
+> Pipeline-Engine als v2.0-Ziel ist 2026-05-09 fallengelassen — gesamte Pipeline-Funktionalitaet (Frontend + Rust Backend) wurde als Dead Code entfernt. Nachfolgende Major-Versionen werden separat geplant.
+
 - [ ] feat(editor): Unsaved-Changes-Warnung bei Tab-Wechsel/Close/Datei-Oeffnen (#68 follow-up)
 - [ ] feat(editor): Projekt-Dateibrowser fuer .md Dateien (#68 follow-up)
 - [ ] feat(editor): Library-Integration (Klick auf Datei → Editor oeffnet) (#68 follow-up)

@@ -8,7 +8,7 @@
 
 **Language**: UI und Doku auf Deutsch, Code auf Englisch
 
-> **Feature-Freeze (ab v1.6.0):** Session Manager ist feature-complete. Nur Bugfixes. Neue Features → Pipeline-Engine (v2.0).
+> **Feature-Freeze (ab v1.6.0):** Session Manager ist feature-complete. Nur Bugfixes. Roadmap fuer das naechste Major-Release ist offen — neue Features werden separat geplant.
 
 ## Commands
 
@@ -133,8 +133,8 @@ Interaction-Patterns (Desktop, kein Touch!):
 - **Active/Selected**: `border-left: 2px solid` in semantischer Farbe + getoenter Background (`bg-accent-a10` / `bg-success-a05`).
 
 Panel-Header-Paddings (2 Varianten):
-- **`main`** = `px-4 py-3` — Top-Level-Views, Modal-Header, Config-Panel-Header (ClaudeMd, Settings, Hooks, GitHub, Worktree, Pin, Library, Kanban, Pipeline).
-- **`compact`** = `px-3 py-2` — Sub-Panels, Toolbars, Filter-Leisten, Fold-Header, Sekundaer-Rows (Kanban-Spalten, Agents/Skills/Library-Viewer-Sub, Session-Fold, Favorites-Fold, Log-Toolbar, Editor-Toolbar, Pipeline-History/Status/Task-Summary).
+- **`main`** = `px-4 py-3` — Top-Level-Views, Modal-Header, Config-Panel-Header (ClaudeMd, Settings, Hooks, GitHub, Worktree, Pin, Library, Kanban).
+- **`compact`** = `px-3 py-2` — Sub-Panels, Toolbars, Filter-Leisten, Fold-Header, Sekundaer-Rows (Kanban-Spalten, Agents/Skills/Library-Viewer-Sub, Session-Fold, Favorites-Fold, Log-Toolbar, Editor-Toolbar).
 - Inline-Klassen direkt in JSX setzen — keine generische `<Panel>`-Komponente; Panel-Header werden kontextsensitiv als Inline-`<div>` gebaut.
 
 Bei neuen Komponenten: gegen Preview-HTMLs in `docs/design-system/preview/` abgleichen.
