@@ -11,6 +11,7 @@ pub mod commands {
     use super::*;
 
     #[tauri::command]
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_session(
         app: AppHandle,
         manager: State<'_, Arc<SessionManager>>,
@@ -19,13 +20,17 @@ pub mod commands {
         title: Option<String>,
         shell: Option<String>,
         resume_session_id: Option<String>,
+        initial_cols: Option<u16>,
+        initial_rows: Option<u16>,
     ) -> Result<super::super::manager::SessionInfo, ADPError> {
         log::debug!(
-            "create_session called: id={}, folder={}, shell={:?}, resume={:?}",
+            "create_session called: id={}, folder={}, shell={:?}, resume={:?}, size={:?}x{:?}",
             id,
             folder,
             shell,
-            resume_session_id
+            resume_session_id,
+            initial_cols,
+            initial_rows
         );
 
         // Validate folder exists and is a directory
@@ -50,7 +55,16 @@ pub mod commands {
         });
         let shell = shell.unwrap_or_else(|| "powershell".to_string());
 
-        manager.create_session(app, id, title, folder, shell, resume_session_id)
+        manager.create_session(
+            app,
+            id,
+            title,
+            folder,
+            shell,
+            resume_session_id,
+            initial_cols,
+            initial_rows,
+        )
     }
 
     #[tauri::command]
