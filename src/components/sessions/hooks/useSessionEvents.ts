@@ -206,6 +206,43 @@ export function useSessionEvents(): void {
       }
     }
 
+    // Deterministic claudeSessionId resolution emitted by the Rust watcher
+    // thread once the freshly-spawned session's jsonl file appears in
+    // ~/.claude/projects/<slug>/. Replaces the started_at proximity heuristic
+    // for fresh spawns — the heuristic stays only as a fallback path for
+    // edge cases (resume scans, watcher timeout). The check `!session` and
+    // the override-existence guard mirror the discovery hook so behaviour
+    // stays consistent regardless of which path resolved first.
+    unlisteners.push(
+      listen<{ id: string; claudeSessionId: string }>(
+        "session-claude-id-resolved",
+        (event) => {
+          try {
+            const id = event?.payload?.id;
+            const claudeSessionId = event?.payload?.claudeSessionId;
+            if (typeof id !== "string" || typeof claudeSessionId !== "string") {
+              return;
+            }
+            const session = useSessionStore
+              .getState()
+              .sessions.find((s) => s.id === id);
+            if (!session) return;
+
+            useSessionStore.getState().setClaudeSessionId(id, claudeSessionId);
+
+            const overrides = useSettingsStore.getState().sessionTitleOverrides;
+            if (session.title?.trim() && !overrides[claudeSessionId]) {
+              useSettingsStore
+                .getState()
+                .setSessionTitleOverride(claudeSessionId, session.title);
+            }
+          } catch (err) {
+            logError("useSessionEvents.claudeIdResolved", err);
+          }
+        },
+      ),
+    );
+
     unlisteners.push(
       listen<{ id: string; status: string }>("session-status", (event) => {
         try {

@@ -383,6 +383,97 @@ describe("useSessionEvents", () => {
       expect(mockSetClaudeSessionId).not.toHaveBeenCalledWith("tab-new", "uuid-A");
     });
   });
+
+  // ── Deterministic claudeSessionId resolution via Rust event ───────────
+  //
+  // Replaces the started_at proximity heuristic for fresh spawns. Rust
+  // snapshots `~/.claude/projects/<slug>/` before spawn and watches for
+  // the new jsonl to appear post-spawn — that file's UUID is unambiguously
+  // this session's. Frontend just listens and applies.
+  describe("session-claude-id-resolved event", () => {
+    it("registers a listener for session-claude-id-resolved", () => {
+      renderHook(() => useSessionEvents());
+      expect(listen).toHaveBeenCalledWith(
+        "session-claude-id-resolved",
+        expect.any(Function),
+      );
+    });
+
+    it("forwards resolved claudeSessionId to the store", () => {
+      mockSessionsData = [
+        { id: "tab-1", createdAt: 1000, folder: "C:/proj", title: "My Session" },
+      ];
+
+      renderHook(() => useSessionEvents());
+      const cb = getListenCallback("session-claude-id-resolved");
+
+      cb({ payload: { id: "tab-1", claudeSessionId: "deterministic-uuid" } });
+
+      expect(mockSetClaudeSessionId).toHaveBeenCalledWith(
+        "tab-1",
+        "deterministic-uuid",
+      );
+    });
+
+    it("writes title override when none exists yet", () => {
+      mockSessionsData = [
+        { id: "tab-1", createdAt: 1000, folder: "C:/proj", title: "My Session" },
+      ];
+
+      renderHook(() => useSessionEvents());
+      const cb = getListenCallback("session-claude-id-resolved");
+
+      cb({ payload: { id: "tab-1", claudeSessionId: "deterministic-uuid" } });
+
+      expect(mockSetSessionTitleOverride).toHaveBeenCalledWith(
+        "deterministic-uuid",
+        "My Session",
+      );
+    });
+
+    it("does not overwrite an existing user-set title override", () => {
+      mockSessionsData = [
+        { id: "tab-1", createdAt: 1000, folder: "C:/proj", title: "My Session" },
+      ];
+      mockSessionTitleOverridesData = { "deterministic-uuid": "User Renamed" };
+
+      renderHook(() => useSessionEvents());
+      const cb = getListenCallback("session-claude-id-resolved");
+
+      cb({ payload: { id: "tab-1", claudeSessionId: "deterministic-uuid" } });
+
+      expect(mockSetClaudeSessionId).toHaveBeenCalledWith(
+        "tab-1",
+        "deterministic-uuid",
+      );
+      expect(mockSetSessionTitleOverride).not.toHaveBeenCalled();
+    });
+
+    it("ignores invalid payload (non-string id or claudeSessionId)", () => {
+      renderHook(() => useSessionEvents());
+      const cb = getListenCallback("session-claude-id-resolved");
+
+      cb({ payload: { id: 123, claudeSessionId: "x" } as unknown as Record<string, unknown> });
+      cb({ payload: { id: "tab-1", claudeSessionId: null } as unknown as Record<string, unknown> });
+      cb({ payload: {} });
+
+      expect(mockSetClaudeSessionId).not.toHaveBeenCalled();
+    });
+
+    it("no-ops when the runtime session has been removed before the event arrives", () => {
+      // Rust watcher may resolve AFTER the user closed the card — guard
+      // against writing an override for a UUID that has no live session.
+      mockSessionsData = [];
+
+      renderHook(() => useSessionEvents());
+      const cb = getListenCallback("session-claude-id-resolved");
+
+      cb({ payload: { id: "tab-gone", claudeSessionId: "uuid-x" } });
+
+      expect(mockSetClaudeSessionId).not.toHaveBeenCalled();
+      expect(mockSetSessionTitleOverride).not.toHaveBeenCalled();
+    });
+  });
 });
 
 // ── Pure helper: pickBestHistoryMatch ────────────────────────────────────

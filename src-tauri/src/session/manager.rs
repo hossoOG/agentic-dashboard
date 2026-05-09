@@ -37,6 +37,18 @@ pub struct SessionStatusEvent {
     pub snippet: String,
 }
 
+/// Emitted once when the watcher thread observes the freshly-spawned
+/// Claude session's jsonl file appearing in `~/.claude/projects/<slug>/`.
+/// The frontend uses this for deterministic session-id assignment instead
+/// of the `started_at` proximity heuristic that mis-pairs runtime cards
+/// to UUIDs when two sessions spawn in the same folder within ~1s.
+#[derive(Clone, serde::Serialize)]
+pub struct SessionClaudeIdEvent {
+    pub id: String,
+    #[serde(rename = "claudeSessionId")]
+    pub claude_session_id: String,
+}
+
 struct SessionHandle {
     info: SessionInfo,
     writer: Box<dyn Write + Send>,
@@ -60,6 +72,7 @@ impl SessionManager {
     /// - "powershell" → `powershell.exe -NoExit -Command claude --dangerously-skip-permissions`
     /// - "cmd" → `cmd.exe /K claude --dangerously-skip-permissions`
     /// - "gitbash" → `bash.exe -c "claude --dangerously-skip-permissions"`
+    #[allow(clippy::too_many_arguments)]
     pub fn create_session(
         &self,
         app: AppHandle,
@@ -68,12 +81,22 @@ impl SessionManager {
         folder: String,
         shell: String,
         resume_session_id: Option<String>,
+        initial_cols: Option<u16>,
+        initial_rows: Option<u16>,
     ) -> Result<SessionInfo, ADPError> {
+        // Default to 120x40 instead of 80x24 so TUI apps (e.g. Claude CLI)
+        // don't render a cramped initial UI before the frontend resize_session
+        // call catches up. Frontend can pass exact dimensions for a perfect fit.
+        let cols = initial_cols.filter(|c| *c > 0).unwrap_or(120);
+        let rows = initial_rows.filter(|r| *r > 0).unwrap_or(40);
+
         log::info!(
-            "Creating session id={}, shell={}, folder={}",
+            "Creating session id={}, shell={}, folder={}, size={}x{}",
             id,
             shell,
-            folder
+            folder,
+            cols,
+            rows
         );
 
         // Validate the shell executable exists
@@ -91,8 +114,8 @@ impl SessionManager {
 
         let pty_pair = pty_system
             .openpty(PtySize {
-                rows: 24,
-                cols: 80,
+                rows,
+                cols,
                 pixel_width: 0,
                 pixel_height: 0,
             })
@@ -116,6 +139,19 @@ impl SessionManager {
         // (linear LF-based output), which xterm.js handles correctly.
         // Reference: https://github.com/anthropics/claude-code/issues/41965
         cmd.env("CLAUDE_CODE_NO_FLICKER", "0");
+
+        // Pre-spawn snapshot for deterministic claude-session-id discovery.
+        // Skipped when resuming — the UUID is already known and a watcher
+        // would just observe the unchanged set then time out.
+        let claude_projects_root = if resume_session_id.is_none() {
+            dirs::home_dir().map(|h| h.join(".claude").join("projects"))
+        } else {
+            None
+        };
+        let pre_spawn_snapshot = claude_projects_root
+            .as_ref()
+            .map(|root| super::file_reader::snapshot_session_uuids_in(root, &folder))
+            .unwrap_or_default();
 
         let child = pty_pair.slave.spawn_command(cmd).map_err(|e| {
             log::error!(
@@ -175,6 +211,51 @@ impl SessionManager {
                     master: pty_pair.master,
                 },
             );
+        }
+
+        // Watcher-Thread: deterministische claude-session-id-discovery.
+        // Polls `~/.claude/projects/<slug>/` for the FIRST UUID that did not
+        // exist in the pre-spawn snapshot — that UUID belongs to this
+        // session's transcript. Replaces the started_at proximity heuristic
+        // that mis-paired runtime cards to UUIDs (and persisted the swap).
+        // Skipped on resume — UUID is already known via `resume_session_id`.
+        if let Some(root) = claude_projects_root {
+            let watch_id = id.clone();
+            let watch_app = app.clone();
+            let watch_folder = info.folder.clone();
+            let snapshot = pre_spawn_snapshot;
+            thread::spawn(move || {
+                match super::file_reader::wait_for_new_session_uuid(
+                    &root,
+                    &watch_folder,
+                    &snapshot,
+                    std::time::Duration::from_secs(15),
+                    std::time::Duration::from_millis(150),
+                ) {
+                    Some(uuid) => {
+                        log::info!("Session {} resolved claudeSessionId={}", watch_id, uuid);
+                        if let Err(e) = watch_app.emit(
+                            "session-claude-id-resolved",
+                            SessionClaudeIdEvent {
+                                id: watch_id.clone(),
+                                claude_session_id: uuid,
+                            },
+                        ) {
+                            log::debug!(
+                                "Session {} failed to emit session-claude-id-resolved: {}",
+                                watch_id,
+                                e
+                            );
+                        }
+                    }
+                    None => {
+                        log::warn!(
+                            "Session {} claude-id discovery timeout (no new jsonl in 15s)",
+                            watch_id
+                        );
+                    }
+                }
+            });
         }
 
         // Reader-Thread: liest PTY-Output und emittiert Events

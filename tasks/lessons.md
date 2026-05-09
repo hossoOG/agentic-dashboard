@@ -5,6 +5,20 @@
 
 ---
 
+## 2026-05-09 — Session-Title-Swap-Bug nach Restart
+
+### Heuristische Identifier-Bindung produziert persistente Korruption
+**Kontext:** Zwei Sessions im selben Folder, < 1s Spawn-Differenz. `pickBestHistoryMatch` (frontend) ordnete jeder runtime-Card per "closest started_at"-Heuristik eine Claude-UUID zu. Bei nahezu-gleichzeitigen Spawns plus FS-Buffer-Latency beim jsonl-Schreiben kreuzten die Zuordnungen. Ein User-Rename schrieb dann den Custom-Titel auf die FALSCHE UUID. `sessionRestoreSync` snapshotted die Runtime-Bindung 1:1 und persistierte das Swap dauerhaft — jeder App-Restart inheritierte den Fehler.
+**Erkenntnis:** Sobald ein heuristisch gewonnener Identifier in den Persist-Storage geschrieben wird, ist die Korruption unfixbar — kein Restart kann das Pairing korrigieren, weil der einmal-falsche Wert als Source-of-Truth weiterlebt. Die Heuristik selbst ist physikalisch nicht entscheidbar wenn Spawn-Diff < jsonl-Flush-Latency.
+**Regel:** Identifier-Binding NIEMALS heuristisch wenn der Identifier persistiert wird. Stattdessen deterministische Quelle: Pre-Spawn Snapshot + Post-Spawn Diff = neuer Identifier eindeutig. Heuristik nur als Fallback fuer Resume-Pfade. Vor jedem Persist eines Identifier-Pairs: "Kann das Pairing falsch sein? Wenn ja, kann der naechste Restart das selbst-korrigieren?" Wenn Antwort 2x "Ja" sein muss, ist der Bug gegen die Architektur.
+
+### Watcher-Thread im Rust-Spawn-Pfad statt Frontend-Polling
+**Kontext:** Loesung war ein zweiter `std::thread::spawn` direkt nach `pty.spawn_command`, der `~/.claude/projects/<slug>/` polled bis ein neues jsonl auftaucht und dann `session-claude-id-resolved` emittiert. Bewusst kein `tokio::time` weil Cargo.toml nur `rt`-Feature hat — keine Aufweitung der Dep-Surface fuer eine triviale Polling-Schleife.
+**Erkenntnis:** Wenn Rust schon eine Background-Thread-Architektur fuer den Reader hat, ist ein zweiter Watcher-Thread billig und vermeidet Frontend-Polling-Latenz + Discovery-Race komplett.
+**Regel:** Bei Discovery-Bugs zuerst pruefen ob Rust den deterministischen Signal selbst observieren kann (FS, Process, Stdout). Wenn ja: Background-Thread + Tauri-Event = einfacher als Frontend-Retry-Logik mit Heuristik.
+
+---
+
 ## 2026-04-17 — Design-System-Intake
 
 ### Eingehende Style-Contracts gegen Ist-Stand diffen, nicht blind uebernehmen
