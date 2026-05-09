@@ -29,6 +29,8 @@ import {
 } from "../../store/configDiscoveryStore";
 import { LibraryDetailModal } from "./LibraryDetailModal";
 import { SkillArgBadge } from "./SkillArgBadge";
+import { RulesSection } from "./RulesSection";
+import { KnowledgeSection } from "./KnowledgeSection";
 
 // ── Content Preview Panel ────────────────────────────────────────────
 
@@ -293,7 +295,9 @@ function ScopePanel({
     config.hooks.length > 0 ||
     config.settingsRaw.length > 0 ||
     config.claudeMd.length > 0 ||
-    config.memoryFiles.length > 0;
+    config.memoryFiles.length > 0 ||
+    config.rules.length > 0 ||
+    config.knowledge.length > 0;
 
   // Include folder in key to avoid cache collisions across multiple project panels
   const settingsContentKey = `${scope}:${folder}:settings`;
@@ -356,6 +360,16 @@ function ScopePanel({
               <HookCard key={`${h.scope}-${h.event}-${i}`} hook={h} />
             ))}
           </Section>
+
+          <RulesSection
+            rules={config.rules}
+            sectionKey={`${scopeId}:rules`}
+          />
+
+          <KnowledgeSection
+            knowledge={config.knowledge}
+            sectionKey={`${scopeId}:knowledge`}
+          />
 
           {config.settingsRaw && (
             <Section icon={Settings} title="Settings" count={1} sectionKey={`${scopeId}:settings`}>
