@@ -27,7 +27,6 @@ const SEVERITY_OPTIONS: { key: LogSeverity; label: string; color: string }[] = [
 const SOURCE_OPTIONS: { key: LogSource; label: string; color: string }[] = [
   { key: "frontend", label: "Frontend", color: "bg-purple-400/20 text-purple-400 border-purple-400/40" },
   { key: "backend", label: "Backend", color: "bg-emerald-400/20 text-emerald-400 border-emerald-400/40" },
-  { key: "pipeline", label: "Pipeline", color: "bg-orange-400/20 text-orange-400 border-orange-400/40" },
 ];
 
 // Granular selectors to avoid full re-renders on every state change

@@ -11,7 +11,6 @@ const severityColors: Record<string, string> = {
 const sourceColors: Record<string, string> = {
   frontend: "text-purple-400 bg-purple-400/10",
   backend: "text-emerald-400 bg-emerald-400/10",
-  pipeline: "text-orange-400 bg-orange-400/10",
 };
 
 function formatTime(timestamp: string): string {

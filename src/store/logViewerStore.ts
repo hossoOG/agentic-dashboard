@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 export type LogSeverity = "error" | "warn" | "info";
-export type LogSource = "frontend" | "backend" | "pipeline";
+export type LogSource = "frontend" | "backend";
 
 export interface UnifiedLogEntry {
   id: number;
@@ -51,7 +51,7 @@ interface LogViewerState {
 export const useLogViewerStore = create<LogViewerState>((set) => ({
   entries: [],
   severityFilter: new Set<LogSeverity>(["error", "warn", "info"]),
-  sourceFilter: new Set<LogSource>(["frontend", "backend", "pipeline"]),
+  sourceFilter: new Set<LogSource>(["frontend", "backend"]),
   searchText: "",
   liveTail: true,
 

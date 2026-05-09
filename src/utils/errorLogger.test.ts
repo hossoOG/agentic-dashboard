@@ -17,7 +17,7 @@ beforeEach(() => {
   useLogViewerStore.setState({
     entries: [],
     severityFilter: new Set(["error", "warn", "info"]),
-    sourceFilter: new Set(["frontend", "backend", "pipeline"]),
+    sourceFilter: new Set(["frontend", "backend"]),
     searchText: "",
     liveTail: true,
   });

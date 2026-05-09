@@ -1,8 +1,6 @@
 import { Suspense, lazy, useEffect } from "react";
 import { useSettingsStore } from "./store/settingsStore";
 import { wireRuntimeGates } from "./utils/wireRuntimeGates";
-import { subscribeToPipelineLog } from "./utils/pipelineLogBridge";
-import { logError } from "./utils/errorLogger";
 
 const LogViewer = lazy(() => import("./components/logs/LogViewer").then(m => ({ default: m.LogViewer })));
 
@@ -15,14 +13,8 @@ export default function LogWindowApp() {
     // here — only the main window owns the Rust-side toggle.
     const unsubscribeGates = wireRuntimeGates();
 
-    let unlistenPipeline: (() => void) | null = null;
-    void subscribeToPipelineLog()
-      .then((fn) => { unlistenPipeline = fn; })
-      .catch((err) => logError("LogWindowApp.subscribePipelineLog", err));
-
     return () => {
       unsubscribeGates();
-      unlistenPipeline?.();
     };
   }, []);
 

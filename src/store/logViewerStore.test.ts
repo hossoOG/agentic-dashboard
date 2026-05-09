@@ -14,7 +14,7 @@ beforeEach(() => {
   useLogViewerStore.setState({
     entries: [],
     severityFilter: new Set(["error", "warn", "info"]),
-    sourceFilter: new Set(["frontend", "backend", "pipeline"]),
+    sourceFilter: new Set(["frontend", "backend"]),
     searchText: "",
     liveTail: true,
   });
@@ -46,7 +46,7 @@ describe("initial state", () => {
     expect(state.entries).toEqual([]);
     expect(state.severityFilter).toEqual(new Set(["error", "warn", "info"]));
     expect(state.sourceFilter).toEqual(
-      new Set(["frontend", "backend", "pipeline"])
+      new Set(["frontend", "backend"])
     );
     expect(state.searchText).toBe("");
     expect(state.liveTail).toBe(true);
@@ -120,7 +120,7 @@ describe("filters", () => {
   });
 
   it("setSourceFilter updates filter", () => {
-    const filter = new Set<"frontend" | "backend" | "pipeline">(["backend"]);
+    const filter = new Set<"frontend" | "backend">(["backend"]);
     useLogViewerStore.getState().setSourceFilter(filter);
 
     expect(useLogViewerStore.getState().sourceFilter).toEqual(
