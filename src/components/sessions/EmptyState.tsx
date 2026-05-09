@@ -18,7 +18,7 @@ export function EmptyState({ onNewSession }: EmptyStateProps) {
         NEUE SESSION STARTEN
       </Button>
       <p className="mt-4 text-neutral-500 text-sm text-center max-w-xs">
-        Wähle einen Ordner und starte eine Claude Session.
+        Ordner waehlen und Claude Session starten.
         <br />
         Der Output erscheint hier in Echtzeit.
       </p>

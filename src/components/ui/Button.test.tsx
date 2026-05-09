@@ -50,7 +50,7 @@ describe("Button", () => {
   it("applies primary variant classes", () => {
     render(<Button variant="primary">Primary</Button>);
     const btn = screen.getByRole("button");
-    expect(btn.className).toContain("bg-neon-green");
+    expect(btn.className).toContain("bg-accent");
   });
 
   it("applies danger variant classes", () => {
