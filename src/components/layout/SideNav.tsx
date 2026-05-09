@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import {
   Monitor, Columns3, ScrollText, BookOpen, FileEdit, Settings as SettingsIcon,
   Sun, Moon, ExternalLink,
@@ -29,6 +29,16 @@ export function SideNav({ badges = {} }: SideNavProps) {
   const setTheme = useSettingsStore((s) => s.setTheme);
   const showProtokolleTab = useSettingsStore((s) => s.preferences.showProtokolleTab);
   const { status, newVersion, lastChecked, checkForUpdate, downloadAndInstall, confirmRelaunch } = useAutoUpdate();
+
+  // Right-click context-menu state for detachable nav items. Single inline
+  // menu — only one open at a time, anchored at viewport-coords from the
+  // contextmenu event so it does not get clipped by SideNav's narrow column.
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    viewId: ActiveTab;
+    label: string;
+  } | null>(null);
 
   // Track previous status to fire toast exactly once per transition.
   const prevStatusRef = useRef<UpdateStatus>("idle");
@@ -73,6 +83,32 @@ export function SideNav({ badges = {} }: SideNavProps) {
       },
     });
   }, [addToast, confirmRelaunch]);
+
+  // Click-outside + Escape close the context-menu. mousedown (not click) so
+  // the document-level listener fires before any in-menu click handlers; the
+  // menu wrapper stops mousedown propagation so menu clicks survive it.
+  useEffect(() => {
+    if (!contextMenu) return;
+    const closeMenu = () => setContextMenu(null);
+    const closeOnEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeMenu();
+    };
+    document.addEventListener("mousedown", closeMenu);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeMenu);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [contextMenu]);
+
+  const handleDetachFromMenu = useCallback(() => {
+    if (!contextMenu) return;
+    invoke("open_detached_window", {
+      view: contextMenu.viewId,
+      title: contextMenu.label,
+    }).catch((err: unknown) => logError("SideNav.openDetachedWindow", err));
+    setContextMenu(null);
+  }, [contextMenu]);
 
   // Toast on status transitions — fires for both manual click and auto-check.
   useEffect(() => {
@@ -149,9 +185,22 @@ export function SideNav({ badges = {} }: SideNavProps) {
     const canDetach = detachableViews.has(item.id);
 
     return (
-      <div key={item.id} className="relative group">
+      <div key={item.id} className="relative">
         <button
           onClick={() => setActiveTab(item.id)}
+          onContextMenu={
+            canDetach
+              ? (e) => {
+                  e.preventDefault();
+                  setContextMenu({
+                    x: e.clientX,
+                    y: e.clientY,
+                    viewId: item.id,
+                    label: item.label,
+                  });
+                }
+              : undefined
+          }
           className={`
             relative flex items-center justify-center w-full h-9 rounded-none
             transition-all duration-150
@@ -161,7 +210,7 @@ export function SideNav({ badges = {} }: SideNavProps) {
             }
           `}
           aria-label={item.label}
-          title={item.label}
+          title={canDetach ? `${item.label} (Rechtsklick fuer Optionen)` : item.label}
         >
           <Icon className="w-4 h-4 shrink-0" />
           {item.badge != null && item.badge > 0 && (
@@ -170,22 +219,6 @@ export function SideNav({ badges = {} }: SideNavProps) {
             </span>
           )}
         </button>
-
-        {canDetach && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              invoke("open_detached_window", { view: item.id, title: item.label }).catch((err: unknown) =>
-                logError("SideNav.openDetachedWindow", err),
-              );
-            }}
-            className="absolute right-0.5 top-1/2 -translate-y-1/2 p-0.5 text-neutral-600 hover:text-accent opacity-0 group-hover:opacity-100 transition-opacity"
-            title={`${item.label} in eigenem Fenster öffnen`}
-            aria-label={`${item.label} in eigenem Fenster öffnen`}
-          >
-            <ExternalLink className="w-3 h-3" />
-          </button>
-        )}
       </div>
     );
   }
@@ -258,6 +291,27 @@ export function SideNav({ badges = {} }: SideNavProps) {
           )}
         </button>
       </div>
+
+      {/* Right-click context-menu fuer detachable Views. Position fixed an
+          Viewport-Koordinaten, damit die schmale 56px-Sidebar nicht clippt. */}
+      {contextMenu && (
+        <div
+          className="fixed z-50 min-w-[220px] py-1 bg-surface-overlay border border-neutral-700 shadow-xl"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+          onMouseDown={(e) => e.stopPropagation()}
+          role="menu"
+          aria-label={`${contextMenu.label} — Optionen`}
+        >
+          <button
+            onClick={handleDetachFromMenu}
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-neutral-300 hover:bg-hover-overlay hover:text-neutral-100 transition-colors"
+            role="menuitem"
+          >
+            <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+            In eigenem Fenster oeffnen
+          </button>
+        </div>
+      )}
     </nav>
   );
 }
