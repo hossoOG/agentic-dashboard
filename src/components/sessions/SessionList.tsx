@@ -61,29 +61,28 @@ export function SessionList({ onNewSession, onQuickStart }: SessionListProps) {
 
   return (
     <div className="flex flex-col h-full bg-surface-base">
-      {/* New Session Button */}
-      <div className="p-3 border-b border-neutral-700">
-        <button
-          onClick={onNewSession}
-          className="flex items-center justify-center gap-2 w-full px-3 py-2 bg-neon-green/10 border border-neon-green text-neon-green text-xs font-bold tracking-widest hover:bg-neon-green/20 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          NEUE SESSION
-        </button>
-      </div>
-
       {/* Scrollable content: Favorites + Sessions */}
       <div className="flex-1 overflow-y-auto min-h-0">
         {/* Favorites section */}
         <FavoritesList onQuickStart={onQuickStart} />
 
-        {/* Sessions section header */}
+        {/* Sessions section header — with inline new-session trigger */}
         <div
-          className="flex items-center gap-1.5 px-3 py-2 text-xs text-neutral-500 uppercase tracking-widest border-b border-neutral-700 cursor-pointer hover:bg-hover-overlay transition-colors"
+          className="flex items-center justify-between px-3 py-2 border-b border-neutral-700 cursor-pointer hover:bg-hover-overlay transition-colors"
           onClick={() => setSessionsExpanded((v) => !v)}
         >
-          {sessionsExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-          SESSIONS
+          <div className="flex items-center gap-1.5">
+            {sessionsExpanded ? <ChevronDown className="w-3 h-3 text-neutral-500" /> : <ChevronRight className="w-3 h-3 text-neutral-500" />}
+            <span className="text-xs text-neutral-500 uppercase tracking-widest">SESSIONS</span>
+          </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); onNewSession(); }}
+            className="text-neutral-500 hover:text-accent transition-colors"
+            aria-label="Neue Session starten"
+            title="Neue Session starten"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
         </div>
 
         {/* Session cards */}

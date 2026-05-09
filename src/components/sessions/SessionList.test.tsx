@@ -43,16 +43,17 @@ describe("SessionList", () => {
     useSettingsStore.setState({ favorites: [] });
   });
 
-  it("renders the new session button", () => {
+  it("renders the new session trigger inline with SESSIONS header", () => {
     render(<SessionList onNewSession={vi.fn()} onQuickStart={vi.fn()} />);
-    expect(screen.getByText("NEUE SESSION")).toBeTruthy();
+    // After redesign: trigger is a small plus-icon next to SESSIONS, not a hero button
+    expect(screen.getByLabelText("Neue Session starten")).toBeTruthy();
   });
 
-  it("calls onNewSession when button is clicked", () => {
+  it("calls onNewSession when trigger is clicked", () => {
     const onNewSession = vi.fn();
     render(<SessionList onNewSession={onNewSession} onQuickStart={vi.fn()} />);
 
-    fireEvent.click(screen.getByText("NEUE SESSION"));
+    fireEvent.click(screen.getByLabelText("Neue Session starten"));
     expect(onNewSession).toHaveBeenCalledTimes(1);
   });
 
