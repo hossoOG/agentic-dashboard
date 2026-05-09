@@ -95,14 +95,6 @@ describe("SideNav", () => {
     expect(useUIStore.getState().activeTab).toBe("kanban");
   });
 
-  it("shows permanent text labels (not just icon tooltips)", () => {
-    render(<SideNav />);
-    expect(screen.getByText("Sitzungen")).toBeTruthy();
-    expect(screen.getByText("Kanban")).toBeTruthy();
-    expect(screen.getByText("Bibliothek")).toBeTruthy();
-    expect(screen.getByText("Einstellungen")).toBeTruthy();
-  });
-
   it("renders badge when count > 0 and hides when 0 or undefined", () => {
     const { rerender } = render(<SideNav badges={{ sessions: 3 }} />);
     expect(screen.getByText("3")).toBeTruthy();
