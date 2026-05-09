@@ -127,8 +127,8 @@ const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: Ses
         }
       `}
     >
-      {/* Action buttons — visible on hover */}
-      <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      {/* Backdrop-Bar deckt Card-Text dahinter — sonst Kontrast-Kollision mit Tags. */}
+      <div className="absolute top-1.5 right-1.5 flex items-stretch bg-surface-base border border-neutral-700 divide-x divide-neutral-700 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -136,7 +136,7 @@ const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: Ses
               logError("SessionCard.openFolder", err)
             );
           }}
-          className="p-0.5 text-neutral-600 hover:text-neutral-300"
+          className="p-1.5 text-neutral-400 hover:text-accent hover:bg-hover-overlay transition-colors"
           aria-label="Ordner im Explorer öffnen"
           title="Ordner im Explorer öffnen"
         >
@@ -149,7 +149,7 @@ const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: Ses
               logError("SessionCard.openTerminal", err)
             );
           }}
-          className="p-0.5 text-neutral-600 hover:text-neutral-300"
+          className="p-1.5 text-neutral-400 hover:text-accent hover:bg-hover-overlay transition-colors"
           aria-label="Terminal im Ordner öffnen"
           title="Terminal im Ordner öffnen"
         >
@@ -160,8 +160,9 @@ const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: Ses
             e.stopPropagation();
             onClose(session.id);
           }}
-          className="p-0.5 text-neutral-600 hover:text-neutral-300"
+          className="p-1.5 text-neutral-500 hover:text-error hover:bg-hover-overlay transition-colors"
           aria-label="Session schließen"
+          title="Session schließen"
         >
           <X className="w-3.5 h-3.5" />
         </button>

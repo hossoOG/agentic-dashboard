@@ -77,29 +77,32 @@ export function GridCellChrome({
         </span>
       )}
 
-      {/* Action buttons — visible on hover */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onMaximize();
-        }}
-        className="p-0.5 text-neutral-600 hover:text-neutral-300 opacity-0 group-hover:opacity-100 transition-opacity"
-        aria-label="Maximieren"
-        title="Maximieren"
-      >
-        <Maximize2 className="w-3 h-3" />
-      </button>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onRemove();
-        }}
-        className="p-0.5 text-neutral-600 hover:text-neutral-300 opacity-0 group-hover:opacity-100 transition-opacity"
-        aria-label="Aus Grid entfernen"
-        title="Aus Grid entfernen"
-      >
-        <X className="w-3 h-3" />
-      </button>
+      {/* Backdrop-Bar — Container statt freier Buttons, damit beide Icons synchron
+          erscheinen und die Title-Bar dahinter nicht durchscheint. */}
+      <div className="flex items-stretch bg-surface-base border border-neutral-700 divide-x divide-neutral-700 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onMaximize();
+          }}
+          className="p-1 text-neutral-400 hover:text-accent hover:bg-hover-overlay transition-colors"
+          aria-label="Maximieren"
+          title="Maximieren"
+        >
+          <Maximize2 className="w-3 h-3" />
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          className="p-1 text-neutral-500 hover:text-error hover:bg-hover-overlay transition-colors"
+          aria-label="Aus Grid entfernen"
+          title="Aus Grid entfernen"
+        >
+          <X className="w-3 h-3" />
+        </button>
+      </div>
     </div>
   );
 }
