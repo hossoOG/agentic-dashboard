@@ -175,4 +175,52 @@ describe("SessionCard", () => {
     const stored = useSessionStore.getState().sessions.find((s) => s.id === "sess-esc");
     expect(stored?.title).toBe("Keep This");
   });
+
+  describe("displayId rendering", () => {
+    it("renders #displayId suffix in muted style when present", () => {
+      const session = makeSession({
+        title: "agentic-dashboard",
+        displayId: "3K2X",
+      });
+      renderCard(session);
+
+      // Title + suffix both visible, suffix preceded by space
+      expect(screen.getByText(/agentic-dashboard/)).toBeTruthy();
+      expect(screen.getByText(/#3K2X/)).toBeTruthy();
+    });
+
+    it("omits suffix when displayId is absent (backward-compat for legacy sessions)", () => {
+      const session = makeSession({
+        title: "old-session",
+        // displayId intentionally undefined
+      });
+      renderCard(session);
+
+      expect(screen.getByText("old-session")).toBeTruthy();
+      // No # marker present in DOM at all
+      expect(screen.queryByText(/#/)).toBeNull();
+    });
+
+    it("inline-edit pre-fills the full display string including #displayId", () => {
+      const session = makeSession({
+        id: "sess-edit-id",
+        title: "agentic-dashboard",
+        displayId: "3K2X",
+      });
+      useSessionStore.setState({ sessions: [], activeSessionId: null });
+      useSessionStore.getState().addSession({
+        id: session.id,
+        title: session.title,
+        displayId: session.displayId,
+        folder: session.folder,
+        shell: session.shell,
+      });
+      renderCard(session);
+
+      // Double-click on the title-span (matched by partial text containing the displayId suffix)
+      fireEvent.doubleClick(screen.getByText(/agentic-dashboard/));
+      const input = screen.getByLabelText("Session umbenennen") as HTMLInputElement;
+      expect(input.value).toBe("agentic-dashboard #3K2X");
+    });
+  });
 });

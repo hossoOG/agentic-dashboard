@@ -14,9 +14,12 @@ const mockAddSession = vi.fn();
 vi.mock("../../../store/sessionStore", () => ({
   useSessionStore: {
     getState: () => ({
+      sessions: [],
       addSession: mockAddSession,
     }),
   },
+  // Deterministic stub so tests can assert on a known displayId value.
+  generateUniqueDisplayId: vi.fn(() => "TEST"),
 }));
 
 const mockUpdateFavoriteLastUsed = vi.fn();

@@ -85,14 +85,22 @@ const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: Ses
     }
   }, [isEditing]);
 
+  // Full display string includes the auto-displayId suffix when present,
+  // so the user sees the same string in inline-edit as on the card.
+  const displayString = session.displayId
+    ? `${session.title} #${session.displayId}`
+    : session.title;
+
   const startRename = useCallback(() => {
     setIsEditing(true);
-    setEditValue(session.title);
-  }, [session.title]);
+    setEditValue(displayString);
+  }, [displayString]);
 
   const commitRename = useCallback(() => {
     const trimmed = editValue.trim();
-    if (trimmed && trimmed !== session.title) {
+    // Compare against full display string so a no-op edit (open + save unchanged)
+    // does not trigger a rename and inadvertently clear the displayId.
+    if (trimmed && trimmed !== displayString) {
       renameSession(session.id, trimmed);
       if (session.claudeSessionId) {
         useSettingsStore.getState().setSessionTitleOverride(session.claudeSessionId, trimmed);
@@ -100,7 +108,7 @@ const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: Ses
     }
     setIsEditing(false);
     setEditValue("");
-  }, [editValue, session.id, session.title, session.claudeSessionId, renameSession]);
+  }, [editValue, session.id, session.claudeSessionId, displayString, renameSession]);
 
   const cancelRename = useCallback(() => {
     setIsEditing(false);
@@ -173,7 +181,7 @@ const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: Ses
               if (e.key === "Escape") cancelRename();
             }}
             onClick={(e) => e.stopPropagation()}
-            className="font-bold text-sm text-neutral-200 bg-neutral-800 border border-neutral-600 rounded px-1 py-0 w-full min-w-0 outline-none focus:border-neon-green"
+            className="font-bold text-sm text-neutral-200 bg-neutral-800 border border-neutral-600 px-1 py-0 w-full min-w-0 outline-none focus:border-accent"
             aria-label="Session umbenennen"
           />
         ) : (
@@ -186,6 +194,11 @@ const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: Ses
             title="Doppelklick zum Umbenennen"
           >
             {session.title}
+            {session.displayId && (
+              <span className="font-normal text-neutral-500">
+                {" "}#{session.displayId}
+              </span>
+            )}
           </span>
         )}
         {isInGrid && (

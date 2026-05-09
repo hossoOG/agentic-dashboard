@@ -20,6 +20,8 @@ export type SessionStatus =
 export interface ClaudeSession {
   id: string;
   title: string;
+  displayId?: string;            // 4-Char Base36 (z.B. "3K2X") — visuelle Disambiguation,
+                                 // auto-generiert bei Create, gecleared bei Rename.
   folder: string;
   shell: SessionShell;
   claudeSessionId?: string;      // Claude CLI Session-UUID fuer Resume
@@ -36,6 +38,31 @@ export interface ClaudeSession {
 // ============================================================================
 
 const MAX_SESSIONS = 8;
+const DISPLAY_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+const DISPLAY_ID_LENGTH = 4;
+const DISPLAY_ID_MAX_ATTEMPTS = 100;
+
+/**
+ * Generates a 4-Char Base36 display-ID, kollisionsfrei gegen die existierenden Sessions.
+ * 36^4 = 1.679.616 Kombinationen — bei realistischen Session-Counts (<100) faktisch immer beim ersten Versuch unique.
+ * Re-Roll-Loop schuetzt vor dem astronomisch unwahrscheinlichen Kollisionsfall.
+ */
+export function generateUniqueDisplayId(existingSessions: ClaudeSession[]): string {
+  const taken = new Set(
+    existingSessions
+      .map((s) => s.displayId)
+      .filter((d): d is string => Boolean(d)),
+  );
+  for (let attempt = 0; attempt < DISPLAY_ID_MAX_ATTEMPTS; attempt++) {
+    let candidate = "";
+    for (let i = 0; i < DISPLAY_ID_LENGTH; i++) {
+      candidate += DISPLAY_ID_ALPHABET[Math.floor(Math.random() * DISPLAY_ID_ALPHABET.length)];
+    }
+    if (!taken.has(candidate)) return candidate;
+  }
+  // Fall-through: ~1.6M aktive Sessions noetig — praktisch unerreichbar. Letzten Kandidat zurueckgeben.
+  return Math.random().toString(36).slice(2, 6).toUpperCase().padEnd(DISPLAY_ID_LENGTH, "0");
+}
 
 // ============================================================================
 // State Interface
@@ -54,6 +81,7 @@ export interface SessionState {
   addSession: (params: {
     id: string;
     title: string;
+    displayId?: string;
     folder: string;
     shell: SessionShell;
     claudeSessionId?: string;
@@ -109,6 +137,7 @@ export const useSessionStore = create<SessionState>((set) => ({
       const session: ClaudeSession = {
         id: params.id,
         title: params.title,
+        displayId: params.displayId,
         folder: params.folder,
         shell: params.shell,
         claudeSessionId: params.claudeSessionId,
@@ -206,8 +235,10 @@ export const useSessionStore = create<SessionState>((set) => ({
 
   renameSession: (id, title) =>
     set((state) => ({
+      // Rename = User uebernimmt explizit den Titel. Auto-displayId wird damit obsolet
+      // und gecleared, sodass der manuelle Name allein die Disambiguation traegt.
       sessions: state.sessions.map((s) =>
-        s.id === id ? { ...s, title } : s
+        s.id === id ? { ...s, title, displayId: undefined } : s
       ),
     })),
 

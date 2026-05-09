@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { wrapInvoke } from "../../../utils/perfLogger";
-import { useSessionStore } from "../../../store/sessionStore";
+import { useSessionStore, generateUniqueDisplayId } from "../../../store/sessionStore";
 import { useSettingsStore } from "../../../store/settingsStore";
 import { useUIStore } from "../../../store/uiStore";
 import { logError } from "../../../utils/errorLogger";
@@ -57,9 +57,11 @@ export function useSessionCreation(): UseSessionCreationReturn {
         });
 
         const sessionId = result?.id ?? id;
+        const sessions = useSessionStore.getState().sessions;
         useSessionStore.getState().addSession({
           id: sessionId,
           title: result?.title ?? title,
+          displayId: generateUniqueDisplayId(sessions),
           folder: result?.folder ?? cwd,
           shell: (result?.shell ?? shell) as SessionShell,
           claudeSessionId: resumeSessionId,
@@ -91,9 +93,11 @@ export function useSessionCreation(): UseSessionCreationReturn {
       });
 
       const sessionId = result?.id ?? id;
+      const sessions = useSessionStore.getState().sessions;
       useSessionStore.getState().addSession({
         id: sessionId,
         title: result?.title ?? title,
+        displayId: generateUniqueDisplayId(sessions),
         folder: result?.folder ?? folder,
         shell: (result?.shell ?? shell) as SessionShell,
       });
@@ -143,9 +147,11 @@ export function useSessionCreation(): UseSessionCreationReturn {
       }>("create_session", { id, folder, title, shell });
 
       const sessionId = result?.id ?? id;
+      const sessions = useSessionStore.getState().sessions;
       useSessionStore.getState().addSession({
         id: sessionId,
         title: result?.title ?? title,
+        displayId: generateUniqueDisplayId(sessions),
         folder: result?.folder ?? folder,
         shell: (result?.shell ?? shell) as SessionShell,
       });

@@ -3,6 +3,8 @@ import {
   useSessionStore,
   selectActiveSession,
   selectSessionCounts,
+  generateUniqueDisplayId,
+  type ClaudeSession,
   type SessionState,
   type SessionShell,
   type SessionStatus,
@@ -695,5 +697,84 @@ describe("grid layout edge cases", () => {
     getState().addToGrid("s1");
     // Should add to gridSessionIds even if layoutMode is "single"
     expect(getState().gridSessionIds).toContain("s1");
+  });
+});
+
+describe("displayId — visual disambiguation", () => {
+  it("addSession persists displayId when provided", () => {
+    getState().addSession({
+      id: "s1",
+      title: "agentic-dashboard",
+      displayId: "3K2X",
+      folder: "C:/projects/test",
+      shell: "powershell",
+    });
+    expect(getState().sessions[0]?.displayId).toBe("3K2X");
+  });
+
+  it("addSession leaves displayId undefined when not provided (backward-compat for old sessions)", () => {
+    addTestSession({ id: "s1" });
+    expect(getState().sessions[0]?.displayId).toBeUndefined();
+  });
+
+  it("renameSession clears displayId — user has taken control of disambiguation", () => {
+    getState().addSession({
+      id: "s1",
+      title: "agentic-dashboard",
+      displayId: "3K2X",
+      folder: "C:/projects/test",
+      shell: "powershell",
+    });
+    getState().renameSession("s1", "Mein Projekt");
+    expect(getState().sessions[0]?.title).toBe("Mein Projekt");
+    expect(getState().sessions[0]?.displayId).toBeUndefined();
+  });
+
+  describe("generateUniqueDisplayId", () => {
+    it("returns 4 chars from the [A-Z0-9] alphabet", () => {
+      const id = generateUniqueDisplayId([]);
+      expect(id).toMatch(/^[A-Z0-9]{4}$/);
+    });
+
+    it("never returns an ID that already exists in the input list", () => {
+      // Seed with all but a tiny set of possible IDs to force the re-roll path.
+      const sessions: ClaudeSession[] = Array.from({ length: 50 }, (_, i) => ({
+        id: `s${i}`,
+        title: `t${i}`,
+        displayId: `T${String(i).padStart(3, "0")}`, // T000..T049
+        folder: "/tmp",
+        shell: "powershell",
+        status: "running",
+        createdAt: 0,
+        finishedAt: null,
+        exitCode: null,
+        lastOutputAt: 0,
+        lastOutputSnippet: "",
+      }));
+      const taken = new Set(sessions.map((s) => s.displayId));
+      // Run many generations to be confident the re-roll path holds.
+      for (let i = 0; i < 100; i++) {
+        const id = generateUniqueDisplayId(sessions);
+        expect(taken.has(id)).toBe(false);
+      }
+    });
+
+    it("ignores sessions without displayId in the collision set", () => {
+      // Session without displayId (legacy) should not crash or block generation.
+      const sessions: ClaudeSession[] = [{
+        id: "legacy",
+        title: "Legacy",
+        folder: "/tmp",
+        shell: "powershell",
+        status: "running",
+        createdAt: 0,
+        finishedAt: null,
+        exitCode: null,
+        lastOutputAt: 0,
+        lastOutputSnippet: "",
+      }];
+      const id = generateUniqueDisplayId(sessions);
+      expect(id).toMatch(/^[A-Z0-9]{4}$/);
+    });
   });
 });

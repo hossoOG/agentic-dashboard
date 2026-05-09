@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { wrapInvoke } from "../utils/perfLogger";
-import { useSessionStore } from "../store/sessionStore";
+import { useSessionStore, generateUniqueDisplayId } from "../store/sessionStore";
 import { useSettingsStore } from "../store/settingsStore";
 import { useUIStore } from "../store/uiStore";
 import { logWarn } from "../utils/errorLogger";
@@ -104,10 +104,14 @@ async function restoreSessions(
       });
 
       const sessionId = result?.id ?? id;
+      const sessions = useSessionStore.getState().sessions;
       useSessionStore.getState().addSession({
         id: sessionId,
         // Persisted title (may be user-renamed) always wins over backend response
         title: entry.title ?? result?.title ?? entry.folder,
+        // Restore creates a fresh runtime session — generate a fresh displayId for visual disambiguation,
+        // since the previous instance's displayId is not part of the resume contract.
+        displayId: generateUniqueDisplayId(sessions),
         folder: result?.folder ?? entry.folder,
         shell: (result?.shell ?? entry.shell) as SessionShell,
         claudeSessionId: resumeSessionId,
