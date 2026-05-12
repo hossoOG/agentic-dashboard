@@ -4,6 +4,12 @@ Alle relevanten Änderungen an AgenticExplorer werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [Unreleased]
+
+### Hinzugefügt
+
+- **Tab-Leiste im Config-Panel pro Projekt konfigurierbar.** Sichtbarkeit und Reihenfolge der 9 Standard-Tabs lassen sich per Drag-and-Drop direkt in der Tab-Leiste anpassen (Activation-Distance 6 px, damit normale Tab-Klicks unverändert funktionieren). Right-Click auf einen Tab öffnet ein Mini-Kontextmenü zum Verstecken; ein Zahnrad-Icon am Bar-Ende öffnet einen Dialog für Visibility-Toggles, "Als Default speichern" und "Override zurücksetzen". Globaler Default + Projekt-Override via `Partial<TabConfig>`-Diffs (kein Vollersetzen). `settingsStore` persist v3 → v4 mit Sanitize in `migrate` UND `onRehydrateStorage` (Issue-#209-Klasse, Self-Healing bei neuen Tab-IDs).
+
 ## [1.6.28] — 2026-05-09 — "Session Hygiene + Daily-Use Settings"
 
 ### Logging-Subsystem-Refactor (v2)

@@ -20,6 +20,7 @@
 
 import { useSessionStore } from "../store/sessionStore";
 import { useSettingsStore } from "../store/settingsStore";
+import { DEFAULT_TAB_CONFIG } from "../store/tabConfig";
 import { useUIStore } from "../store/uiStore";
 
 /**
@@ -70,6 +71,8 @@ export function resetAllStores(): void {
         showProtokolleTab: false,
         scrollbackLines: 25_000,
       },
+      defaultTabConfig: { ...DEFAULT_TAB_CONFIG, order: [...DEFAULT_TAB_CONFIG.order], hidden: [...DEFAULT_TAB_CONFIG.hidden] },
+      projectTabOverrides: {},
     },
     false,
   );

@@ -1,21 +1,28 @@
-import { useState, useRef, useEffect, useMemo, Fragment } from "react";
-import { X, Plus, Pin } from "lucide-react";
+import { useState, useRef, useEffect, useMemo, Fragment, type CSSProperties, type MouseEvent as ReactMouseEvent } from "react";
+import { X, Plus, Pin, Settings2, EyeOff, Eye } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  horizontalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useUIStore, type ConfigSubTab } from "../../store/uiStore";
 import { useSettingsStore, normalizeProjectKey } from "../../store/settingsStore";
+import { getTabsForProject, type PresenceMap, type TabId } from "../../store/tabConfig";
 import { logError } from "../../utils/errorLogger";
-import { CONFIG_TABS, type PresenceKey } from "./configPanelShared";
-
-interface Presence {
-  claudeMd: boolean;
-  skills: boolean;
-  agents: boolean;
-  hooks: boolean;
-  settings: boolean;
-  git: boolean;
-  github: boolean;
-}
+import { type ConfigTab } from "./configPanelShared";
+import { TabConfigDialog } from "./TabConfigDialog";
 
 interface ConfigPanelTabListProps {
   folder: string;
@@ -99,7 +106,7 @@ export function ConfigPanelTabList({ folder, size = "md", isPrimary = true }: Co
   // Check which context artifacts exist in the folder so we can hide empty tabs.
   // While detection is in flight (presence === null), all tabs remain visible to
   // avoid a layout flash on first render.
-  const [presence, setPresence] = useState<Presence | null>(null);
+  const [presence, setPresence] = useState<PresenceMap | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -147,11 +154,73 @@ export function ConfigPanelTabList({ folder, size = "md", isPrimary = true }: Co
     return () => { cancelled = true; };
   }, [folder]);
 
-  const visibleTabs = useMemo(() => CONFIG_TABS.filter((tab) => {
-    if (!tab.requiresPresence) return true;
-    if (presence === null) return true; // loading — show all to avoid flash
-    return presence[tab.requiresPresence as PresenceKey];
-  }), [presence]);
+  const defaultTabConfig = useSettingsStore((s) => s.defaultTabConfig);
+  const projectTabOverrides = useSettingsStore((s) => s.projectTabOverrides);
+  const setProjectTabOverride = useSettingsStore((s) => s.setProjectTabOverride);
+
+  const visibleTabs = useMemo(
+    () => getTabsForProject(folder, presence, defaultTabConfig, projectTabOverrides),
+    [folder, presence, defaultTabConfig, projectTabOverrides],
+  );
+
+  // Right-click context menu state (single, project-scoped)
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    tabId: TabId;
+    isCurrentlyHidden: boolean;
+  } | null>(null);
+
+  // Dialog open state
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  // dnd-kit sensors: pointer + 6px activation distance so a normal
+  // tab-switch click is unaffected.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+  );
+
+  // Effective override-or-default order — used for dnd reorder math so the
+  // resulting `order: TabId[]` always covers ALL known TabIds (sichtbare
+  // PLUS versteckte), preserving Spec §6.1 invariant.
+  const overrideKey = normalizeProjectKey(folder);
+  const effectiveOrder = useMemo<TabId[]>(() => {
+    const override = projectTabOverrides[overrideKey] ?? {};
+    return [...(override.order ?? defaultTabConfig.order)];
+  }, [overrideKey, projectTabOverrides, defaultTabConfig]);
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = effectiveOrder.indexOf(active.id as TabId);
+    const newIndex = effectiveOrder.indexOf(over.id as TabId);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const next = arrayMove(effectiveOrder, oldIndex, newIndex);
+    setProjectTabOverride(folder, { order: next });
+  };
+
+  const setHiddenForTab = (tabId: TabId, hide: boolean) => {
+    const currentHidden =
+      projectTabOverrides[overrideKey]?.hidden ?? defaultTabConfig.hidden;
+    const nextHidden = hide
+      ? (currentHidden.includes(tabId) ? currentHidden : [...currentHidden, tabId])
+      : currentHidden.filter((id) => id !== tabId);
+    setProjectTabOverride(folder, { hidden: nextHidden });
+    setContextMenu(null);
+  };
+
+  // Close context menu on outside click / Esc
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(null);
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
+    window.addEventListener("click", close);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("click", close);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [contextMenu]);
 
   // Auto-switch away from a now-hidden tab when session folder changes.
   // Gated on isPrimary so a non-primary instance (FavoritePreview) cannot
@@ -222,33 +291,70 @@ export function ConfigPanelTabList({ folder, size = "md", isPrimary = true }: Co
     addToast({ type: "info", title: "Pin entfernt", message: label });
   };
 
+  // Primary instances get DnD + gear icon. Secondary (FavoritePreview)
+  // renders a plain non-sortable list to avoid hijacking the global
+  // store state on hover.
+  const renderTab = (tab: ConfigTab, idx: number) => {
+    const Icon = tab.icon;
+    const isActive = configSubTab === tab.id;
+    const prevGroup = idx > 0 ? visibleTabs[idx - 1].group : null;
+    const showSeparator = prevGroup !== null && prevGroup !== tab.group;
+    return (
+      <Fragment key={tab.id}>
+        {showSeparator && (
+          <div className="w-px h-4 bg-neutral-700 shrink-0 mx-0.5" />
+        )}
+        {isPrimary ? (
+          <SortableTabButton
+            tab={tab}
+            isActive={isActive}
+            buttonPadding={buttonPadding}
+            iconSize={iconSize}
+            textSize={textSize}
+            onSelect={() => setConfigSubTab(tab.id)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              const hiddenList = projectTabOverrides[overrideKey]?.hidden ?? defaultTabConfig.hidden;
+              setContextMenu({
+                x: e.clientX,
+                y: e.clientY,
+                tabId: tab.id as TabId,
+                isCurrentlyHidden: hiddenList.includes(tab.id as TabId),
+              });
+            }}
+          />
+        ) : (
+          <button
+            onClick={() => setConfigSubTab(tab.id)}
+            className={`flex items-center gap-1 ${buttonPadding} ${textSize} font-medium rounded-sm whitespace-nowrap transition-colors ${
+              isActive
+                ? "text-accent bg-accent-a10"
+                : "text-neutral-400 hover:text-neutral-200 hover:bg-hover-overlay"
+            }`}
+            title={tab.label}
+          >
+            <Icon className={`${iconSize} shrink-0`} />
+            {tab.label}
+          </button>
+        )}
+      </Fragment>
+    );
+  };
+
   return (
     <>
-      {visibleTabs.map((tab, idx) => {
-        const Icon = tab.icon;
-        const isActive = configSubTab === tab.id;
-        const prevGroup = idx > 0 ? visibleTabs[idx - 1].group : null;
-        const showSeparator = prevGroup !== null && prevGroup !== tab.group;
-        return (
-          <Fragment key={tab.id}>
-            {showSeparator && (
-              <div className="w-px h-4 bg-neutral-700 shrink-0 mx-0.5" />
-            )}
-            <button
-              onClick={() => setConfigSubTab(tab.id)}
-              className={`flex items-center gap-1 ${buttonPadding} ${textSize} font-medium rounded-sm whitespace-nowrap transition-colors ${
-                isActive
-                  ? "text-accent bg-accent-a10"
-                  : "text-neutral-400 hover:text-neutral-200 hover:bg-hover-overlay"
-              }`}
-              title={tab.label}
-            >
-              <Icon className={`${iconSize} shrink-0`} />
-              {tab.label}
-            </button>
-          </Fragment>
-        );
-      })}
+      {isPrimary ? (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext
+            items={visibleTabs.map((t) => t.id)}
+            strategy={horizontalListSortingStrategy}
+          >
+            {visibleTabs.map(renderTab)}
+          </SortableContext>
+        </DndContext>
+      ) : (
+        visibleTabs.map(renderTab)
+      )}
 
       {/* User-pinned docs */}
       {pins.length > 0 && (
@@ -327,6 +433,111 @@ export function ConfigPanelTabList({ folder, size = "md", isPrimary = true }: Co
       >
         <Plus className={iconSize} />
       </button>
+
+      {/* Gear icon — opens TabConfigDialog. Primary instance only. */}
+      {isPrimary && (
+        <button
+          onClick={() => setDialogOpen(true)}
+          className={`flex items-center gap-1 px-1.5 py-1 ${textSize} rounded-sm whitespace-nowrap text-neutral-500 hover:text-accent hover:bg-accent-a10 transition-colors ml-auto`}
+          title="Tab-Leiste konfigurieren"
+          aria-label="Tab-Leiste konfigurieren"
+        >
+          <Settings2 className={iconSize} />
+        </button>
+      )}
+
+      {/* Right-click context menu (renders into normal flow, position: fixed) */}
+      {contextMenu && (
+        <div
+          role="menu"
+          aria-label="Tab-Aktionen"
+          className="fixed z-50 bg-neutral-900 border border-neutral-700 shadow-lg py-1 min-w-[160px]"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            role="menuitem"
+            onClick={() => setHiddenForTab(contextMenu.tabId, !contextMenu.isCurrentlyHidden)}
+            className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-neutral-300 hover:bg-hover-overlay hover:text-neutral-100 transition-colors"
+          >
+            {contextMenu.isCurrentlyHidden ? (
+              <>
+                <Eye className="w-3.5 h-3.5" />
+                Wieder einblenden
+              </>
+            ) : (
+              <>
+                <EyeOff className="w-3.5 h-3.5" />
+                Tab verstecken
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* Config dialog */}
+      {isPrimary && dialogOpen && (
+        <TabConfigDialog
+          folder={folder}
+          presence={presence}
+          onClose={() => setDialogOpen(false)}
+        />
+      )}
     </>
+  );
+}
+
+// ============================================================================
+// Sortable tab button — single tab rendered as a dnd-kit sortable.
+// ============================================================================
+
+interface SortableTabButtonProps {
+  tab: ConfigTab;
+  isActive: boolean;
+  buttonPadding: string;
+  iconSize: string;
+  textSize: string;
+  onSelect: () => void;
+  onContextMenu: (e: ReactMouseEvent) => void;
+}
+
+function SortableTabButton({
+  tab,
+  isActive,
+  buttonPadding,
+  iconSize,
+  textSize,
+  onSelect,
+  onContextMenu,
+}: SortableTabButtonProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: tab.id });
+  const Icon = tab.icon;
+
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <button
+      ref={setNodeRef}
+      style={style}
+      onClick={onSelect}
+      onContextMenu={onContextMenu}
+      {...attributes}
+      {...listeners}
+      className={`flex items-center gap-1 ${buttonPadding} ${textSize} font-medium rounded-sm whitespace-nowrap transition-colors ${
+        isActive
+          ? "text-accent bg-accent-a10"
+          : "text-neutral-400 hover:text-neutral-200 hover:bg-hover-overlay"
+      }`}
+      title={tab.label}
+      data-tab-id={tab.id}
+    >
+      <Icon className={`${iconSize} shrink-0`} />
+      {tab.label}
+    </button>
   );
 }
