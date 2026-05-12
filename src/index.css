@@ -47,6 +47,12 @@
   --accent-a30: oklch(55% 0.16 190 / 0.30);
   --success-a05: oklch(52% 0.18 155 / 0.05);
 
+  /* ── Diff backgrounds (light mode) ── */
+  --diff-removed-bg:   oklch(93% 0.07 25);    /* pale rose under removed line */
+  --diff-added-bg:     oklch(93% 0.09 155);   /* pale mint under added line */
+  --diff-removed-emph: oklch(82% 0.14 25);    /* char-level deleted highlight */
+  --diff-added-emph:   oklch(82% 0.14 155);   /* char-level added highlight */
+
   /* ── Typography ── */
   --font-display: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
   --font-body: 'Instrument Sans', 'Segoe UI', system-ui, sans-serif;
@@ -119,6 +125,12 @@
   --accent-a05: oklch(72% 0.14 190 / 0.05);
   --accent-a30: oklch(72% 0.14 190 / 0.30);
   --success-a05: oklch(72% 0.16 155 / 0.05);
+
+  /* ── Diff backgrounds (dark mode — stronger chroma so tints read on near-black bg) ── */
+  --diff-removed-bg:   oklch(30% 0.10 25);    /* deep warm red under removed line */
+  --diff-added-bg:     oklch(30% 0.10 155);   /* deep mint under added line */
+  --diff-removed-emph: oklch(45% 0.18 25);    /* char-level deleted highlight */
+  --diff-added-emph:   oklch(45% 0.18 155);   /* char-level added highlight */
 }
 
 /* ============================================

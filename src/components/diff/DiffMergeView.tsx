@@ -82,6 +82,8 @@ export function DiffMergeView({ file, mode }: DiffMergeViewProps) {
 
     if (mode === "inline") {
       // Unified-View — rendert eine einzige Editor-Spalte mit Inline-Markern.
+      // `mergeControls: false` versteckt die Library-Default Accept/Reject-Widgets;
+      // sie tun in einem readOnly-Editor nichts und das Feature ist Backlog-Scope.
       const view = new EditorView({
         state: EditorState.create({
           doc: newContent,
@@ -91,6 +93,7 @@ export function DiffMergeView({ file, mode }: DiffMergeViewProps) {
               original: oldContent,
               highlightChanges: true,
               gutter: true,
+              mergeControls: false,
             }),
           ],
         }),
@@ -99,7 +102,8 @@ export function DiffMergeView({ file, mode }: DiffMergeViewProps) {
       return () => view.destroy();
     }
 
-    // Side-by-Side (Default)
+    // Side-by-Side (Default). Kein `mergeControls`-Flag noetig — MergeView rendert
+    // keine Accept/Reject-Buttons (das Konzept gibt's nur in unifiedMergeView).
     const merge = new MergeView({
       a: { doc: oldContent, extensions: baseExt },
       b: { doc: newContent, extensions: baseExt },
@@ -108,7 +112,30 @@ export function DiffMergeView({ file, mode }: DiffMergeViewProps) {
       highlightChanges: true,
       gutter: true,
     });
-    return () => merge.destroy();
+
+    // MergeView syncs vertical scroll automatisch (line-aligned), aber nicht
+    // horizontal. Wir spiegeln scrollLeft beidseitig mit Anti-Loop-Flag via rAF.
+    const scrollA = merge.a.scrollDOM;
+    const scrollB = merge.b.scrollDOM;
+    let syncing = false;
+    const mirror = (src: HTMLElement, dst: HTMLElement) => {
+      if (syncing || dst.scrollLeft === src.scrollLeft) return;
+      syncing = true;
+      dst.scrollLeft = src.scrollLeft;
+      requestAnimationFrame(() => {
+        syncing = false;
+      });
+    };
+    const onScrollA = () => mirror(scrollA, scrollB);
+    const onScrollB = () => mirror(scrollB, scrollA);
+    scrollA.addEventListener("scroll", onScrollA, { passive: true });
+    scrollB.addEventListener("scroll", onScrollB, { passive: true });
+
+    return () => {
+      scrollA.removeEventListener("scroll", onScrollA);
+      scrollB.removeEventListener("scroll", onScrollB);
+      merge.destroy();
+    };
   }, [file, mode, langSupport]);
 
   return (
