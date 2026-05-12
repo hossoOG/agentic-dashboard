@@ -1,6 +1,7 @@
 // src-tauri/src/session/manager.rs
 
 use crate::error::{ADPError, ADPErrorCode};
+use chrono::{DateTime, Utc};
 use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -16,6 +17,17 @@ pub struct SessionInfo {
     pub shell: String,
     pub status: String, // "running" | "done" | "error"
     pub exit_code: Option<i32>,
+    /// True wenn der `folder` als Git-Working-Tree erkannt wurde — Diff-Button
+    /// im Frontend bindet daran sein Sichtbarkeitsflag.
+    #[serde(rename = "isGitRepo")]
+    pub is_git_repo: bool,
+    /// Commit-Hash des Pre-Spawn-Snapshots (Stash oder HEAD). None bei
+    /// Non-Git-Folders, leerem Repo oder Snapshot-Fehler.
+    #[serde(rename = "snapshotCommit", skip_serializing_if = "Option::is_none")]
+    pub snapshot_commit: Option<String>,
+    /// Zeitpunkt des Snapshots — vom Frontend im Diff-Window-Footer angezeigt.
+    #[serde(rename = "snapshotAt", skip_serializing_if = "Option::is_none")]
+    pub snapshot_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -188,6 +200,30 @@ impl SessionManager {
             )
         })?;
 
+        // Pre-spawn git snapshot — registriert einen gc-sicheren Ref unter
+        // `refs/agentic-explorer/session-<id>`. Failure ist NIE fatal fuer
+        // create_session: ohne Snapshot bleibt nur der Diff-Button leer.
+        let folder_path = std::path::PathBuf::from(&folder);
+        let is_git_repo = super::diff::is_git_repo(&folder_path);
+        let (snapshot_commit, snapshot_at) = if is_git_repo {
+            match super::diff::create_session_snapshot(&folder_path, &id) {
+                Ok(snap) => {
+                    log::info!(
+                        "Session {} snapshot ref created at commit {}",
+                        id,
+                        snap.commit
+                    );
+                    (Some(snap.commit), Some(snap.created_at))
+                }
+                Err(e) => {
+                    log::warn!("Session {} snapshot failed: {}", id, e);
+                    (None, None)
+                }
+            }
+        } else {
+            (None, None)
+        };
+
         let info = SessionInfo {
             id: id.clone(),
             title,
@@ -195,6 +231,9 @@ impl SessionManager {
             shell,
             status: "running".to_string(),
             exit_code: None,
+            is_git_repo,
+            snapshot_commit,
+            snapshot_at,
         };
 
         {
@@ -480,6 +519,10 @@ impl SessionManager {
     }
 
     /// Schliesst eine Session (killt den Prozess).
+    ///
+    /// Loescht ausserdem den Snapshot-Ref (`refs/agentic-explorer/session-<id>`).
+    /// Fehlt der Ref bereits, ist das kein Hard-Fail — `delete_session_snapshot`
+    /// loggt nur eine Warnung.
     pub fn close_session(&self, id: &str) -> Result<(), ADPError> {
         let mut sessions = self.sessions.lock().map_err(|e| {
             ADPError::internal(format!(
@@ -487,13 +530,35 @@ impl SessionManager {
             ))
         })?;
         // Drop entfernt den MasterPty, was den Child-Prozess signalisiert
-        sessions.remove(id).ok_or_else(|| {
+        let removed = sessions.remove(id).ok_or_else(|| {
             ADPError::new(
                 ADPErrorCode::SessionNotFound,
                 format!("Session not found: {id}"),
             )
         })?;
+        let folder_for_cleanup = removed.info.folder.clone();
+        let is_git_repo = removed.info.is_git_repo;
+        // Lock vor dem (potentiell langsamen) Git-Call freigeben.
+        drop(sessions);
+
+        if is_git_repo {
+            let folder_path = std::path::PathBuf::from(folder_for_cleanup);
+            if let Err(e) = super::diff::delete_session_snapshot(&folder_path, id) {
+                log::warn!("Session {} snapshot cleanup failed: {}", id, e);
+            }
+        }
         Ok(())
+    }
+
+    /// Liefert die Info-Struktur einer Session, falls vorhanden.
+    /// Wird vom Diff-Command genutzt, um snapshot_commit + folder
+    /// nachzuschlagen, ohne den Mutex an den Caller zu reichen.
+    pub fn get_session_info(&self, id: &str) -> Option<SessionInfo> {
+        let sessions = self.sessions.lock().unwrap_or_else(|e| {
+            log::warn!("SessionManager mutex was poisoned during get_session_info, recovering");
+            e.into_inner()
+        });
+        sessions.get(id).map(|s| s.info.clone())
     }
 
     /// Gibt alle aktiven Sessions zurueck.
