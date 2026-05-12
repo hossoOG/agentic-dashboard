@@ -5,6 +5,7 @@ import "./index.css";
 
 const LogWindowApp = lazy(() => import("./LogWindowApp"));
 const DetachedViewApp = lazy(() => import("./DetachedViewApp"));
+const DiffWindowApp = lazy(() => import("./DiffWindowApp"));
 
 const DETACHED_VIEWS = new Set(["kanban", "library", "editor"]);
 
@@ -23,6 +24,21 @@ initTauriStorage().then(async () => {
         <Suspense fallback={<div className="flex items-center justify-center h-screen">Lade Logs...</div>}>
           <LogWindowApp />
         </Suspense>
+      </React.StrictMode>
+    );
+  } else if (view === "diff") {
+    // Per-Session-Diff-Window. SessionId aus der URL ziehen — kein Store-Bootstrap
+    // im Diff-Window, damit das zweite JS-Context nicht unnoetig den Haupt-State
+    // hydratisiert.
+    const sessionId = params.get("sessionId");
+    const { ErrorBoundary } = await import("./components/shared/ErrorBoundary");
+    ReactDOM.createRoot(document.getElementById("root")!).render(
+      <React.StrictMode>
+        <ErrorBoundary>
+          <Suspense fallback={<div className="flex items-center justify-center h-screen">Lade Diff...</div>}>
+            <DiffWindowApp sessionId={sessionId} />
+          </Suspense>
+        </ErrorBoundary>
       </React.StrictMode>
     );
   } else if (view && DETACHED_VIEWS.has(view)) {

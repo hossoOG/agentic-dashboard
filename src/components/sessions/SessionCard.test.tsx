@@ -3,12 +3,15 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { SessionCard } from "./SessionCard";
 import { useSessionStore } from "../../store/sessionStore";
 import type { ClaudeSession } from "../../store/sessionStore";
+import { invoke } from "@tauri-apps/api/core";
 
 // ── Mocks ─────────────────────────────────────────────────────────────
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
+
+const mockedInvoke = vi.mocked(invoke);
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
@@ -174,6 +177,29 @@ describe("SessionCard", () => {
     expect(screen.queryByLabelText("Session umbenennen")).toBeNull();
     const stored = useSessionStore.getState().sessions.find((s) => s.id === "sess-esc");
     expect(stored?.title).toBe("Keep This");
+  });
+
+  // ── Diff-Button visibility / invoke ─────────────────────────────────
+
+  describe("Diff button", () => {
+    it("renders Diff button when isGitRepo=true and invokes open_session_diff_window", () => {
+      mockedInvoke.mockResolvedValueOnce(undefined);
+      renderCard(makeSession({ id: "sess-diff", isGitRepo: true }));
+      const btn = screen.getByLabelText("Diff anzeigen");
+      expect(btn).toBeTruthy();
+      fireEvent.click(btn);
+      expect(mockedInvoke).toHaveBeenCalledWith("open_session_diff_window", {
+        sessionId: "sess-diff",
+      });
+    });
+
+    it("hides Diff button when isGitRepo is undefined or false", () => {
+      renderCard(makeSession({ id: "sess-no-git" }));
+      expect(screen.queryByLabelText("Diff anzeigen")).toBeNull();
+      mockedInvoke.mockClear();
+      renderCard(makeSession({ id: "sess-not-git", isGitRepo: false }));
+      expect(screen.queryByLabelText("Diff anzeigen")).toBeNull();
+    });
   });
 
   describe("displayId rendering", () => {

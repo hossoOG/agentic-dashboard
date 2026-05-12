@@ -27,6 +27,8 @@ import {
   // actions
   X, FolderOpen, Terminal, ExternalLink, LayoutGrid, ChevronDown, Loader2,
   RefreshCw, RotateCcw, Download, Trash2, ArrowDownToLine, Search,
+  // diff
+  GitCompare,
   // toast
   CheckCircle2, AlertTriangle, Trophy, Info, CheckCircle,
   // update
@@ -67,6 +69,8 @@ export const ICONS = {
     trash: Trash2,
     scrollToBottom: ArrowDownToLine,
     search: Search,
+    /** Lucide `GitCompare` = side-by-side diff icon. Used for the Session-Diff button. */
+    diff: GitCompare,
   },
   toast: {
     success: CheckCircle2,
