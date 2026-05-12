@@ -3,7 +3,24 @@ import { invoke } from "@tauri-apps/api/core";
 import { motion } from "framer-motion";
 import type { FavoriteFolder } from "../../store/settingsStore";
 import { useUIStore } from "../../store/uiStore";
+import { useSessionStore } from "../../store/sessionStore";
 import { logError } from "../../utils/errorLogger";
+import { DiffActionButton } from "../diff/DiffActionButton";
+
+/**
+ * Returns the most recently created live session whose folder matches the
+ * favorite, or null. Favorites are folders — the Diff-Button needs a live
+ * session to compute a meaningful diff against. When the favorite has no
+ * active session, the button is hidden.
+ */
+function useFavoriteLiveSessionId(path: string): string | null {
+  return useSessionStore((s) => {
+    const matches = s.sessions
+      .filter((sess) => sess.folder === path && sess.isGitRepo)
+      .sort((a, b) => b.createdAt - a.createdAt);
+    return matches[0]?.id ?? null;
+  });
+}
 
 interface FavoriteCardProps {
   favorite: FavoriteFolder;
@@ -13,6 +30,7 @@ interface FavoriteCardProps {
 
 export function FavoriteCard({ favorite, onStart, onRemove }: FavoriteCardProps) {
   const openPreview = useUIStore((s) => s.openPreview);
+  const liveSessionId = useFavoriteLiveSessionId(favorite.path);
 
   return (
     <motion.div
@@ -26,6 +44,9 @@ export function FavoriteCard({ favorite, onStart, onRemove }: FavoriteCardProps)
     >
       {/* Backdrop-Bar deckt Card-Text dahinter — sonst Kontrast-Kollision mit Labels. */}
       <div className="absolute top-1.5 right-1.5 flex items-stretch bg-surface-base border border-neutral-700 divide-x divide-neutral-700 opacity-0 group-hover:opacity-100 transition-opacity">
+        {liveSessionId && (
+          <DiffActionButton sessionId={liveSessionId} errorSource="FavoriteCard.openDiff" />
+        )}
         <button
           onClick={(e) => {
             e.stopPropagation();

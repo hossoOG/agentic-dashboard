@@ -5,6 +5,7 @@ import { SessionStatusDot } from "./SessionStatusDot";
 import { getActivityLevel } from "./activityLevel";
 import { useNowTick } from "../../hooks/useNowTick";
 import { useGitBranch } from "../../hooks/useGitBranch";
+import { DiffActionButton } from "../diff/DiffActionButton";
 
 interface GridCellChromeProps {
   sessionId: string;
@@ -80,6 +81,14 @@ export function GridCellChrome({
       {/* Backdrop-Bar — Container statt freier Buttons, damit beide Icons synchron
           erscheinen und die Title-Bar dahinter nicht durchscheint. */}
       <div className="flex items-stretch bg-surface-base border border-neutral-700 divide-x divide-neutral-700 opacity-0 group-hover:opacity-100 transition-opacity">
+        {session?.isGitRepo && (
+          <DiffActionButton
+            sessionId={sessionId}
+            iconSize="inline"
+            padding="p-1"
+            errorSource="GridCell.openDiff"
+          />
+        )}
         <button
           onClick={(e) => {
             e.stopPropagation();

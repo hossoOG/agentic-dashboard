@@ -250,6 +250,9 @@ pub fn run() {
             session::file_reader::commands::resolve_project_root,
             // Worktree scanning
             session::commands::commands::scan_worktrees,
+            // Session diff (per-session git snapshot)
+            session::commands::commands::get_session_diff,
+            session::commands::commands::open_session_diff_window,
             // GitHub integration
             github::commands::commands::get_git_info,
             github::commands::commands::check_project_presence,

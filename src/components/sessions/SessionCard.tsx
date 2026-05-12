@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { X, LayoutGrid, FolderOpen, Terminal } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
+import { DiffActionButton } from "../diff/DiffActionButton";
 import { useSessionStore } from "../../store/sessionStore";
 import { useSettingsStore } from "../../store/settingsStore";
 import type { ClaudeSession } from "../../store/sessionStore";
@@ -129,6 +130,9 @@ const SessionCardInner = ({ session, isActive, isInGrid, onClick, onClose }: Ses
     >
       {/* Backdrop-Bar deckt Card-Text dahinter — sonst Kontrast-Kollision mit Tags. */}
       <div className="absolute top-1.5 right-1.5 flex items-stretch bg-surface-base border border-neutral-700 divide-x divide-neutral-700 opacity-0 group-hover:opacity-100 transition-opacity">
+        {session.isGitRepo && (
+          <DiffActionButton sessionId={session.id} errorSource="SessionCard.openDiff" />
+        )}
         <button
           onClick={(e) => {
             e.stopPropagation();

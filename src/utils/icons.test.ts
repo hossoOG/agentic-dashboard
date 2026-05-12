@@ -27,6 +27,7 @@ describe("ICONS registry", () => {
       "close",
       "collapse",
       "detach",
+      "diff",
       "download",
       "externalLink",
       "folderOpen",

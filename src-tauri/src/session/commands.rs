@@ -95,11 +95,19 @@ pub mod commands {
 
     #[tauri::command]
     pub async fn close_session(
+        app: AppHandle,
         manager: State<'_, Arc<SessionManager>>,
         id: String,
     ) -> Result<(), ADPError> {
+        use tauri::Emitter;
         log::info!("close_session called: id={}", id);
-        manager.close_session(&id)
+        let result = manager.close_session(&id);
+        // Notifies any open diff-window for this session that the session
+        // is gone — Diff-Window flips its banner + disables Refresh.
+        if let Err(e) = app.emit(&format!("session-deleted/{}", id), id.clone()) {
+            log::debug!("Failed to emit session-deleted/{}: {}", id, e);
+        }
+        result
     }
 
     #[tauri::command]
@@ -117,5 +125,72 @@ pub mod commands {
     ) -> Result<Vec<super::super::agent_detector::WorktreeInfo>, ADPError> {
         log::debug!("scan_worktrees called: folder={}", folder);
         super::super::agent_detector::scan_worktrees_in_folder(&folder)
+    }
+
+    /// Diff zwischen Session-Snapshot und aktuellem Working-Tree.
+    /// Liefert ein `SessionDiff` mit File-Liste, Stats und (sofern unter
+    /// Budget) den eigentlichen Datei-Inhalten.
+    #[tauri::command]
+    pub async fn get_session_diff(
+        manager: State<'_, Arc<SessionManager>>,
+        session_id: String,
+    ) -> Result<super::super::diff::SessionDiff, ADPError> {
+        log::debug!("get_session_diff called: session_id={}", session_id);
+        crate::validation::validate_session_id(&session_id)?;
+
+        let info = manager.get_session_info(&session_id).ok_or_else(|| {
+            ADPError::new(
+                crate::error::ADPErrorCode::SessionNotFound,
+                format!("Session not found: {session_id}"),
+            )
+        })?;
+        if !info.is_git_repo {
+            return Err(ADPError::new(
+                crate::error::ADPErrorCode::CommandExecutionFailed,
+                "Session folder is not a git repository",
+            ));
+        }
+        let commit = info.snapshot_commit.as_ref().ok_or_else(|| {
+            ADPError::new(
+                crate::error::ADPErrorCode::CommandExecutionFailed,
+                "Session has no snapshot commit",
+            )
+        })?;
+        let snapshot_at = info.snapshot_at.ok_or_else(|| {
+            ADPError::new(
+                crate::error::ADPErrorCode::CommandExecutionFailed,
+                "Session has no snapshot timestamp",
+            )
+        })?;
+        let folder = std::path::PathBuf::from(&info.folder);
+        super::super::diff::compute_session_diff(&folder, &session_id, commit, snapshot_at)
+    }
+
+    /// Oeffnet das Diff-Window fuer eine Session, oder fokussiert es,
+    /// falls bereits offen. Label: `diff-<sessionId>`.
+    #[tauri::command]
+    pub async fn open_session_diff_window(
+        app: tauri::AppHandle,
+        session_id: String,
+    ) -> Result<(), ADPError> {
+        use tauri::{Manager, WebviewWindowBuilder};
+
+        log::info!("open_session_diff_window called: session_id={}", session_id);
+        crate::validation::validate_session_id(&session_id)?;
+
+        let label = format!("diff-{}", session_id);
+        if let Some(win) = app.get_webview_window(&label) {
+            let _ = win.set_focus();
+            return Ok(());
+        }
+
+        let url = format!("index.html?view=diff&sessionId={}", session_id);
+        WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::App(url.into()))
+            .title("AgenticExplorer — Diff")
+            .inner_size(1200.0, 800.0)
+            .resizable(true)
+            .build()
+            .map_err(|e| ADPError::internal(format!("Failed to create diff window: {}", e)))?;
+        Ok(())
     }
 }

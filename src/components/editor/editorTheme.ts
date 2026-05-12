@@ -53,6 +53,36 @@ const theme = EditorView.theme(
     ".cm-scroller": {
       overflow: "auto",
     },
+
+    /* ── Diff classes (@codemirror/merge) — no-ops when the view is not a diff ── */
+    ".cm-deletedLine, .cm-deletedChunk": {
+      backgroundColor: "var(--diff-removed-bg)",
+    },
+    ".cm-insertedLine, .cm-insertedChunk": {
+      backgroundColor: "var(--diff-added-bg)",
+    },
+    ".cm-changedLine": {
+      backgroundColor: "var(--diff-added-bg)",
+    },
+    ".cm-deletedText": {
+      backgroundColor: "var(--diff-removed-emph)",
+    },
+    ".cm-changedText": {
+      backgroundColor: "var(--diff-added-emph)",
+    },
+    ".cm-deletedChunkGutter, .cm-changedLineGutter": {
+      color: "var(--color-error)",
+    },
+    ".cm-insertedChunkGutter": {
+      color: "var(--color-success)",
+    },
+    /* Hide @codemirror/merge accept/reject widgets — feature is out-of-scope
+       per tasks/2026-05-12-session-diff-window-design.md (backlog: needs
+       file-write backend command + conflict detection). Clicking did nothing
+       anyway because the editor is readOnly. */
+    ".cm-acceptChunk, .cm-rejectChunk, .cm-mergeControl, .cm-deletedChunk button, .cm-insertedChunk button, .cm-changedLineGutter button": {
+      display: "none",
+    },
   },
   // Note: dark: false allows CSS variables to control both modes.
   // The CSS variables (--surface-base, --neutral-*, etc.) switch automatically

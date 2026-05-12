@@ -31,6 +31,10 @@ export interface ClaudeSession {
   exitCode: number | null;
   lastOutputAt: number;          // Fuer "wartet"-Heuristik
   lastOutputSnippet: string;     // Letzte ~200 Zeichen fuer Status-Anzeige
+  /** Set bei Session-Start vom Rust-Backend — kontrolliert Sichtbarkeit des Diff-Buttons. */
+  isGitRepo?: boolean;
+  /** Snapshot-Commit-Hash, der dem Diff-Window als Baseline dient. */
+  snapshotCommit?: string;
 }
 
 // ============================================================================
@@ -85,6 +89,8 @@ export interface SessionState {
     folder: string;
     shell: SessionShell;
     claudeSessionId?: string;
+    isGitRepo?: boolean;
+    snapshotCommit?: string;
   }) => void;
   removeSession: (id: string) => void;
   setActiveSession: (id: string | null) => void;
@@ -147,6 +153,8 @@ export const useSessionStore = create<SessionState>((set) => ({
         exitCode: null,
         lastOutputAt: Date.now(),
         lastOutputSnippet: "",
+        isGitRepo: params.isGitRepo,
+        snapshotCommit: params.snapshotCommit,
       };
       return {
         sessions: [...state.sessions, session],

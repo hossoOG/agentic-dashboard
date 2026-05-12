@@ -35,6 +35,24 @@ export interface UseSessionCreationReturn {
   handleNewSessionFromDefaults: () => Promise<void>;
 }
 
+/**
+ * Shape returned by the Rust `create_session` command — mirrors `SessionInfo`
+ * with the snapshot fields renamed for camelCase consumption.
+ *
+ * The diff-window feature relies on `isGitRepo`/`snapshotCommit` to decide
+ * whether to render the Diff-Button + whether the future diff-call has a
+ * baseline to compare against. Both fields are optional because the Rust
+ * struct hides them via `skip_serializing_if = "Option::is_none"`.
+ */
+interface CreateSessionResult {
+  id: string;
+  title: string;
+  folder: string;
+  shell: string;
+  isGitRepo?: boolean;
+  snapshotCommit?: string;
+}
+
 export function useSessionCreation(): UseSessionCreationReturn {
   const handleResumeSession = useCallback(
     async (resumeSessionId: string, cwd: string, resumeTitle?: string) => {
@@ -43,12 +61,7 @@ export function useSessionCreation(): UseSessionCreationReturn {
       const shell = "powershell";
 
       try {
-        const result = await wrapInvoke<{
-          id: string;
-          title: string;
-          folder: string;
-          shell: string;
-        }>("create_session", {
+        const result = await wrapInvoke<CreateSessionResult>("create_session", {
           id,
           folder: cwd,
           title,
@@ -65,6 +78,8 @@ export function useSessionCreation(): UseSessionCreationReturn {
           folder: result?.folder ?? cwd,
           shell: (result?.shell ?? shell) as SessionShell,
           claudeSessionId: resumeSessionId,
+          isGitRepo: result?.isGitRepo,
+          snapshotCommit: result?.snapshotCommit,
         });
       } catch (err) {
         logError("useSessionCreation.resumeSession", err);
@@ -80,12 +95,7 @@ export function useSessionCreation(): UseSessionCreationReturn {
     const shell = favorite.shell;
 
     try {
-      const result = await wrapInvoke<{
-        id: string;
-        title: string;
-        folder: string;
-        shell: string;
-      }>("create_session", {
+      const result = await wrapInvoke<CreateSessionResult>("create_session", {
         id,
         folder,
         title,
@@ -100,6 +110,8 @@ export function useSessionCreation(): UseSessionCreationReturn {
         displayId: generateUniqueDisplayId(sessions),
         folder: result?.folder ?? folder,
         shell: (result?.shell ?? shell) as SessionShell,
+        isGitRepo: result?.isGitRepo,
+        snapshotCommit: result?.snapshotCommit,
       });
       useSettingsStore.getState().updateFavoriteLastUsed(favorite.id);
       useUIStore.getState().closePreview();
@@ -139,12 +151,12 @@ export function useSessionCreation(): UseSessionCreationReturn {
     const title = extractFolderName(folder);
 
     try {
-      const result = await wrapInvoke<{
-        id: string;
-        title: string;
-        folder: string;
-        shell: string;
-      }>("create_session", { id, folder, title, shell });
+      const result = await wrapInvoke<CreateSessionResult>("create_session", {
+        id,
+        folder,
+        title,
+        shell,
+      });
 
       const sessionId = result?.id ?? id;
       const sessions = useSessionStore.getState().sessions;
@@ -154,6 +166,8 @@ export function useSessionCreation(): UseSessionCreationReturn {
         displayId: generateUniqueDisplayId(sessions),
         folder: result?.folder ?? folder,
         shell: (result?.shell ?? shell) as SessionShell,
+        isGitRepo: result?.isGitRepo,
+        snapshotCommit: result?.snapshotCommit,
       });
       useUIStore.getState().closePreview();
 
