@@ -4,6 +4,12 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { tauriStorage, getLoadedFavorites, getLoadedNotes, registerNoteFlush } from "./tauriStorage";
 import { logError } from "../utils/errorLogger";
 import { broadcastPreferencesChange } from "../utils/preferencesBroadcast";
+import {
+  DEFAULT_TAB_CONFIG,
+  sanitizeOverrides,
+  sanitizeTabConfig,
+  type TabConfig,
+} from "./tabConfig";
 
 // ============================================================================
 // Types
@@ -172,6 +178,13 @@ export interface SettingsState {
   sessionRestore: SessionRestoreData;
   /** User-defined titles for Claude session IDs (history/resume override). */
   sessionTitleOverrides: Record<string, string>;
+  /** Global default tab-bar configuration (applies to all projects). */
+  defaultTabConfig: TabConfig;
+  /**
+   * Per-project tab-bar overrides — stores only the fields that diverge
+   * from the default (Partial<TabConfig>). Key: `normalizeProjectKey(folder)`.
+   */
+  projectTabOverrides: Record<string, Partial<TabConfig>>;
 
   // Actions
   setTheme: (partial: Partial<ThemeSettings>) => void;
@@ -211,6 +224,17 @@ export interface SettingsState {
   addPinnedDoc: (folder: string, relativePath: string, label?: string) => string | null;
   removePinnedDoc: (folder: string, pinId: string) => void;
   renamePinnedDoc: (folder: string, pinId: string, label: string) => void;
+
+  /** Replace the global default tab-bar configuration. */
+  setDefaultTabConfig: (cfg: TabConfig) => void;
+  /**
+   * Merge a Partial<TabConfig> patch into the override for a project.
+   * Order-only updates leave `hidden` intact and vice versa — this is
+   * intentional, otherwise drag-reorder would wipe the hidden list.
+   */
+  setProjectTabOverride: (folder: string, patch: Partial<TabConfig>) => void;
+  /** Drop the override key entirely (prevents Bloat across many projects). */
+  resetProjectTabOverride: (folder: string) => void;
 
   resetToDefaults: () => void;
 }
@@ -383,6 +407,44 @@ function saveFavoritesFile(favorites: FavoriteFolder[]): void {
 }
 
 // ============================================================================
+// Cross-store sync helper
+// ============================================================================
+
+/**
+ * After a tab-config mutation, ensure `uiStore.configSubTab` still
+ * resolves to a visible non-pin tab. If the active tab was hidden out
+ * (via override.hidden or removed from order) we fall back to the first
+ * tab in the project's effective order.
+ *
+ * Pin tabs (`pin:*`) are skipped — they're not gated by tab-config.
+ *
+ * Lazy-imports `uiStore` to avoid a hard module-init dependency cycle.
+ */
+function syncConfigSubTab(folderKey: string): void {
+  // Defer one microtask so the persist middleware can finish writing.
+  void import("./uiStore").then(({ useUIStore }) => {
+    const ui = useUIStore.getState();
+    const currentTab = ui.configSubTab;
+    if (currentTab.startsWith("pin:")) return;
+
+    const settings = useSettingsStore.getState();
+    const override = settings.projectTabOverrides[folderKey] ?? {};
+    const order = override.order ?? settings.defaultTabConfig.order;
+    const hidden = new Set(override.hidden ?? settings.defaultTabConfig.hidden);
+    const visibleOrder = order.filter((id) => !hidden.has(id));
+
+    // Active tab still visible — nothing to do.
+    if (visibleOrder.includes(currentTab as (typeof visibleOrder)[number])) return;
+
+    // Fallback to first visible. Guaranteed >= 1 by the dialog constraint
+    // (last sichtbare Checkbox disabled) — defensive fallback `github`
+    // mirrors the legacy ConfigPanelTabList behavior.
+    const next = visibleOrder[0] ?? "github";
+    ui.setConfigSubTab(next);
+  }).catch(() => { /* uiStore unreachable — non-fatal */ });
+}
+
+// ============================================================================
 // Store (with persist middleware)
 // ============================================================================
 
@@ -404,6 +466,8 @@ export const useSettingsStore = create<SettingsState>()(
       pinnedDocs: {},
       sessionRestore: defaultSessionRestore,
       sessionTitleOverrides: {},
+      defaultTabConfig: { ...DEFAULT_TAB_CONFIG, order: [...DEFAULT_TAB_CONFIG.order], hidden: [...DEFAULT_TAB_CONFIG.hidden] },
+      projectTabOverrides: {},
 
       setSessionRestore: (data) => set({ sessionRestore: data }),
 
@@ -660,6 +724,47 @@ export const useSettingsStore = create<SettingsState>()(
           };
         }),
 
+      setDefaultTabConfig: (cfg) =>
+        set({ defaultTabConfig: sanitizeTabConfig(cfg) }),
+
+      setProjectTabOverride: (folder, patch) => {
+        const key = normalizeProjectKey(folder);
+        if (!key) return;
+        // Sanitize the incoming patch before storing — defense in depth so
+        // a caller can't poison the store with unknown TabIds.
+        const sanitizedPatch: Partial<TabConfig> = {};
+        if (patch.order !== undefined) {
+          sanitizedPatch.order = sanitizeTabConfig({ order: patch.order, hidden: [] }).order;
+        }
+        if (patch.hidden !== undefined) {
+          sanitizedPatch.hidden = sanitizeTabConfig({ order: [], hidden: patch.hidden }).hidden;
+        }
+        if (Object.keys(sanitizedPatch).length === 0) return;
+
+        set((state) => {
+          const existing = state.projectTabOverrides[key] ?? {};
+          // Patch-Merge — Spec §4.2: kein Vollersetzen, sonst geht bei
+          // reinem Order-Update das `hidden` verloren.
+          const merged: Partial<TabConfig> = { ...existing, ...sanitizedPatch };
+          return {
+            projectTabOverrides: { ...state.projectTabOverrides, [key]: merged },
+          };
+        });
+        syncConfigSubTab(key);
+      },
+
+      resetProjectTabOverride: (folder) => {
+        const key = normalizeProjectKey(folder);
+        if (!key) return;
+        set((state) => {
+          if (!(key in state.projectTabOverrides)) return state;
+          const next = { ...state.projectTabOverrides };
+          delete next[key];
+          return { projectTabOverrides: next };
+        });
+        syncConfigSubTab(key);
+      },
+
       resetToDefaults: () =>
         set((state) => ({
           theme: defaultTheme,
@@ -698,8 +803,10 @@ export const useSettingsStore = create<SettingsState>()(
         pinnedDocs: state.pinnedDocs,
         sessionRestore: state.sessionRestore,
         sessionTitleOverrides: state.sessionTitleOverrides,
+        defaultTabConfig: state.defaultTabConfig,
+        projectTabOverrides: state.projectTabOverrides,
       }),
-      version: 3,
+      version: 4,
       migrate: (persisted: unknown, _version: number) => {
         // Deep-merge persisted data with defaults so new fields get defaults
         // while existing values are preserved. This prevents undefined fields
@@ -720,6 +827,8 @@ export const useSettingsStore = create<SettingsState>()(
           pinnedDocs: {} as Record<string, PinnedDoc[]>,
           sessionRestore: defaultSessionRestore,
           sessionTitleOverrides: {} as Record<string, string>,
+          defaultTabConfig: { ...DEFAULT_TAB_CONFIG, order: [...DEFAULT_TAB_CONFIG.order], hidden: [...DEFAULT_TAB_CONFIG.hidden] },
+          projectTabOverrides: {} as Record<string, Partial<TabConfig>>,
         };
         if (!persisted || typeof persisted !== "object") return defaults as unknown as SettingsState;
         const p = persisted as Record<string, unknown>;
@@ -767,6 +876,12 @@ export const useSettingsStore = create<SettingsState>()(
               ),
             )
             : defaults.sessionTitleOverrides,
+          // v4: Tab-Bar-Konfig pro Projekt. Sanitize läuft IMMER (auch wenn
+          // Felder schon existieren) — fängt korrupte persistierte States
+          // sofort am migrate-Punkt ab. onRehydrateStorage doppelt-prüft
+          // für same-version-Hydrationen.
+          defaultTabConfig: sanitizeTabConfig(p.defaultTabConfig),
+          projectTabOverrides: sanitizeOverrides(p.projectTabOverrides),
         } as unknown as SettingsState; // Actions are added by Zustand during merge
       },
       onRehydrateStorage: () => (state, error) => {
@@ -801,6 +916,18 @@ export const useSettingsStore = create<SettingsState>()(
           const validatedRestore = validateSessionRestore(state.sessionRestore);
           if (JSON.stringify(validatedRestore) !== JSON.stringify(state.sessionRestore)) {
             patches.sessionRestore = validatedRestore;
+          }
+
+          // Same-version-Corruption-Recovery für Tab-Konfig (Issue #209-Klasse).
+          // Sanitize läuft hier zusätzlich zum migrate-Hook, damit korrupte
+          // same-version Payloads ebenfalls bereinigt werden.
+          const validatedDefault = sanitizeTabConfig(state.defaultTabConfig);
+          if (JSON.stringify(validatedDefault) !== JSON.stringify(state.defaultTabConfig)) {
+            patches.defaultTabConfig = validatedDefault;
+          }
+          const validatedOverrides = sanitizeOverrides(state.projectTabOverrides);
+          if (JSON.stringify(validatedOverrides) !== JSON.stringify(state.projectTabOverrides)) {
+            patches.projectTabOverrides = validatedOverrides;
           }
         }
 

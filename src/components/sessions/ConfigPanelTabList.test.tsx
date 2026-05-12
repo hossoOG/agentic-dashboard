@@ -31,8 +31,14 @@ vi.mock("../../store/settingsStore", () => ({
       addPinnedDoc: vi.fn(),
       removePinnedDoc: vi.fn(),
       renamePinnedDoc: vi.fn(),
+      defaultTabConfig: {
+        order: ["claude-md", "skills", "hooks", "settings", "agents", "github", "worktrees", "kanban", "history"],
+        hidden: [],
+      },
+      projectTabOverrides: {},
+      setProjectTabOverride: vi.fn(),
     }),
-  normalizeProjectKey: (f: string) => f.replace(/\\/g, "/").toLowerCase(),
+  normalizeProjectKey: (f: string) => f.replace(/\\/g, "/").toLowerCase().replace(/\/+$/, ""),
 }));
 
 /**

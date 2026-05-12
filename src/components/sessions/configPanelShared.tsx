@@ -47,6 +47,35 @@ export const CONFIG_TABS: ConfigTab[] = [
   { id: "history",   label: "History",   icon: Clock,    group: "history" },
 ];
 
+/**
+ * Lookup map by TabId (non-pin variants of ConfigSubTab). Used by the
+ * pure `getTabsForProject` resolver so it does not need to scan the
+ * `CONFIG_TABS` array per request.
+ */
+export const CONFIG_TABS_BY_ID: Record<string, ConfigTab> = Object.fromEntries(
+  CONFIG_TABS.map((tab) => [tab.id, tab]),
+);
+
+/**
+ * Presence-gate predicate. Returns `true` when a tab should remain
+ * visible based on the current presence map. Used by both the legacy
+ * inline `visibleTabs` filter and the new `getTabsForProject` resolver
+ * — keeping the rule in one place prevents drift.
+ *
+ * - Tab without `requiresPresence` → always visible.
+ * - Presence still loading (`null`) → visible to avoid layout flash.
+ * - Otherwise → visible iff the matching artifact exists.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function meetsPresence(
+  tab: ConfigTab,
+  presence: Record<PresenceKey, boolean> | null,
+): boolean {
+  if (!tab.requiresPresence) return true;
+  if (presence === null) return true;
+  return presence[tab.requiresPresence];
+}
+
 interface ConfigPanelContentProps {
   folder: string;
   activeTab: ConfigSubTab;
